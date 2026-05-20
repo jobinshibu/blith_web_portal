@@ -1,0 +1,709 @@
+@import '../../styles/variables';
+
+.event-details-page {
+  background-color: #fafafa;
+  min-height: 100vh;
+  padding-bottom: 5rem;
+
+  .hero-banner {
+    height: 450px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 4rem;
+    color: $white;
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%);
+    }
+
+    .banner-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: rgba($white, 0.8);
+      text-decoration: none;
+      font-weight: 600;
+      margin-bottom: 2rem;
+      transition: color 0.3s ease;
+
+      &:hover {
+        color: $white;
+      }
+    }
+
+    .category-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background-color: $lavender-600;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .event-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      line-height: 1.1;
+      max-width: 800px;
+    }
+
+    .quick-meta {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+
+      span {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: rgba($white, 0.9);
+      }
+    }
+  }
+
+  .main-content {
+    margin-top: 0.5rem;
+    position: relative;
+    z-index: 5;
+  }
+
+  .details-header-bar {
+    padding-top: 1.5rem;
+    padding-bottom: 1rem;
+    .back-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: $text-700;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.3s ease;
+      &:hover { color: $lavender-600; }
+    }
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+
+    @media (max-width: 1024px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    color: $text-900;
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+
+    svg {
+      color: $lavender-600;
+    }
+  }
+
+  .glass {
+    background: rgba($white, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba($white, 0.3);
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    box-shadow: $shadow-lg;
+    margin-bottom: 2rem;
+  }
+
+  .about-details-card {
+    .description {
+      font-size: 1.1rem;
+      line-height: 1.8;
+      color: $text-700;
+      white-space: pre-line;
+    }
+  }
+
+  .venue-details-card {
+    .venue-info {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 2rem;
+
+      @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .map-placeholder {
+      height: 160px;
+      border-radius: 1rem;
+      overflow: hidden;
+      position: relative;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .map-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba($lavender-100, 0.3);
+        @include flex-center;
+      }
+    }
+
+    .venue-details {
+      h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        color: $text-500;
+        margin-bottom: 1.5rem;
+      }
+    }
+  }
+
+  .sticky-sidebar {
+    position: sticky;
+    top: 100px;
+  }
+
+  // --- Media Carousel Left Column ---
+  .media-carousel-area {
+    width: 100%;
+    
+    .main-carousel-view {
+      position: relative;
+      aspect-ratio: 3 / 4;
+      max-height: 600px;
+      border-radius: 1.5rem;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      background-color: $text-900;
+      box-shadow: $shadow-xl;
+      
+      .carousel-main-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      
+      .slide-arrow-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 48px;
+        height: 48px;
+        background: rgba($white, 0.2);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba($white, 0.3);
+        border-radius: 50%;
+        color: $white;
+        @include flex-center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 10;
+        
+        &:hover {
+          background: rgba($white, 0.4);
+          transform: translateY(-50%) scale(1.1);
+        }
+        
+        &.prev {
+          left: 1rem;
+        }
+        
+        &.next {
+          right: 1rem;
+        }
+      }
+    }
+
+  }
+
+  // --- Right Sidebar / Event Details Card ---
+  .event-info-sidebar {
+    position: sticky;
+    top: 100px;
+    margin-top: -4rem;
+  }
+
+  .event-details-card {
+    .card-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .mobile-date-highlight {
+      display: none; // Hidden on desktop
+    }
+    
+    .mobile-only-item {
+      display: none; // Hidden on desktop
+    }
+
+    .category-badge {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      background-color: $lavender-50;
+      color: $lavender-600;
+      border: 1px solid $lavender-200;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .event-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: $text-900;
+      line-height: 1.2;
+      margin-bottom: 1.5rem;
+    }
+
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba($lavender-200, 0.5);
+      margin-bottom: 1.5rem;
+
+      .label {
+        font-weight: 600;
+        color: $text-500;
+      }
+
+      .amount {
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: $lavender-600;
+      }
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+
+      .info-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        .icon-box {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          height: 48px;
+          border-radius: 1rem;
+          background: rgba($lavender-100, 0.5);
+          
+          .icon {
+            color: $lavender-600;
+          }
+        }
+        
+        .text-content {
+          flex: 1;
+        }
+
+        .chevron {
+          display: none; // Hidden on desktop
+        }
+
+        .val {
+          font-weight: 700;
+          font-size: 1.05rem;
+          color: $text-900;
+        }
+
+        .sub {
+          font-size: 0.85rem;
+          color: $text-500;
+        }
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+
+      .book-now-btn {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.1rem;
+        padding: 1.25rem;
+        background: linear-gradient(135deg, $lavender-600, $lavender-500);
+        color: $white;
+        border-radius: 1rem;
+        font-weight: 700;
+        box-shadow: 0 10px 25px rgba($lavender-600, 0.3);
+        transition: all 0.3s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 15px 35px rgba($lavender-600, 0.4);
+        }
+      }
+
+      .icon-action-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 1rem;
+        border: 2px solid $lavender-100;
+        background: $white;
+        color: $text-700;
+        @include flex-center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: $lavender-50;
+          color: $lavender-600;
+          border-color: $lavender-200;
+          transform: translateY(-2px);
+        }
+      }
+    }
+
+    .guarantee {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: $text-500;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  }
+
+  .mobile-terms {
+    display: none;
+  }
+
+  // Terms and Conditions specific styles
+  .terms-details-card {
+    .terms-list {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      color: $text-700;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      
+      li {
+        margin-bottom: 0.75rem;
+        &::marker {
+          color: $lavender-400;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 1024px) {
+  .event-details-page {
+    .content-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .event-info-sidebar {
+      position: static;
+    }
+  }
+}
+
+// Desktop: hide mobile-only elements
+.event-details-page {
+  .mobile-fixed-booking-bar {
+    display: none;
+  }
+  .desktop-booking-box {
+    display: block;
+  }
+  .mobile-terms {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .event-details-page {
+    padding-bottom: 6rem; // space for fixed bottom bar
+    
+    // Header actions overlay
+    .details-header-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 100;
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      
+      .back-link-btn {
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
+        color: #fff;
+        padding: 0.5rem;
+        border-radius: 50%;
+        .text { display: none; }
+      }
+      
+      .header-actions {
+        display: flex;
+        gap: 0.75rem;
+        .icon-action-btn {
+          width: 40px;
+          height: 40px;
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(8px);
+          border: none;
+          color: #fff;
+          border-radius: 50%;
+          @include flex-center;
+        }
+      }
+    }
+
+    // Edge-to-edge carousel
+    .main-content {
+      margin-top: 0;
+    }
+    .content-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .media-carousel-area, .event-info-sidebar {
+      display: contents;
+    }
+
+    .main-carousel-view {
+      order: 1;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      width: 100vw !important;
+      height: 55vh !important;
+      max-height: none;
+      margin-left: calc(-50vw + 50%) !important;
+      border-radius: 0 !important;
+      border: none;
+      margin-bottom: 0;
+      
+      .carousel-main-image {
+        border-radius: 0 !important;
+        object-fit: cover !important;
+        width: 100vw !important;
+        height: 100% !important;
+      }
+    }
+
+    .event-details-card {
+      order: 2;
+      width: 100vw !important;
+      margin-left: calc(-50vw + 50%) !important;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 10;
+      margin-top: -3rem !important; // Overlap sticky carousel
+      
+      background: rgba($white, 0.95);
+      border-radius: 2rem 2rem 0 0;
+      padding: 2.5rem 1.5rem 2rem;
+      border: none;
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: rgba($text-500, 0.3);
+        border-radius: 4px;
+      }
+      
+      .event-title {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+        color: $text-900;
+      }
+      
+      .mobile-date-highlight {
+        display: block;
+        color: $lavender-600;
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      
+      .desktop-date-time {
+        display: none; // Hide desktop individual date/time
+      }
+      
+      .mobile-only-item {
+        display: flex; // Show mobile combined schedule
+      }
+
+      .category-badge {
+        background: rgba($lavender-100, 0.5);
+        color: $lavender-600;
+        border: none;
+      }
+
+      .info-list .info-item {
+        gap: 1rem;
+        margin-bottom: 1rem;
+        
+        .icon-box {
+          background: rgba($lavender-100, 0.5);
+          border-radius: 12px;
+          width: 52px;
+          height: 52px;
+          .icon { color: $lavender-600; }
+        }
+        
+        .val { color: $text-900; font-weight: 600; font-size: 1rem; margin-bottom: 0.15rem; }
+        .sub { color: $text-500; font-size: 0.85rem; }
+        
+        .chevron {
+          display: block;
+          color: $text-500;
+        }
+      }
+
+      .guarantee { display: none; }
+    }
+
+    // Extra details cards adapt to mobile layout
+    .about-details-card { order: 3; }
+    .venue-details-card { order: 4; }
+    
+    .about-details-card, 
+    .venue-details-card, 
+    .terms-details-card {
+      width: 100vw !important;
+      margin-left: calc(-50vw + 50%) !important;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 10;
+      
+      background: rgba($white, 0.95);
+      border: none;
+      border-radius: 0;
+      margin-bottom: 0;
+      padding: 1.5rem;
+      border-top: 1px solid rgba($lavender-200, 0.3);
+      
+      .section-header h2 { color: $text-900; }
+      .description, .venue-details p, .terms-list { color: $text-500; }
+      .terms-list li::marker { color: $text-500; }
+    }
+
+    .desktop-terms { display: none; }
+    .mobile-terms { 
+      display: block; 
+      order: 5;
+      padding-bottom: 8rem; // Room for fixed booking bar
+    }
+
+    // Mobile Fixed Bottom Bar
+    .desktop-booking-box {
+      display: none !important;
+    }
+    
+    .mobile-fixed-booking-bar {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba($white, 0.98);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid $lavender-100;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 -4px 20px rgba($lavender-600, 0.1);
+      
+      .price-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0;
+        background: transparent;
+        padding: 0;
+        border: none;
+        .amount {
+          color: $text-900;
+          font-size: 1.25rem;
+          font-weight: 700;
+          line-height: 1;
+        }
+        .amount-sub {
+          font-size: 0.8rem;
+          color: $text-500;
+          margin-top: 0.2rem;
+        }
+      }
+      
+      .action-buttons {
+        gap: 0;
+        .book-now-btn {
+          border-radius: 0.5rem;
+          padding: 0.75rem 1.5rem;
+          font-weight: 700;
+          border: none;
+          svg { display: none; } // remove ticket icon for cleaner look
+        }
+      }
+    }
+  }
+}

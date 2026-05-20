@@ -1,0 +1,42 @@
+// Colors
+$lavender-600: #7C3AED;
+$lavender-500: #8B5CF6;
+$lavender-400: #A78BFA;
+$lavender-200: #DDD6FE;
+$lavender-100: #EDE9FE;
+$lavender-50: #F5F3FF;
+
+$text-900: #111827;
+$text-700: #374151;
+$text-500: #6B7280;
+
+$white: #FFFFFF;
+$black: #000000;
+
+// Typography
+$font-heading: 'Outfit', sans-serif;
+$font-body: 'Inter', sans-serif;
+
+// Shadows
+$shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+$shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+$shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+$shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+// Radius
+$radius-lg: 1rem;
+$radius-md: 0.5rem;
+$radius-full: 9999px;
+
+// Mixins
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin text-gradient {
+  background: linear-gradient(135deg, $lavender-600, $lavender-400);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
