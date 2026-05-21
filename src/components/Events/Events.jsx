@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MOCK_EVENTS } from '../../data/events';
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from '../../firebase';
 import './Events.scss';
 
 const EXPLORE_CATEGORIES = [
@@ -150,8 +151,77 @@ const Events = () => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0); // 0 = May, 1 = June
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const calendarRef = useRef(null);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const eventsQuery = query(collection(db, "event"), where("deleted", "==", false));
+        const querySnapshot = await getDocs(eventsQuery);
+        
+        // Map and filter out blocked or expired events
+        const eventsData = querySnapshot.docs
+          .filter(doc => {
+            const data = doc.data();
+            const isNotBlocked = data.block === false;
+            const isNotExpired = data.eventEndDate ? data.eventEndDate.toDate() >= new Date() : true;
+            return isNotBlocked && isNotExpired;
+          })
+          .map(doc => {
+          const data = doc.data();
+          
+          // Format date and time
+          const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
+          const endDateObj = data.eventEndDate ? data.eventEndDate.toDate() : null;
+          
+          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          let formattedDate = formattedStartDate;
+          const formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+          
+          if (endDateObj) {
+            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            if (formattedStartDate !== formattedEndDate) {
+              formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
+            }
+          }
+          
+          // Determine price
+          let displayPrice = "Free";
+          if (data.tickets && data.tickets.length > 0) {
+            const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
+            displayPrice = minPrice > 0 ? `₹${minPrice} onwards` : "Free";
+          } else if (data.price > 0) {
+            displayPrice = `₹${data.price}`;
+          }
+
+          return {
+            id: doc.id,
+            title: data.eventName || "Untitled Event",
+            image: (data.image && data.image.length > 0) ? data.image[0] : "",
+            date: formattedDate,
+            time: formattedTime,
+            location: data.location || data.venue || "TBA",
+            price: displayPrice,
+            category: data.category || "Other",
+            promoted: data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date(),
+            hashtags: data.tags || [],
+            raw: data
+          };
+        });
+        setEvents(eventsData);
+      } catch (error) {
+        console.error("Error fetching events: ", error);
+        setError(error.message || "An unknown error occurred while fetching events.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
 
   // Close calendar dropdown when clicking outside
   useEffect(() => {
@@ -167,7 +237,7 @@ const Events = () => {
   }, []);
 
   // Filter promoted events for the carousel
-  const promotedEvents = MOCK_EVENTS.filter(e => e.promoted);
+  const promotedEvents = events.filter(e => e.promoted);
 
   // Auto-play for the Featured Carousel (Decreased scroll time to 3.0 seconds)
   useEffect(() => {
@@ -278,7 +348,7 @@ const Events = () => {
   };
 
   // Filter events based on selections
-  const filteredEvents = MOCK_EVENTS.filter(event => {
+  const filteredEvents = events.filter(event => {
     // 1. Hashtag Focused Search Query
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
@@ -353,9 +423,23 @@ const Events = () => {
 
   return (
     <div className="events-page">
-      {/* Featured Event Hero Section */}
-      {activeFeaturedEvent && (
-        <section className="hero-carousel-section">
+      {loading ? (
+        <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5rem', color: '#7C3AED' }}>
+          Loading live events...
+        </div>
+      ) : error ? (
+        <div className="error-container" style={{ padding: '5rem', textAlign: 'center' }}>
+          <h2 style={{ color: '#EF4444', marginBottom: '1rem' }}>Failed to load events</h2>
+          <p style={{ color: '#fff', backgroundColor: 'rgba(239, 68, 68, 0.2)', padding: '1rem', borderRadius: '0.5rem', display: 'inline-block' }}>
+            {error}
+          </p>
+          <p style={{ marginTop: '1rem', color: '#9CA3AF' }}>Check your Firebase Security Rules or internet connection.</p>
+        </div>
+      ) : (
+        <>
+          {/* Featured Event Hero Section */}
+          {activeFeaturedEvent && (
+            <section className="hero-carousel-section">
           {/* Immersive Blurry Backdrop */}
           <div 
             className="hero-backdrop" 
@@ -385,7 +469,7 @@ const Events = () => {
                 <div className="hero-content-col">
                   <div className="hero-date-time">
                     <Calendar size={18} className="orange-icon" />
-                    <span>{activeFeaturedEvent.date}, {activeFeaturedEvent.time}</span>
+                    <span>{activeFeaturedEvent.date}</span>
                   </div>
                   <h1 className="hero-title">{activeFeaturedEvent.title}</h1>
                   
@@ -393,10 +477,6 @@ const Events = () => {
                     <div className="hero-meta-item">
                       <MapPin size={18} className="meta-icon" />
                       <span>{activeFeaturedEvent.location}</span>
-                    </div>
-                    <div className="hero-meta-item">
-                      <Clock size={18} className="meta-icon" />
-                      <span>{activeFeaturedEvent.time} onwards</span>
                     </div>
                   </div>
 
@@ -661,6 +741,7 @@ const Events = () => {
 
           {/* Events Portrait Grid */}
           <div className="events-main">
+
             {filteredEvents.length > 0 ? (
               <motion.div layout className="events-portrait-grid">
                 <AnimatePresence>
@@ -681,7 +762,7 @@ const Events = () => {
                         
                         <div className="portrait-card-details">
                           <span className="portrait-card-date">
-                            {event.date}, {event.time}
+                            {event.date}
                           </span>
                           <h3 className="portrait-card-title">{event.title}</h3>
                           <p className="portrait-card-location">{event.location}</p>
@@ -704,6 +785,8 @@ const Events = () => {
           </div>
         </section>
       </div>
+        </>
+      )}
     </div>
   );
 };

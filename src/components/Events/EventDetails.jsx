@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, Navigation, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MOCK_EVENTS } from '../../data/events';
+import { doc, getDoc } from "firebase/firestore";
+import { db } from '../../firebase';
 import Button from '../Button/Button';
 import BookingModal from './BookingModal';
 import './EventDetails.scss';
@@ -57,9 +58,80 @@ const getEventMedia = (event) => {
 const EventDetails = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [event, setEvent] = useState(null);
+  const [loading, setLoading] = useState(true);
   const { id } = useParams();
-  const event = MOCK_EVENTS.find(e => e.id === parseInt(id));
-  const mediaList = event ? getEventMedia(event) : [];
+
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        let docRef = doc(db, "event", id);
+        let docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          
+          // Format date and time
+          const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
+          const endDateObj = data.eventEndDate ? data.eventEndDate.toDate() : null;
+          
+          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          let formattedDate = formattedStartDate;
+          
+          let formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+          
+          if (endDateObj) {
+            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            if (formattedStartDate !== formattedEndDate) {
+              formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
+            }
+            
+            const endFormattedTime = endDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            if (formattedTime !== endFormattedTime) {
+              formattedTime = `${formattedTime} - ${endFormattedTime}`;
+            }
+          }
+          
+          // Determine price
+          let displayPrice = "Free";
+          if (data.tickets && data.tickets.length > 0) {
+            const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
+            displayPrice = minPrice > 0 ? `₹${minPrice} onwards` : "Free";
+          } else if (data.price > 0) {
+            displayPrice = `₹${data.price}`;
+          }
+
+          setEvent({ 
+            id: docSnap.id, 
+            title: data.eventName || "Untitled Event",
+            image: (data.image && data.image.length > 0) ? data.image[0] : "",
+            extraImages: (data.image && data.image.length > 1) ? data.image.slice(1) : [],
+            date: formattedDate,
+            time: formattedTime,
+            location: data.location || data.venue || "TBA",
+            geopoint: data.position?.geopoint || null,
+            price: displayPrice,
+            category: data.category || "Other",
+            eventType: data.eventType || "Offline",
+            ageRestriction: data.ageRestriction || false,
+            minAge: data.minAge || 18,
+            description: data.description || "No description provided.",
+            termsAndConditions: data.termsAndConditions || "No terms specified.",
+            raw: data 
+          });
+        } else {
+          console.log("No such event found with ID:", id);
+        }
+      } catch (error) {
+        console.error("Error fetching event details: ", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvent();
+  }, [id]);
+
+  const mediaList = event ? [event.image, ...(event.extraImages || [])].filter(Boolean) : [];
 
   // Auto-scroll for the carousel
   useEffect(() => {
@@ -69,6 +141,14 @@ const EventDetails = () => {
     }, 4000);
     return () => clearInterval(interval);
   }, [mediaList.length]);
+
+  if (loading) {
+    return (
+      <div className="loading-container container" style={{ padding: '5rem 0', textAlign: 'center', color: '#7C3AED' }}>
+        <h2>Loading event details...</h2>
+      </div>
+    );
+  }
 
   if (!event) {
     return (
@@ -137,26 +217,6 @@ const EventDetails = () => {
               <p className="description">{event.description}</p>
             </div>
 
-            {/* Venue & Location map card */}
-            <div className="venue-details-card glass">
-              <div className="section-header">
-                <MapPin size={22} />
-                <h2>Venue & Location</h2>
-              </div>
-              <div className="venue-info">
-                <div className="map-placeholder">
-                  <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&auto=format&fit=crop&q=60" alt="Map Location" />
-                  <div className="map-overlay">
-                    <MapPin size={32} color="#7C3AED" />
-                  </div>
-                </div>
-                <div className="venue-details">
-                  <h3>{event.location.split(',')[0]}</h3>
-                  <p>{event.location}</p>
-                  <Button variant="outline" size="sm">Get Directions</Button>
-                </div>
-              </div>
-            </div>
 
             {/* Terms & Conditions card (Left Column) */}
             <div className="terms-details-card glass desktop-terms">
@@ -164,14 +224,9 @@ const EventDetails = () => {
                 <Info size={22} />
                 <h2>Terms & Conditions</h2>
               </div>
-              <ul className="terms-list">
-                <li>Tickets once booked cannot be exchanged or refunded.</li>
-                <li>An Internet handling fee may be levied. Please check the total amount before payment.</li>
-                <li>We recommend that you arrive at least 30 minutes prior at the venue for a seamless entry.</li>
-                <li>It is mandatory to wear masks at all times and follow social distancing norms.</li>
-                <li>Please do not purchase tickets if you feel sick.</li>
-                <li>Unlawful resale (or attempted unlawful resale) of a ticket would lead to seizure or cancellation of that ticket without refund or other compensation.</li>
-              </ul>
+              <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
+                {event.termsAndConditions}
+              </p>
             </div>
           </div>
 
@@ -210,27 +265,43 @@ const EventDetails = () => {
                   <div className="icon-box"><Clock size={20} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.time}</p>
-                    <p className="sub">Start Time</p>
+                    <p className="sub">Event Time</p>
                   </div>
                 </div>
                 
-                <div className="info-item clickable">
+                <div className="info-item">
                   <div className="icon-box"><MapPin size={20} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.location.split(',')[0]}</p>
                     <p className="sub">{event.location}</p>
                   </div>
-                  <ChevronRight size={20} className="chevron" />
+                  <button 
+                    className="map-icon-btn" 
+                    onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`, '_blank')}
+                    title="View on Maps"
+                    aria-label="View on Maps"
+                  >
+                    <Navigation size={18} />
+                  </button>
                 </div>
 
-                <div className="info-item clickable mobile-only-item">
-                  <div className="icon-box"><Clock size={20} className="icon" /></div>
+                <div className="info-item mobile-only-item">
+                  <div className="icon-box"><Ticket size={20} className="icon" /></div>
                   <div className="text-content">
-                    <p className="val">Entry starts at {event.time}</p>
-                    <p className="sub">View full schedule & timeline</p>
+                    <p className="val">{event.eventType} Event</p>
+                    <p className="sub">Event Type</p>
                   </div>
-                  <ChevronRight size={20} className="chevron" />
                 </div>
+                
+                {event.ageRestriction && (
+                  <div className="info-item">
+                    <div className="icon-box"><AlertTriangle size={20} className="icon" style={{ color: '#F59E0B' }} /></div>
+                    <div className="text-content">
+                      <p className="val">Age Restricted</p>
+                      <p className="sub">Strictly {event.minAge} years and above</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <p className="guarantee">
