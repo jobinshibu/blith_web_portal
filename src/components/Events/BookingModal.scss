@@ -98,18 +98,98 @@
     width: 100%;
   }
 
-  /* STEP 1: TICKET SELECTION */
-  .ticket-selection-step {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 2.5rem;
-    align-items: start;
-
-    @media (max-width: 768px) {
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
+  /* ONE PAGE CHECKOUT */
+  .single-checkout-step {
+    .checkout-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+      align-items: stretch;
+      width: 100%;
     }
 
+    .checkout-left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 1rem;
+      
+      &.flex-end {
+        justify-content: flex-end;
+      }
+      
+      &.split-actions {
+        justify-content: space-between;
+      }
+
+      &.mt-4 {
+        margin-top: 1.5rem;
+      }
+    }
+
+    .section-block {
+      h3 {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: $text-900;
+        margin-bottom: 1.25rem;
+      }
+    }
+
+    /* DATE SELECTION */
+    .date-cards-container {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      
+      &::-webkit-scrollbar {
+        height: 4px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: rgba($lavender-200, 0.8);
+        border-radius: 4px;
+      }
+
+      .date-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 80px;
+        padding: 0.75rem;
+        background: rgba($white, 0.6);
+        border: 1px solid rgba($lavender-200, 0.6);
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        .date-month { font-size: 0.75rem; color: $text-500; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem; }
+        .date-day { font-size: 1.5rem; font-weight: 800; color: $text-900; margin-bottom: 0.25rem; }
+        .date-weekday { font-size: 0.8rem; color: $text-500; font-weight: 600; }
+
+        &:hover {
+          border-color: $lavender-400;
+          background: rgba($white, 0.9);
+          transform: translateY(-2px);
+        }
+
+        &.selected {
+          border-color: $lavender-600;
+          background: rgba($lavender-50, 0.6);
+          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
+          
+          .date-day, .date-month, .date-weekday { color: $lavender-600; }
+        }
+      }
+    }
+
+    /* TICKET TIERS */
     .ticket-tiers-list {
       display: flex;
       flex-direction: column;
@@ -140,6 +220,12 @@
         box-shadow: 0 10px 20px -5px rgba(124, 58, 237, 0.08);
       }
 
+      &.unavailable {
+        opacity: 0.6;
+        pointer-events: none;
+        filter: grayscale(100%);
+      }
+
       .tier-info {
         flex: 1;
 
@@ -166,23 +252,14 @@
           font-size: 0.875rem;
           color: $text-500;
           line-height: 1.4;
-          margin-bottom: 1rem;
-        }
 
-        .tier-perks {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-
-          .perk-pill {
-            font-size: 0.75rem;
+          &.error-text {
+            color: #DC2626;
             font-weight: 600;
-            background: rgba($lavender-100, 0.4);
-            color: $lavender-600;
-            padding: 0.25rem 0.625rem;
-            border-radius: var(--radius-full);
           }
         }
+
+
       }
 
       .tier-selector {
@@ -225,8 +302,7 @@
           color: $text-900;
         }
       }
-    }
-  }
+
 
   .glass {
     background: rgba($white, 0.6);
@@ -284,51 +360,16 @@
     }
   }
 
-  .action-row {
-    margin-top: 1.5rem;
-    
-    .proceed-btn {
-      width: 100%;
-      height: 56px;
-      border-radius: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      font-size: 1.1rem;
-      font-weight: 600;
-      box-shadow: 0 10px 20px -3px rgba(124, 58, 237, 0.3);
+    .empty-cart-msg {
+      font-size: 0.875rem;
+      color: $text-500;
+      font-style: italic;
+      margin-top: 1rem;
+      text-align: center;
     }
   }
 
-  /* STEP 2: ATTENDEE FORM */
-  .attendee-step {
-    .form-sections {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 2.5rem;
-      align-items: start;
-
-      @media (max-width: 768px) {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-      }
-    }
-
-    .inputs-section {
-      h3 {
-        font-size: 1.25rem;
-        font-weight: 800;
-        color: $text-900;
-        margin-bottom: 0.25rem;
-      }
-
-      .section-subtitle {
-        font-size: 0.875rem;
-        color: $text-500;
-        margin-bottom: 2rem;
-      }
-
+    .attendee-details-block {
       .input-group {
         margin-bottom: 1.5rem;
 
@@ -397,8 +438,6 @@
         }
       }
     }
-
-    .billing-summary-glass {
       h3 {
         font-size: 1.25rem;
         font-weight: 800;
@@ -493,36 +532,7 @@
       }
     }
 
-    .navigation-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 2.25rem;
-      border-top: 1px solid rgba($lavender-200, 0.4);
-      padding-top: 1.75rem;
 
-      .back-step-btn {
-        font-weight: 600;
-        color: $text-500;
-        transition: color 0.2s ease;
-
-        &:hover {
-          color: $lavender-600;
-        }
-      }
-
-      .pay-btn {
-        height: 52px;
-        padding: 0 2rem;
-        border-radius: 0.875rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.25);
-      }
-    }
-  }
 
   /* STEP 3: TRANSACTION PROCESSING */
   .processing-step {

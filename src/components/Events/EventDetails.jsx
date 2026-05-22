@@ -6,6 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from '../../firebase';
 import Button from '../Button/Button';
 import BookingModal from './BookingModal';
+import logo from '../../assets/logo.jpeg';
 import './EventDetails.scss';
 
 // Category-specific extra media images to build a premium gallery/carousel
@@ -144,8 +145,15 @@ const EventDetails = () => {
 
   if (loading) {
     return (
-      <div className="loading-container container" style={{ padding: '5rem 0', textAlign: 'center', color: '#7C3AED' }}>
-        <h2>Loading event details...</h2>
+      <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center' }}>
+        <motion.img 
+          src={logo} 
+          alt="Loading..." 
+          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)' }} 
+          animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }} 
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading event details...</h2>
       </div>
     );
   }
@@ -317,7 +325,10 @@ const EventDetails = () => {
                   variant="primary" 
                   size="lg" 
                   className="book-now-btn"
-                  onClick={() => setIsBookingOpen(true)}
+                  onClick={() => {
+                    // Temporarily disabled for development
+                    // setIsBookingOpen(true)
+                  }}
                 >
                   Book Tickets Now
                 </Button>
@@ -357,7 +368,10 @@ const EventDetails = () => {
             variant="primary" 
             size="lg" 
             className="book-now-btn"
-            onClick={() => setIsBookingOpen(true)}
+            onClick={() => {
+              // Temporarily disabled for development
+              // setIsBookingOpen(true)
+            }}
           >
             Book Tickets Now
           </Button>

@@ -1,110 +1,141 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Mail, Phone, Ticket, ShieldCheck, CreditCard, ChevronRight, Calendar, MapPin, Clock } from 'lucide-react';
+import { X, User, Mail, Phone, ShieldCheck, CreditCard, Calendar, Clock } from 'lucide-react';
 import Button from '../Button/Button';
 import './BookingModal.scss';
 
-// Mock Ticket Options generator based on event price
-const getTicketOptions = (basePriceStr) => {
-  let basePrice = 0;
-  if (basePriceStr && basePriceStr.toLowerCase() !== 'free') {
-    basePrice = parseInt(basePriceStr.replace(/[^\d]/g, '')) || 0;
-  }
+// Helper to parse Firestore timestamp to Date
+const parseDate = (ts) => {
+  if (!ts) return new Date();
+  if (ts.toDate) return ts.toDate();
+  if (ts.seconds) return new Date(ts.seconds * 1000);
+  return new Date(ts);
+};
 
-  return [
-    {
-      id: 'general',
-      name: 'General Admission',
-      description: 'Standard access to the event area. First come, first served seating.',
-      price: basePrice,
-      perks: ['Standard Entry', 'Access to general areas']
-    },
-    {
-      id: 'vip',
-      name: 'VIP Experience Pass',
-      description: 'Front-row reserved seating, express entry lane, and complimentary welcome drink.',
-      price: basePrice > 0 ? basePrice + 500 : 499,
-      perks: ['Front-row reserved seating', 'Express entry lane', 'Complimentary drink', 'VIP Lounge access']
-    }
-  ];
+// Helper to get dates between start and end
+const getDatesBetween = (start, end) => {
+  const dates = [];
+  let currentDate = new Date(start);
+  currentDate.setHours(0,0,0,0);
+  const endDate = new Date(end);
+  endDate.setHours(0,0,0,0);
+  
+  while (currentDate <= endDate) {
+    dates.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  return dates;
 };
 
 const BookingModal = ({ isOpen, onClose, event }) => {
-  if (!isOpen) return null;
+  if (!isOpen || !event) return null;
 
-  const ticketOptions = getTicketOptions(event.price);
-  
-  const [step, setStep] = useState(1); // 1: Ticket Selection, 2: Attendee Info, 3: Processing, 4: Success Ticket
-  const [quantities, setQuantities] = useState({ general: 1, vip: 0 });
+  const [step, setStep] = useState(1); // 1: Tickets, 2: Details, 3: Payment, 4: Processing, 5: Success
+  const [quantities, setQuantities] = useState({});
+  const [selectedDate, setSelectedDate] = useState(null);
   const [attendee, setAttendee] = useState({ name: '', email: '', phone: '' });
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [bookingId, setBookingId] = useState('');
 
-  // Handle quantity changes
-  const updateQuantity = (type, delta) => {
-    setQuantities(prev => ({
-      ...prev,
-      [type]: Math.max(0, Math.min(10, prev[type] + delta))
-    }));
+  // Handle Dates
+  const startDate = parseDate(event.eventStartDate);
+  const endDate = parseDate(event.eventEndDate);
+  const availableDates = getDatesBetween(startDate, endDate);
+  const isMultiDay = availableDates.length > 1;
+
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setQuantities({});
+      setAttendee({ name: '', email: '', phone: '' });
+      setAgreeTerms(false);
+      setSelectedDate(isMultiDay ? null : availableDates[0]);
+    }
+  }, [isOpen, event, isMultiDay, availableDates[0]]);
+
+  const tickets = event.tickets || [];
+
+  const updateQuantity = (idx, delta) => {
+    const ticket = tickets[idx];
+    if (!ticket || !ticket.status || ticket.remainingSlots <= 0) return;
+    
+    setQuantities(prev => {
+      const current = prev[idx] || 0;
+      const maxSlots = Math.min(10, ticket.remainingSlots);
+      return {
+        ...prev,
+        [idx]: Math.max(0, Math.min(maxSlots, current + delta))
+      };
+    });
   };
 
-  // Calculations
-  const generalSubtotal = quantities.general * ticketOptions[0].price;
-  const vipSubtotal = quantities.vip * ticketOptions[1].price;
-  const subtotal = generalSubtotal + vipSubtotal;
-  const bookingFee = subtotal > 0 ? Math.round(subtotal * 0.08) : 0; // 8% fee
-  const total = subtotal + bookingFee;
-  const totalTickets = quantities.general + quantities.vip;
+  const subtotal = tickets.reduce((sum, ticket, idx) => {
+    return sum + (quantities[idx] || 0) * (ticket.blithePrice || 0);
+  }, 0);
 
-  // Validation
-  const isStep1Valid = totalTickets > 0;
+  const bookingFee = subtotal > 0 ? Math.round(subtotal * 0.08) : 0;
+  const total = subtotal + bookingFee;
+  const totalTickets = Object.values(quantities).reduce((a, b) => a + b, 0);
+
+  const isStep1Valid = totalTickets > 0 && (isMultiDay ? selectedDate !== null : true);
   const isStep2Valid = attendee.name.trim() !== '' && 
                        attendee.email.trim() !== '' && 
                        attendee.phone.trim() !== '' && 
                        agreeTerms;
+  const isFormValid = isStep1Valid && isStep2Valid;
 
-  // Handle Form Proceed
-  const handleProceedToDetails = () => {
+  const handleNextToDetails = () => {
     if (isStep1Valid) setStep(2);
   };
 
-  // Handle Complete Booking (Simulated Checkout)
+  const handleNextToPayment = () => {
+    if (isStep2Valid) setStep(3);
+  };
+
+  const handleBackToTickets = () => {
+    setStep(1);
+  };
+
+  const handleBackToDetails = () => {
+    setStep(2);
+  };
+
   const handleCompleteBooking = (e) => {
     e.preventDefault();
-    if (!isStep2Valid) return;
+    if (!isFormValid) return;
 
-    // Transition to simulated processing
-    setStep(3);
+    setStep(4); // Processing
 
-    // Generate random Booking ID
-    const randomId = 'BLT-' + Math.floor(100000 + Math.random() * 900000) + '-' + event.title.substring(0, 3).toUpperCase();
+    const randomId = 'BLT-' + Math.floor(100000 + Math.random() * 900000) + '-' + (event.eventName || event.title || 'EVT').substring(0, 3).toUpperCase();
     setBookingId(randomId);
 
-    // Auto progress to Success Screen after 2 seconds
     setTimeout(() => {
-      setStep(4);
+      setStep(5); // Success
     }, 2000);
   };
 
-  // Close modal and reset state
   const handleClose = () => {
-    setStep(1);
-    setQuantities({ general: 1, vip: 0 });
-    setAttendee({ name: '', email: '', phone: '' });
-    setAgreeTerms(false);
     onClose();
   };
 
-  // Page Transition variants for framer-motion
   const slideVariants = {
     initial: { opacity: 0, x: 20 },
     animate: { opacity: 1, x: 0, transition: { duration: 0.3 } },
     exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
   };
 
+  const displayDate = selectedDate ? selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const displayTime = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const getStepTitle = () => {
+    if (step === 1) return "Step 1: Select Tickets";
+    if (step === 2) return "Step 2: Attendee Details";
+    if (step === 3) return "Step 3: Payment & Summary";
+    return "";
+  };
+
   return (
     <div className="booking-modal-overlay">
-      {/* Background blur/shadow click handler */}
       <div className="backdrop-click-catcher" onClick={handleClose}></div>
       
       <motion.div 
@@ -112,14 +143,13 @@ const BookingModal = ({ isOpen, onClose, event }) => {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 50, scale: 0.95 }}
         transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-        className="booking-modal-container glass-card"
+        className="booking-modal-container glass-card multi-step-flow"
       >
-        {/* Header (Hidden in step 3 & 4) */}
-        {step < 3 && (
+        {step < 4 && (
           <div className="modal-header">
             <div className="title-area">
-              <span className="step-tag">Step {step} of 2</span>
-              <h2>Book Tickets for {event.title}</h2>
+              <span className="step-tag">{getStepTitle()}</span>
+              <h2>{event.eventName || event.title}</h2>
             </div>
             <button className="close-btn" onClick={handleClose} aria-label="Close booking">
               <X size={20} />
@@ -130,7 +160,7 @@ const BookingModal = ({ isOpen, onClose, event }) => {
         <div className="modal-body-scrollable">
           <AnimatePresence mode="wait">
             
-            {/* STEP 1: TICKET SELECTION */}
+            {/* STEP 1: TICKETS */}
             {step === 1 && (
               <motion.div 
                 key="step1"
@@ -138,97 +168,103 @@ const BookingModal = ({ isOpen, onClose, event }) => {
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                className="step-content ticket-selection-step"
+                className="step-content single-checkout-step"
               >
-                <div className="ticket-tiers-list">
-                  {ticketOptions.map((tier) => (
-                    <div 
-                      key={tier.id} 
-                      className={`ticket-tier-card ${quantities[tier.id] > 0 ? 'selected-tier' : ''}`}
-                    >
-                      <div className="tier-info">
-                        <div className="tier-header">
-                          <h3>{tier.name}</h3>
-                          <span className="tier-price">
-                            {tier.price === 0 ? 'Free' : `₹ ${tier.price}`}
-                          </span>
-                        </div>
-                        <p className="tier-desc">{tier.description}</p>
-                        
-                        <div className="tier-perks">
-                          {tier.perks.map((perk, i) => (
-                            <span key={i} className="perk-pill">✓ {perk}</span>
-                          ))}
+                <div className="checkout-layout">
+                  <div className="checkout-left-col full-width-col">
+                    
+                    {/* Date Selection */}
+                    {isMultiDay && (
+                      <div className="section-block date-selection-block">
+                        <h3>1. Select Date</h3>
+                        <div className="date-cards-container">
+                          {availableDates.map((date, idx) => {
+                            const isSelected = selectedDate && date.getTime() === selectedDate.getTime();
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                className={`date-card ${isSelected ? 'selected' : ''}`}
+                                onClick={() => setSelectedDate(date)}
+                              >
+                                <span className="date-month">{date.toLocaleDateString('en-GB', { month: 'short' })}</span>
+                                <span className="date-day">{date.getDate()}</span>
+                                <span className="date-weekday">{date.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                      
-                      <div className="tier-selector">
-                        <button 
-                          className="qty-btn"
-                          disabled={quantities[tier.id] <= 0}
-                          onClick={() => updateQuantity(tier.id, -1)}
-                        >
-                          -
-                        </button>
-                        <span className="qty-val">{quantities[tier.id]}</span>
-                        <button 
-                          className="qty-btn"
-                          disabled={quantities[tier.id] >= 10}
-                          onClick={() => updateQuantity(tier.id, 1)}
-                        >
-                          +
-                        </button>
+                    )}
+
+                    {/* Ticket Selection */}
+                    <div className="section-block ticket-selection-block">
+                      <h3>{isMultiDay ? '2. Select Tickets' : '1. Select Tickets'}</h3>
+                      <div className="ticket-tiers-list">
+                        {tickets.map((ticket, idx) => {
+                          const isUnavailable = !ticket.status || ticket.remainingSlots <= 0;
+                          const qty = quantities[idx] || 0;
+                          return (
+                            <div 
+                              key={idx} 
+                              className={`ticket-tier-card ${qty > 0 ? 'selected-tier' : ''} ${isUnavailable ? 'unavailable' : ''}`}
+                            >
+                              <div className="tier-info">
+                                <div className="tier-header">
+                                  <h4>{ticket.ticketName}</h4>
+                                  <span className="tier-price">
+                                    {ticket.blithePrice === 0 ? 'Free' : `₹ ${ticket.blithePrice}`}
+                                  </span>
+                                </div>
+                                {isUnavailable ? (
+                                  <p className="tier-desc error-text">Sold Out / Unavailable</p>
+                                ) : (
+                                  <p className="tier-desc">Remaining slots: {ticket.remainingSlots}</p>
+                                )}
+                              </div>
+                              
+                              <div className="tier-selector">
+                                <button 
+                                  type="button"
+                                  className="qty-btn"
+                                  disabled={qty <= 0}
+                                  onClick={() => updateQuantity(idx, -1)}
+                                >
+                                  -
+                                </button>
+                                <span className="qty-val">{qty}</span>
+                                <button 
+                                  type="button"
+                                  className="qty-btn"
+                                  disabled={isUnavailable || qty >= Math.min(10, ticket.remainingSlots)}
+                                  onClick={() => updateQuantity(idx, 1)}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                <div className="order-summary-sidebar">
-                  <div className="summary-box glass">
-                    <h4>Billing Details</h4>
-                    <div className="summary-row">
-                      <span>General Tickets ({quantities.general})</span>
-                      <span>₹ {generalSubtotal}</span>
+                    <div className="action-row flex-end mt-4">
+                      <Button 
+                        variant="primary" 
+                        size="lg" 
+                        onClick={handleNextToDetails}
+                        disabled={!isStep1Valid}
+                        className="pay-btn"
+                      >
+                        Continue
+                      </Button>
                     </div>
-                    <div className="summary-row">
-                      <span>VIP Experience ({quantities.vip})</span>
-                      <span>₹ {vipSubtotal}</span>
-                    </div>
-                    <div className="summary-row divider">
-                      <span>Subtotal</span>
-                      <span>₹ {subtotal}</span>
-                    </div>
-                    <div className="summary-row">
-                      <span>Booking Fee (8%)</span>
-                      <span>{bookingFee === 0 ? 'Free' : `₹ ${bookingFee}`}</span>
-                    </div>
-                    <div className="summary-row grand-total">
-                      <span>Grand Total</span>
-                      <span>₹ {total}</span>
-                    </div>
-
-                    <div className="secure-badge">
-                      <ShieldCheck size={16} />
-                      <span>Secured Checkout Protection</span>
-                    </div>
-                  </div>
-                  
-                  <div className="action-row">
-                    <Button 
-                      variant="primary" 
-                      size="lg" 
-                      className="w-100 proceed-btn"
-                      disabled={!isStep1Valid}
-                      onClick={handleProceedToDetails}
-                    >
-                      Proceed to Details <ChevronRight size={18} />
-                    </Button>
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* STEP 2: ATTENDEE DETAILS */}
+            {/* STEP 2: DETAILS */}
             {step === 2 && (
               <motion.div 
                 key="step2"
@@ -236,14 +272,13 @@ const BookingModal = ({ isOpen, onClose, event }) => {
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                className="step-content attendee-step"
+                className="step-content single-checkout-step"
               >
-                <form onSubmit={handleCompleteBooking} className="attendee-form">
-                  <div className="form-sections">
-                    <div className="inputs-section glass">
+                <div className="checkout-layout">
+                  <div className="checkout-left-col full-width-col">
+                    {/* Attendee Details */}
+                    <div className="section-block attendee-details-block glass">
                       <h3>Contact Information</h3>
-                      <p className="section-subtitle">Your digital tickets will be sent to these details</p>
-                      
                       <div className="input-group">
                         <label htmlFor="name">Full Name</label>
                         <div className="input-wrapper">
@@ -302,74 +337,121 @@ const BookingModal = ({ isOpen, onClose, event }) => {
                       </div>
                     </div>
 
+                    <div className="action-row split-actions mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        onClick={handleBackToTickets}
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        variant="primary" 
+                        size="lg" 
+                        onClick={handleNextToPayment}
+                        disabled={!isStep2Valid}
+                        className="pay-btn"
+                      >
+                        Continue
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* STEP 3: PAYMENT */}
+            {step === 3 && (
+              <motion.div 
+                key="step3"
+                variants={slideVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="step-content single-checkout-step"
+              >
+                <form onSubmit={handleCompleteBooking} className="checkout-layout">
+                  <div className="checkout-left-col full-width-col">
                     <div className="billing-summary-glass glass">
                       <h3>Order Summary</h3>
                       <div className="event-mini-card">
-                        <img src={event.image} alt={event.title} className="mini-event-img" />
+                        <img src={event.image?.[0] || event.image} alt={event.eventName} className="mini-event-img" />
                         <div className="mini-event-info">
-                          <h4>{event.title}</h4>
-                          <p><Calendar size={12} /> {event.date.split(',')[1] || event.date}</p>
-                          <p><Clock size={12} /> {event.time}</p>
+                          <h4>{event.eventName || event.title}</h4>
+                          <p><Calendar size={12} /> {displayDate}</p>
+                          <p><Clock size={12} /> {displayTime}</p>
                         </div>
                       </div>
 
                       <div className="ticket-items-list">
-                        {quantities.general > 0 && (
-                          <div className="ticket-item-row">
-                            <span>{quantities.general}x General Admission</span>
-                            <span>₹ {generalSubtotal}</span>
-                          </div>
+                        {tickets.map((ticket, idx) => {
+                          const qty = quantities[idx] || 0;
+                          if (qty > 0) {
+                            return (
+                              <div key={idx} className="ticket-item-row">
+                                <span>{qty}x {ticket.ticketName}</span>
+                                <span>₹ {qty * ticket.blithePrice}</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                        
+                        {totalTickets > 0 && (
+                          <>
+                            <div className="summary-row divider">
+                              <span>Subtotal</span>
+                              <span>₹ {subtotal}</span>
+                            </div>
+                            <div className="summary-row">
+                              <span>Platform Fee (8%)</span>
+                              <span>{bookingFee === 0 ? 'Free' : `₹ ${bookingFee}`}</span>
+                            </div>
+                            <div className="summary-row total-row">
+                              <span>Grand Total</span>
+                              <span>₹ {total}</span>
+                            </div>
+                          </>
                         )}
-                        {quantities.vip > 0 && (
-                          <div className="ticket-item-row">
-                            <span>{quantities.vip}x VIP Experience Pass</span>
-                            <span>₹ {vipSubtotal}</span>
-                          </div>
+                        {totalTickets === 0 && (
+                          <p className="empty-cart-msg">Please select at least 1 ticket to proceed.</p>
                         )}
-                        <div className="summary-row divider">
-                          <span>Total Tickets</span>
-                          <span>{totalTickets}</span>
-                        </div>
-                        <div className="summary-row total-row">
-                          <span>Grand Total</span>
-                          <span>₹ {total}</span>
-                        </div>
+                      </div>
+
+                      <div className="action-row split-actions mt-4">
+                        <Button 
+                          variant="outline" 
+                          size="lg" 
+                          type="button"
+                          onClick={handleBackToDetails}
+                        >
+                          Back
+                        </Button>
+                        <Button 
+                          variant="primary" 
+                          size="lg" 
+                          type="submit"
+                          disabled={!isFormValid}
+                          className="pay-btn"
+                        >
+                          Confirm & Book <CreditCard size={18} style={{marginLeft: '8px'}} />
+                        </Button>
                       </div>
 
                       <div className="payment-security-note">
-                        <CreditCard size={16} />
-                        <span>Simulated Instant Booking Approval</span>
+                        <ShieldCheck size={16} />
+                        <span>Secured Checkout Protection</span>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="navigation-actions">
-                    <button 
-                      type="button" 
-                      className="back-step-btn" 
-                      onClick={() => setStep(1)}
-                    >
-                      ← Back to Tickets
-                    </button>
-                    
-                    <Button 
-                      variant="primary" 
-                      size="lg" 
-                      type="submit"
-                      disabled={!isStep2Valid}
-                      className="pay-btn"
-                    >
-                      Confirm & Secure Booking <CreditCard size={20} />
-                    </Button>
                   </div>
                 </form>
               </motion.div>
             )}
 
-            {/* STEP 3: TRANSACTION PROCESSING */}
-            {step === 3 && (
+            {/* STEP 2: TRANSACTION PROCESSING */}
+            {step === 2 && (
               <motion.div 
-                key="step3"
+                key="step2"
                 variants={slideVariants}
                 initial="initial"
                 animate="animate"
@@ -388,10 +470,10 @@ const BookingModal = ({ isOpen, onClose, event }) => {
               </motion.div>
             )}
 
-            {/* STEP 4: SUCCESS TICKET SUMMARY */}
-            {step === 4 && (
+            {/* STEP 3: SUCCESS TICKET SUMMARY */}
+            {step === 3 && (
               <motion.div 
-                key="step4"
+                key="step3"
                 variants={slideVariants}
                 initial="initial"
                 animate="animate"
@@ -408,7 +490,6 @@ const BookingModal = ({ isOpen, onClose, event }) => {
                   </p>
                 </div>
 
-                {/* PREMIUM DIGITAL TICKET STUB */}
                 <div className="digital-ticket-container">
                   <div className="ticket-stub ticket-main">
                     <div className="ticket-glow"></div>
@@ -417,16 +498,16 @@ const BookingModal = ({ isOpen, onClose, event }) => {
                       <span className="booking-code">{bookingId}</span>
                     </div>
 
-                    <h3 className="ticket-event-title">{event.title}</h3>
+                    <h3 className="ticket-event-title">{event.eventName || event.title}</h3>
 
                     <div className="ticket-meta-details">
                       <div className="detail-col">
                         <span className="lbl">DATE & TIME</span>
-                        <span className="val">{event.date.split(',')[1] || event.date} at {event.time}</span>
+                        <span className="val">{displayDate} at {displayTime}</span>
                       </div>
                       <div className="detail-col">
                         <span className="lbl">VENUE</span>
-                        <span className="val">{event.location}</span>
+                        <span className="val">{event.location || event.venue}</span>
                       </div>
                     </div>
 
@@ -438,16 +519,12 @@ const BookingModal = ({ isOpen, onClose, event }) => {
                       <div className="detail-col">
                         <span className="lbl">TICKET SUMMARY</span>
                         <span className="val">
-                          {[
-                            quantities.general > 0 ? `${quantities.general}x General` : '',
-                            quantities.vip > 0 ? `${quantities.vip}x VIP` : ''
-                          ].filter(Boolean).join(', ')}
+                          {tickets.map((t, idx) => quantities[idx] > 0 ? `${quantities[idx]}x ${t.ticketName}` : null).filter(Boolean).join(', ')}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Cutout notch dividing stub and barcode */}
                   <div className="ticket-divider">
                     <div className="notch notch-left"></div>
                     <div className="dashed-line"></div>
@@ -456,58 +533,38 @@ const BookingModal = ({ isOpen, onClose, event }) => {
 
                   <div className="ticket-stub ticket-barcode-section">
                     <div className="qr-barcode-wrapper">
-                      {/* Interactive mock QR Code using SVG */}
                       <svg className="mock-qr" width="120" height="120" viewBox="0 0 100 100" fill="none">
                         <rect x="0" y="0" width="100" height="100" rx="6" fill="#111827" />
-                        {/* Anchor squares */}
                         <rect x="10" y="10" width="25" height="25" fill="#8B5CF6" rx="2" />
                         <rect x="15" y="15" width="15" height="15" fill="#FFFFFF" rx="1" />
                         <rect x="19" y="19" width="7" height="7" fill="#8B5CF6" rx="1" />
-
                         <rect x="65" y="10" width="25" height="25" fill="#8B5CF6" rx="2" />
                         <rect x="70" y="15" width="15" height="15" fill="#FFFFFF" rx="1" />
                         <rect x="74" y="74" width="7" height="7" fill="#8B5CF6" rx="1" />
-
                         <rect x="10" y="65" width="25" height="25" fill="#8B5CF6" rx="2" />
                         <rect x="15" y="70" width="15" height="15" fill="#FFFFFF" rx="1" />
                         <rect x="19" y="74" width="7" height="7" fill="#8B5CF6" rx="1" />
-
-                        {/* Random mock QR dots */}
                         <rect x="42" y="10" width="5" height="5" fill="#A78BFA" rx="1" />
                         <rect x="42" y="20" width="10" height="5" fill="#DDD6FE" rx="1" />
                         <rect x="42" y="30" width="5" height="10" fill="#8B5CF6" rx="1" />
                         <rect x="52" y="15" width="5" height="5" fill="#A78BFA" rx="1" />
-
                         <rect x="10" y="42" width="10" height="5" fill="#A78BFA" rx="1" />
                         <rect x="25" y="42" width="5" height="15" fill="#DDD6FE" rx="1" />
                         <rect x="35" y="52" width="10" height="5" fill="#8B5CF6" rx="1" />
-
                         <rect x="65" y="42" width="5" height="10" fill="#A78BFA" rx="1" />
                         <rect x="75" y="42" width="15" height="5" fill="#8B5CF6" rx="1" />
                         <rect x="75" y="52" width="5" height="10" fill="#DDD6FE" rx="1" />
                         <rect x="85" y="52" width="5" height="5" fill="#8B5CF6" rx="1" />
-
                         <rect x="42" y="65" width="15" height="5" fill="#A78BFA" rx="1" />
                         <rect x="42" y="75" width="5" height="15" fill="#DDD6FE" rx="1" />
                         <rect x="52" y="85" width="15" height="5" fill="#8B5CF6" rx="1" />
                         <rect x="65" y="75" width="10" height="10" fill="#DDD6FE" rx="1" />
                         <rect x="80" y="75" width="10" height="5" fill="#8B5CF6" rx="1" />
                       </svg>
-
-                      {/* Mock scan lines/barcodes */}
                       <div className="barcode-glow-line"></div>
                       <div className="ticket-barcode-num">Scan QR Code for Entry</div>
                     </div>
                   </div>
-                </div>
-
-                <div className="download-ticket-actions">
-                  <button className="download-btn secondary-btn">
-                    ↓ Download Ticket PDF
-                  </button>
-                  <button className="download-btn wallet-btn">
-                     Add to Apple Wallet
-                  </button>
                 </div>
 
                 <div className="done-action">

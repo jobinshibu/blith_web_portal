@@ -697,12 +697,29 @@
     .mobile-terms { 
       display: block; 
       order: 5;
-      padding-bottom: 8rem; // Room for fixed booking bar
     }
+  }
+}
 
-    // Mobile Fixed Bottom Bar
+// Fixed Bottom Booking Bar Logic for Mobile and Short Landscape Screens
+.event-details-page {
+  .mobile-fixed-booking-bar {
+    display: none; // Hidden by default on large screens
+  }
+}
+
+@media (max-width: 800px), (max-height: 600px) {
+  .event-details-page {
     .desktop-booking-box {
       display: none !important;
+    }
+    
+    .event-info-sidebar {
+      padding-bottom: 8rem; // Prevent content from hiding behind the fixed bar
+    }
+    
+    .mobile-terms {
+      padding-bottom: 8rem; // For mobile layout specifically
     }
     
     .mobile-fixed-booking-bar {
@@ -715,7 +732,6 @@
       backdrop-filter: blur(10px);
       border-top: 1px solid $lavender-100;
       z-index: 100;
-      display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 1rem 1.5rem;
@@ -748,7 +764,7 @@
           padding: 0.75rem 1.5rem;
           font-weight: 700;
           border: none;
-          svg { display: none; } // remove ticket icon for cleaner look
+          svg { display: none; }
         }
       }
     }

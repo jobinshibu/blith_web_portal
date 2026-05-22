@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import logoText from '../../assets/logo-text.png';
 import './Navbar.scss';
 
 // Custom SVG Brand Icons (Lucide removed them in v1.0)
@@ -60,7 +61,7 @@ const Navbar = () => {
       <nav className="navbar">
         <div className="container nav-content">
           <Link to="/" className="logo" onClick={closeMenu}>
-            Blithe
+            <img src={logoText} alt="Blithe" className="nav-logo-text-img" />
           </Link>
           
           <div className="nav-links desktop-only">
@@ -84,7 +85,9 @@ const Navbar = () => {
           >
             <div className="menu-inner">
               <div className="menu-header">
-                <span className="menu-logo">Blithe</span>
+                <Link to="/" className="menu-logo" onClick={closeMenu}>
+                  <img src={logoText} alt="Blithe" className="nav-logo-text-img" />
+                </Link>
                 <button className="mobile-menu-close" onClick={closeMenu} aria-label="Close Menu">
                   <X size={28} />
                 </button>

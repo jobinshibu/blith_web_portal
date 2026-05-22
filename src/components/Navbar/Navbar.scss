@@ -17,13 +17,19 @@
   }
 
   .logo {
-    font-family: $font-heading;
-    font-size: clamp(1.5rem, 4vw, 1.875rem);
-    font-weight: 800;
-    color: $lavender-600;
-    letter-spacing: -0.025em;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     transition: transform 0.3s ease;
     z-index: 1001;
+    
+    .nav-logo-text-img {
+      height: 40px;
+      width: auto;
+      object-fit: contain;
+      transform: scale(4.0);
+      transform-origin: left center;
+    }
 
     &:hover {
       transform: scale(1.05);
@@ -114,10 +120,17 @@
     margin-bottom: 4rem;
 
     .menu-logo {
-      font-family: $font-heading;
-      font-size: 1.75rem;
-      font-weight: 800;
-      color: $lavender-600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      
+      .nav-logo-text-img {
+        height: 48px;
+        width: auto;
+        object-fit: contain;
+        transform: scale(4.0);
+        transform-origin: left center;
+      }
     }
 
     .mobile-menu-close {
