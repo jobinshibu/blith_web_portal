@@ -465,6 +465,147 @@
       }
     }
   }
+
+  // Related Events Section
+  .related-events-section {
+    margin-top: 4rem;
+    padding-bottom: 2rem;
+    
+    .events-portrait-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 2.25rem 1.75rem;
+
+      @media (max-width: 1200px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      
+      @media (max-width: 768px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.75rem 1.25rem;
+      }
+
+      @media (max-width: 480px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem 0.75rem;
+      }
+    }
+
+    .event-card-container {
+      height: 100%;
+    }
+
+    .portrait-event-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      text-align: left;
+      text-decoration: none;
+      transition: all 0.3s ease;
+
+      &:hover {
+        .portrait-image-wrapper {
+          transform: translateY(-8px);
+          box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.16);
+          
+          img {
+            transform: scale(1.06);
+          }
+        }
+        .portrait-card-title {
+          color: $text-900;
+        }
+      }
+
+      .portrait-image-wrapper {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 3/4.15;
+        border-radius: 1.25rem;
+        overflow: hidden;
+        background-color: #E5E7EB;
+        box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.03);
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        margin-bottom: 1.15rem;
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+      }
+
+      .portrait-card-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+
+        .portrait-card-date {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: #E05A47;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          margin-bottom: 0.4rem;
+
+          @media (max-width: 480px) {
+            font-size: 0.72rem;
+            margin-bottom: 0.2rem;
+          }
+        }
+
+        .portrait-card-title {
+          font-family: $font-heading;
+          font-size: 1.125rem;
+          font-weight: 800;
+          color: $text-900;
+          line-height: 1.3;
+          margin-bottom: 0.4rem;
+          transition: color 0.2s;
+          
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+
+          @media (max-width: 480px) {
+            font-size: 0.9rem;
+            margin-bottom: 0.2rem;
+            line-height: 1.2;
+          }
+        }
+
+        .portrait-card-location {
+          font-size: 0.9rem;
+          color: $text-500;
+          font-weight: 500;
+          margin-bottom: 0.25rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+
+          @media (max-width: 480px) {
+            font-size: 0.75rem;
+            margin-bottom: 0.15rem;
+          }
+        }
+
+        .portrait-card-price {
+          font-size: 0.9rem;
+          color: $text-500;
+          font-weight: 600;
+          margin-bottom: 0.5rem;
+
+          @media (max-width: 480px) {
+            font-size: 0.75rem;
+            margin-bottom: 0.35rem;
+          }
+        }
+      }
+    }
+  }
 }
 
 @media (max-width: 800px) {

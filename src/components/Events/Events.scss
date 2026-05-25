@@ -21,8 +21,8 @@
 .hero-carousel-section {
   position: relative;
   width: 100%;
-  height: 480px; // Increased height to fit larger poster
-  padding: 1.5rem 0 1rem; // Reduced vertical padding
+  height: 300px; // Further decreased height
+  padding: 0.75rem 0; // Further reduced vertical padding
   margin-bottom: 1.5rem; // Reduced bottom margin
   overflow: hidden;
   display: flex;
@@ -108,11 +108,11 @@
     .hero-date-time {
       display: inline-flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
       font-weight: 700;
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       color: $text-900;
-      margin-bottom: 1.25rem;
+      margin-bottom: 0.75rem;
 
       .orange-icon {
         color: #E05A47;
@@ -121,12 +121,12 @@
 
     .hero-title {
       font-family: $font-heading;
-      font-size: clamp(2rem, 3.5vw, 2.75rem); // Decreased font size
+      font-size: clamp(1.4rem, 2.5vw, 1.8rem); // Further decreased font size
       font-weight: 800;
       line-height: 1.15;
       color: $text-900;
       letter-spacing: -0.02em;
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.75rem;
       
       // Prevent overflow in fixed-height container by clamping to 2 lines
       display: -webkit-box;
@@ -139,16 +139,16 @@
     .hero-meta-items {
       display: flex;
       flex-wrap: wrap;
-      gap: 2rem;
-      margin-bottom: 2rem;
+      gap: 1rem;
+      margin-bottom: 1rem;
 
       .hero-meta-item {
         display: flex;
         align-items: center;
-        gap: 0.6rem;
-        font-size: 1.1rem;
+        gap: 0.5rem;
+        font-size: 0.95rem;
         color: $text-700;
-        font-weight: 500;
+        font-weight: 600;
 
         .meta-icon {
           color: $text-500;
@@ -157,10 +157,10 @@
     }
 
     .hero-price {
-      font-size: 1.25rem;
-      font-weight: 700;
+      font-size: 1.1rem;
+      font-weight: 800;
       color: $text-900;
-      margin-bottom: 2.25rem;
+      margin-bottom: 1.25rem;
     }
 
     .hero-cta-btn {
@@ -169,8 +169,8 @@
       justify-content: center;
       background: linear-gradient(135deg, $lavender-600, $lavender-500);
       color: $white;
-      padding: 1.1rem 2.75rem;
-      font-size: 1.1rem;
+      padding: 0.85rem 2rem;
+      font-size: 0.95rem;
       font-weight: 700;
       border-radius: 2rem;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -193,7 +193,7 @@
     .hero-poster-wrapper {
       position: relative;
       width: 100%;
-      max-width: 285px; // Increased poster size while fitting height
+      max-width: 170px; // Further decreased poster size
       aspect-ratio: 3 / 4; // Clean, standard poster aspect ratio
       border-radius: 1.25rem;
       overflow: hidden;
@@ -268,7 +268,7 @@
 
 // 2. Search Section
 .search-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.55rem;
 
   .search-bar-wrapper {
     @include glass-panel;
@@ -382,7 +382,7 @@
     display: flex;
     align-items: flex-start;
     gap: 1rem;
-    margin-bottom: 2.5rem;
+    margin-bottom: 1rem; // Reduced gap
 
     @media (max-width: 1024px) {
       gap: 0.75rem;
@@ -440,8 +440,14 @@
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      &.expanded .chevron-icon {
-        transform: rotate(180deg);
+      &.expanded {
+        background-color: #111827;
+        color: white;
+        border-color: #111827;
+
+        .chevron-icon {
+          transform: rotate(180deg);
+        }
       }
     }
 
@@ -453,6 +459,16 @@
 
       &.selected {
         transform: translateY(-4px) scale(1.02);
+        
+        .category-card {
+          background: $lavender-600 !important;
+          border-color: $lavender-600 !important;
+          box-shadow: none !important;
+          
+          .category-card-title, .category-icon-box {
+            color: $white !important;
+          }
+        }
       }
     }
 
@@ -1219,9 +1235,9 @@
   .explore-section {
     margin-bottom: 2.5rem;
 
-    .category-slider {
-      gap: 0.75rem;
-      padding-bottom: 1.25rem;
+    .category-slider-mobile {
+      margin: 0 -1rem;
+      padding: 0 1rem 1rem 1rem; // Reduced bottom padding
 
       .category-card-wrapper {
         border-radius: 2rem;

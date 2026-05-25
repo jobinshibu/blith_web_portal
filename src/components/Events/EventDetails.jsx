@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, Navigation, AlertTriangle } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, Navigation, AlertTriangle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from '../../firebase';
 import Button from '../Button/Button';
 import BookingModal from './BookingModal';
@@ -59,12 +59,14 @@ const getEventMedia = (event) => {
 const EventDetails = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [relatedEvents, setRelatedEvents] = useState([]);
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
 
   useEffect(() => {
     const fetchEvent = async () => {
+      setLoading(true);
       try {
         let docRef = doc(db, "event", id);
         let docSnap = await getDoc(docRef);
@@ -95,9 +97,11 @@ const EventDetails = () => {
           
           // Determine price
           let displayPrice = "Free";
+          let isPriceOnwards = false;
           if (data.tickets && data.tickets.length > 0) {
             const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
-            displayPrice = minPrice > 0 ? `₹${minPrice} onwards` : "Free";
+            displayPrice = minPrice > 0 ? `₹${minPrice}` : "Free";
+            isPriceOnwards = minPrice > 0;
           } else if (data.price > 0) {
             displayPrice = `₹${data.price}`;
           }
@@ -110,14 +114,21 @@ const EventDetails = () => {
             date: formattedDate,
             time: formattedTime,
             location: data.location || data.venue || "TBA",
+            venue: data.venue || (data.location ? data.location.split(',')[0] : "TBA"),
             geopoint: data.position?.geopoint || null,
             price: displayPrice,
+            isPriceOnwards: isPriceOnwards,
             category: data.category || "Other",
             eventType: data.eventType || "Offline",
             ageRestriction: data.ageRestriction || false,
             minAge: data.minAge || 18,
             description: data.description || "No description provided.",
             termsAndConditions: data.termsAndConditions || "No terms specified.",
+            tickets: data.tickets || [],
+            tags: data.tags || [],
+            platformFee: data.platformFee || 0,
+            eventStartDate: data.eventStartDate || null,
+            eventEndDate: data.eventEndDate || null,
             raw: data 
           });
         } else {
@@ -131,6 +142,66 @@ const EventDetails = () => {
     };
     fetchEvent();
   }, [id]);
+
+  useEffect(() => {
+    const fetchRelatedEvents = async () => {
+      if (!event || !event.raw) return;
+      try {
+        const eventsQuery = query(collection(db, "event"), where("deleted", "==", false));
+        const querySnapshot = await getDocs(eventsQuery);
+        
+        let allActiveEvents = [];
+        querySnapshot.forEach(doc => {
+          if (doc.id !== event.id) {
+            const data = doc.data();
+            const isNotBlocked = data.block === false;
+            const isNotExpired = data.eventEndDate ? data.eventEndDate.toDate() >= new Date() : true;
+            const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
+            
+            if (isNotBlocked && isNotExpired && hasNoPaymentUrl) {
+              const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
+              const formattedDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+              
+              let displayPrice = "Free";
+              let isPriceOnwards = false;
+              if (data.tickets && data.tickets.length > 0) {
+                const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
+                displayPrice = minPrice > 0 ? `₹${minPrice}` : "Free";
+                isPriceOnwards = minPrice > 0;
+              } else if (data.price > 0) {
+                displayPrice = `₹${data.price}`;
+              }
+
+              let score = 0;
+              if (data.category === event.category) score += 3;
+              if (data.location && event.location && data.location.includes(event.location.split(',')[0])) score += 2;
+              if (formattedDate === event.date) score += 1;
+              
+              allActiveEvents.push({
+                id: doc.id,
+                title: data.eventName || "Untitled Event",
+                image: (data.image && data.image.length > 0) ? data.image[0] : "",
+                date: formattedDate,
+                location: data.location || data.venue || "TBA",
+                price: displayPrice,
+                isPriceOnwards: isPriceOnwards,
+                score
+              });
+            }
+          }
+        });
+        
+        allActiveEvents.sort((a, b) => b.score - a.score);
+        setRelatedEvents(allActiveEvents.slice(0, 4));
+      } catch (err) {
+        console.error("Error fetching related events", err);
+      }
+    };
+    
+    if (event) {
+      fetchRelatedEvents();
+    }
+  }, [event]);
 
   const mediaList = event ? [event.image, ...(event.extraImages || [])].filter(Boolean) : [];
 
@@ -166,6 +237,12 @@ const EventDetails = () => {
       </div>
     );
   }
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const isEventExpired = event.eventEndDate 
+    ? event.eventEndDate.toDate() < today 
+    : (event.eventStartDate ? event.eventStartDate.toDate() < today : false);
 
   return (
     <div className="event-details-page">
@@ -241,8 +318,26 @@ const EventDetails = () => {
           {/* Right Column: Event Details & Action Box */}
           <div className="event-info-sidebar">
             <div className="event-details-card glass">
-              <div className="card-top-row">
-                <span className="category-badge">{event.category}</span>
+              <div className="card-top-row" style={{ marginTop: '-0.5rem' }}>
+                <div className="tags-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <span className="category-badge" style={{ alignSelf: 'flex-start' }}>{event.category}</span>
+                  {event.tags && event.tags.length > 0 && (
+                    <div className="event-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {event.tags.map((tag, idx) => (
+                        <span key={idx} className="hashtag" style={{ 
+                          fontSize: '0.75rem', 
+                          color: '#6B7280', 
+                          background: 'rgba(0,0,0,0.04)', 
+                          padding: '0.2rem 0.6rem', 
+                          borderRadius: '1rem',
+                          fontWeight: '600'
+                        }}>
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button 
                   className="share-btn" 
                   aria-label="Share Event"
@@ -277,21 +372,23 @@ const EventDetails = () => {
                   </div>
                 </div>
                 
-                <div className="info-item">
-                  <div className="icon-box"><MapPin size={20} className="icon" /></div>
-                  <div className="text-content">
-                    <p className="val">{event.location.split(',')[0]}</p>
-                    <p className="sub">{event.location}</p>
+                {event.eventType !== 'Online' && (
+                  <div className="info-item">
+                    <div className="icon-box"><MapPin size={20} className="icon" /></div>
+                    <div className="text-content">
+                      <p className="val">{event.venue}</p>
+                      <p className="sub">{event.location}</p>
+                    </div>
+                    <button 
+                      className="map-icon-btn" 
+                      onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`, '_blank')}
+                      title="View on Maps"
+                      aria-label="View on Maps"
+                    >
+                      <Navigation size={18} />
+                    </button>
                   </div>
-                  <button 
-                    className="map-icon-btn" 
-                    onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`, '_blank')}
-                    title="View on Maps"
-                    aria-label="View on Maps"
-                  >
-                    <Navigation size={18} />
-                  </button>
-                </div>
+                )}
 
                 <div className="info-item mobile-only-item">
                   <div className="icon-box"><Ticket size={20} className="icon" /></div>
@@ -319,18 +416,19 @@ const EventDetails = () => {
               <div className="action-box desktop-booking-box">
                 <div className="price-row">
                   <span className="label">Ticket Price</span>
-                  <span className="amount">{event.price}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                    <span className="amount">{event.price}</span>
+                    {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500 }}>onwards</span>}
+                  </div>
                 </div>
                 <Button 
-                  variant="primary" 
+                  variant={isEventExpired ? "secondary" : "primary"}
                   size="lg" 
                   className="book-now-btn"
-                  onClick={() => {
-                    // Temporarily disabled for development
-                    // setIsBookingOpen(true)
-                  }}
+                  onClick={() => setIsBookingOpen(true)}
+                  disabled={isEventExpired}
                 >
-                  Book Tickets Now
+                  {isEventExpired ? 'Event Ended' : 'Book Tickets Now'}
                 </Button>
               </div>
             </div>
@@ -356,26 +454,51 @@ const EventDetails = () => {
             </div>
 
           </div>
+
+        {/* Related Events Section */}
+        {relatedEvents.length > 0 && (
+          <div className="related-events-section" style={{ marginTop: '4rem', paddingBottom: '2rem' }}>
+            <div className="section-header">
+              <Sparkles size={22} style={{ color: '#7C3AED' }} />
+              <h2>You might also like</h2>
+            </div>
+            <div className="events-portrait-grid">
+              {relatedEvents.map(relatedEvent => (
+                <div key={relatedEvent.id} className="event-card-container">
+                  <Link to={`/events/${relatedEvent.id}`} className="portrait-event-card" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                    <div className="portrait-image-wrapper">
+                      <img src={relatedEvent.image} alt={relatedEvent.title} loading="lazy" />
+                    </div>
+                    <div className="portrait-card-details">
+                      <span className="portrait-card-date">{relatedEvent.date}</span>
+                      <h3 className="portrait-card-title">{relatedEvent.title}</h3>
+                      <p className="portrait-card-location">{relatedEvent.location}</p>
+                      <p className="portrait-card-price">
+                        {relatedEvent.price}
+                        {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
+                      </p>
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mobile-fixed-booking-bar">
         <div className="price-row">
           <span className="amount">{event.price}</span>
-          <span className="amount-sub">onwards</span>
+          {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500, marginLeft: '4px' }}>onwards</span>}
         </div>
-        <div className="action-buttons">
-          <Button 
-            variant="primary" 
-            size="lg" 
-            className="book-now-btn"
-            onClick={() => {
-              // Temporarily disabled for development
-              // setIsBookingOpen(true)
-            }}
-          >
-            Book Tickets Now
-          </Button>
-        </div>
+        <Button 
+          variant={isEventExpired ? "secondary" : "primary"}
+          size="lg" 
+          onClick={() => setIsBookingOpen(true)}
+          disabled={isEventExpired}
+        >
+          {isEventExpired ? 'Event Ended' : 'Book Now'}
+        </Button>
       </div>
 
       <AnimatePresence>

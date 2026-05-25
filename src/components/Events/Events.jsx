@@ -53,7 +53,6 @@ const CategoryCard = ({ cat, isSelected, onClick }) => {
         className="category-card"
         style={{
           background: cat.gradient,
-          boxShadow: isSelected ? `0 15px 30px ${cat.glow}` : 'none',
           border: isSelected ? `2px solid ${cat.color}` : '1px solid rgba(255, 255, 255, 0.4)'
         }}
       >
@@ -619,7 +618,7 @@ const Events = () => {
       ) : (
         <>
           {/* Featured Event Hero Section */}
-          {activeFeaturedEvent && (
+          {activeFeaturedEvent && !searchQuery.trim() && (
             <section
               className="hero-carousel-section"
               onMouseEnter={() => setIsHovered(true)}
@@ -707,7 +706,7 @@ const Events = () => {
 
           <div className="container">
             {/* Search Bar Section */}
-            <section className="search-section">
+            <section className="search-section" style={{ paddingTop: (!activeFeaturedEvent || searchQuery.trim() !== '') ? '20px' : '0' }}>
               <div className="search-bar-wrapper glass">
                 <span className="hashtag-prefix">#</span>
                 <input
@@ -729,7 +728,14 @@ const Events = () => {
               {/* PC Grid Layout (flex wrap) */}
               <div className={`category-grid-pc-wrapper ${isCategoriesExpanded ? 'expanded' : ''}`}>
                 <div className="category-grid-pc">
-                  {exploreCategories.map((cat, i) => (
+                  {exploreCategories
+                    .slice()
+                    .sort((a, b) => {
+                      const aSel = isCategorySelected(a.name) ? 1 : 0;
+                      const bSel = isCategorySelected(b.name) ? 1 : 0;
+                      return bSel - aSel;
+                    })
+                    .map((cat, i) => (
                     <CategoryCard
                       key={i}
                       cat={cat}
@@ -752,7 +758,14 @@ const Events = () => {
               {/* Mobile Swipeable Slider Layout */}
               <div className="category-slider-mobile">
                 <div className="category-slider">
-                  {exploreCategories.map((cat, i) => (
+                  {exploreCategories
+                    .slice()
+                    .sort((a, b) => {
+                      const aSel = isCategorySelected(a.name) ? 1 : 0;
+                      const bSel = isCategorySelected(b.name) ? 1 : 0;
+                      return bSel - aSel;
+                    })
+                    .map((cat, i) => (
                     <CategoryCard
                       key={i}
                       cat={cat}
@@ -766,9 +779,6 @@ const Events = () => {
 
             {/* All Events Section */}
             <section className="all-events-section">
-              <div className="all-events-header">
-                <h2 className="section-title">All events</h2>
-              </div>
 
               {/* Interactive Filter Pills Bar */}
               <div className="filters-bar">
