@@ -311,52 +311,43 @@ const Events = () => {
   // Filter promoted events for the carousel
   const promotedEvents = events.filter(e => e.promoted);
 
-  // Auto-play for the Featured Carousel (Decreased scroll time to 3.0 seconds)
-  useEffect(() => {
-    if (promotedEvents.length === 0 || isHovered) return;
-    const interval = setInterval(() => {
-      setDirection(1);
-      setCarouselIndex(prevIndex => (prevIndex + 1) % promotedEvents.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [promotedEvents.length, isHovered]);
-
-  // Handle manual carousel navigation
-  const handleDotClick = (index) => {
-    setDirection(index > carouselIndex ? 1 : -1);
-    setCarouselIndex(index);
-  };
+  // New absolute indexing logic for infinite smooth carousel
+  const [absoluteIndex, setAbsoluteIndex] = useState(0);
 
   const handlePrevClick = (e) => {
-    e.stopPropagation();
-    // User requested Left Arrow -> animate to left
-    setDirection(1);
-    setCarouselIndex(prevIndex => (prevIndex - 1 + promotedEvents.length) % promotedEvents.length);
+    if (e) e.stopPropagation();
+    setDirection(-1);
+    setAbsoluteIndex(prev => prev - 1);
   };
 
   const handleNextClick = (e) => {
-    e.stopPropagation();
-    // User requested Right Arrow -> animate to right
-    setDirection(-1);
-    setCarouselIndex(prevIndex => (prevIndex + 1) % promotedEvents.length);
+    if (e) e.stopPropagation();
+    setDirection(1);
+    setAbsoluteIndex(prev => prev + 1);
   };
 
-  const carouselVariants = {
-    enter: (direction) => ({
-      x: direction > 0 ? 100 : -100,
-      opacity: 0
-    }),
-    center: {
-      zIndex: 1,
-      x: 0,
-      opacity: 1
-    },
-    exit: (direction) => ({
-      zIndex: 0,
-      x: direction < 0 ? 100 : -100,
-      opacity: 0
-    })
+  const handleDotClick = (idx) => {
+    const total = promotedEvents.length;
+    if (total === 0) return;
+    const currentMod = ((absoluteIndex % total) + total) % total;
+    let diff = idx - currentMod;
+    
+    if (diff > total / 2) diff -= total;
+    if (diff < -total / 2) diff += total;
+
+    setDirection(diff > 0 ? 1 : -1);
+    setAbsoluteIndex(prev => prev + diff);
   };
+
+  // Auto-play functionality
+  useEffect(() => {
+    if (promotedEvents.length === 0 || isHovered) return;
+    const timer = setInterval(() => {
+      setDirection(1);
+      setAbsoluteIndex(prev => prev + 1);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [promotedEvents.length, isHovered, absoluteIndex]);
 
   // Unified Toggle Category Logic
   const toggleCategory = (catName) => {
@@ -618,91 +609,146 @@ const Events = () => {
       ) : (
         <>
           {/* Featured Event Hero Section */}
-          {activeFeaturedEvent && !searchQuery.trim() && (
-            <section
-              className="hero-carousel-section"
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-            >
-              {/* Immersive Blurry Backdrop */}
-              <div
-                className="hero-backdrop"
-                style={{ backgroundImage: `url(${activeFeaturedEvent.image})` }}
-              />
-              <div className="hero-overlay"></div>
+          {activeFeaturedEvent && !searchQuery.trim() && (() => {
+            const maxVisible = 1;
+            const peekPercent = 5; 
+            const totalPeek = (maxVisible - 1) * peekPercent;
+            const activeWidth = maxVisible === 1 ? '100%' : `${100 / (1 + totalPeek / 100)}%`;
+            const borderRadius = '0';
 
-              {/* Forward & Backward Navigation Buttons */}
-              <button className="carousel-control-btn prev" onClick={handlePrevClick} aria-label="Previous Slide">
-                <ChevronLeft size={32} />
-              </button>
-              <button className="carousel-control-btn next" onClick={handleNextClick} aria-label="Next Slide">
-                <ChevronRight size={32} />
-              </button>
+            const visibleItems = Array.from({ length: maxVisible }).map((_, i) => {
+              const absIdx = absoluteIndex + i;
+              const total = promotedEvents.length;
+              const eventIdx = ((absIdx % total) + total) % total;
+              return {
+                event: promotedEvents[eventIdx],
+                absIdx,
+                index: i
+              };
+            });
 
-              <div className="container hero-container">
-                <AnimatePresence mode="wait" custom={direction}>
-                  <motion.div
-                    key={activeFeaturedEvent.id}
-                    custom={direction}
-                    variants={carouselVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="hero-grid"
-                  >
-                    {/* Left: Content Area */}
-                    <div className="hero-content-col">
-                      <div className="hero-date-time">
-                        <Calendar size={18} className="orange-icon" />
-                        <span>{activeFeaturedEvent.date}</span>
+            return (
+              <section
+                className="hero-carousel-section"
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+              >
+                <div className="hero-card-stack">
+                  <AnimatePresence initial={false} custom={direction}>
+                    {visibleItems.map(({ event, absIdx, index }) => {
+                      const cardVariants = {
+                        enter: (dir) => {
+                          if (index === 0) {
+                            return { x: dir === 1 ? "100%" : "-100%", scale: 1, zIndex: 11, opacity: 1 };
+                          }
+                          const currentOffset = index * peekPercent;
+                          const currentScale = 1 - (index * 0.05);
+                          const currentZIndex = 10 - index;
+                          return {
+                            x: dir === 1 ? `${currentOffset + peekPercent}%` : `${currentOffset - peekPercent}%`,
+                            scale: dir === 1 ? currentScale - 0.05 : currentScale + 0.05,
+                            zIndex: currentZIndex - 1,
+                            opacity: 0
+                          };
+                        },
+                        animate: () => {
+                          const currentOffset = index * peekPercent;
+                          const currentScale = 1 - (index * 0.05);
+                          const currentZIndex = 10 - index;
+                          return {
+                            x: `${currentOffset}%`,
+                            scale: currentScale,
+                            zIndex: currentZIndex,
+                            opacity: 1
+                          };
+                        },
+                        exit: (dir) => {
+                          if (index === 0) {
+                            return { x: dir === 1 ? "-100%" : "100%", scale: 1, zIndex: 11, opacity: 1 };
+                          }
+                          const currentOffset = index * peekPercent;
+                          const currentScale = 1 - (index * 0.05);
+                          const currentZIndex = 10 - index;
+                          return {
+                            x: dir === 1 ? `${currentOffset - peekPercent}%` : `${currentOffset + peekPercent}%`,
+                            scale: dir === 1 ? currentScale + 0.05 : currentScale - 0.05,
+                            zIndex: currentZIndex,
+                            opacity: 0
+                          };
+                        }
+                      };
+
+                      return (
+                        <motion.div
+                          key={index === 0 ? `active-${event.id}-${absIdx}` : `stacked-${event.id}-${absIdx}`}
+                          custom={direction}
+                          variants={cardVariants}
+                          initial="enter"
+                          animate="animate"
+                          exit="exit"
+                          transition={{ duration: 1.5, ease: [0.32, 0.72, 0, 1] }}
+                          className={`hero-event-card ${index === 0 ? 'active' : ''}`}
+                          style={{ width: activeWidth, borderRadius, transformOrigin: 'right center' }}
+                          onClick={() => {
+                            if (index > 0) handleNextClick();
+                          }}
+                        >
+                          <div className="card-bg-layer" style={{ backgroundImage: `url(${event.image})` }}>
+                            <div className="card-gradient-overlay" />
+                          </div>
+
+                          <div className={`card-content-layout ${index !== 0 ? 'hidden-content' : ''}`}>
+                            <div className="card-text-side">
+                              <div className="hero-meta-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                                <span className="hero-badge-modern">✨ Featured</span>
+                                <div className="hero-date-time" style={{ margin: 0 }}>
+                                  <Calendar size={18} className="orange-icon" />
+                                  <span>{event.date}</span>
+                                </div>
+                              </div>
+                              <h1 className="hero-title">{event.title}</h1>
+
+                              <div className="hero-meta-items">
+                                <div className="hero-meta-item">
+                                  <MapPin size={18} className="meta-icon" />
+                                  <span>{event.location}</span>
+                                </div>
+                              </div>
+
+                              <p className="hero-price">{event.price}</p>
+
+                              <div className={`hero-actions ${index !== 0 ? 'disabled' : ''}`}>
+                                <Link to={`/events/${event.id}`} onClick={e => index !== 0 && e.preventDefault()} className="hero-cta-btn">
+                                  Book tickets
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+
+                  <div className="hero-card-controls-wrapper">
+                    <div className="hero-card-controls">
+                      <button className="card-nav-btn prev-btn" onClick={handlePrevClick} aria-label="Previous Slide"><ChevronLeft size={24}/></button>
+                      <div className="hero-carousel-indicators">
+                        {promotedEvents.map((event, idx) => (
+                          <button
+                            key={event.id}
+                            onClick={(e) => { e.stopPropagation(); handleDotClick(idx); }}
+                            className={`indicator-dot ${idx === (((absoluteIndex % promotedEvents.length) + promotedEvents.length) % promotedEvents.length) ? 'active' : ''}`}
+                            aria-label={`Go to event ${idx + 1}`}
+                          />
+                        ))}
                       </div>
-                      <h1 className="hero-title">{activeFeaturedEvent.title}</h1>
-
-                      <div className="hero-meta-items">
-                        <div className="hero-meta-item">
-                          <MapPin size={18} className="meta-icon" />
-                          <span>{activeFeaturedEvent.location}</span>
-                        </div>
-                      </div>
-
-                      <p className="hero-price">{activeFeaturedEvent.price}</p>
-
-                      <Link to={`/events/${activeFeaturedEvent.id}`} className="hero-cta-btn">
-                        Book tickets
-                      </Link>
+                      <button className="card-nav-btn next-btn" onClick={handleNextClick} aria-label="Next Slide"><ChevronRight size={24}/></button>
                     </div>
-
-                    {/* Right: Premium Portrait Poster */}
-                    <div className="hero-visual-col">
-                      <div className="hero-poster-wrapper">
-                        <img
-                          src={activeFeaturedEvent.image}
-                          alt={activeFeaturedEvent.title}
-                          className="hero-portrait-poster"
-                        />
-                        {activeFeaturedEvent.promoted && (
-                          <span className="hero-badge">Featured Event</span>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-
-                {/* Carousel Navigation Dots */}
-                <div className="hero-carousel-indicators">
-                  {promotedEvents.map((event, idx) => (
-                    <button
-                      key={event.id}
-                      onClick={() => handleDotClick(idx)}
-                      className={`indicator-dot ${idx === carouselIndex ? 'active' : ''}`}
-                      aria-label={`Go to event ${idx + 1}`}
-                    />
-                  ))}
+                  </div>
                 </div>
-              </div>
-            </section>
-          )}
+              </section>
+            );
+          })()}
 
           <div className="container">
             {/* Search Bar Section */}
@@ -921,6 +967,9 @@ const Events = () => {
                           <Link to={`/events/${event.id}`} className="portrait-event-card">
                             <div className="portrait-image-wrapper">
                               <img src={event.image} alt={event.title} loading="lazy" />
+                              {event.promoted && (
+                                <span className="featured-badge-small">✨ Featured</span>
+                              )}
                             </div>
 
                             <div className="portrait-card-details">

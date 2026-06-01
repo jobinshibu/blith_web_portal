@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, Navigation, AlertTriangle, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from '../../firebase';
 import Button from '../Button/Button';
-import BookingModal from './BookingModal';
 import logo from '../../assets/logo.jpeg';
 import './EventDetails.scss';
 
@@ -57,12 +56,44 @@ const getEventMedia = (event) => {
 };
 
 const EventDetails = () => {
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const navigate = useNavigate();
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [isAboutExpanded, setIsAboutExpanded] = useState(false);
+  const [isTermsExpanded, setIsTermsExpanded] = useState(false);
+  const [showAboutBtn, setShowAboutBtn] = useState(false);
+  const [showTermsDesktopBtn, setShowTermsDesktopBtn] = useState(false);
+  const [showTermsMobileBtn, setShowTermsMobileBtn] = useState(false);
+  
+  const aboutRef = useRef(null);
+  const termsDesktopRef = useRef(null);
+  const termsMobileRef = useRef(null);
+
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (aboutRef.current && !isAboutExpanded) {
+        setShowAboutBtn(aboutRef.current.scrollHeight > aboutRef.current.clientHeight);
+      }
+      if (termsDesktopRef.current && !isTermsExpanded) {
+        setShowTermsDesktopBtn(termsDesktopRef.current.scrollHeight > termsDesktopRef.current.clientHeight);
+      }
+      if (termsMobileRef.current && !isTermsExpanded) {
+        setShowTermsMobileBtn(termsMobileRef.current.scrollHeight > termsMobileRef.current.clientHeight);
+      }
+    };
+
+    checkOverflow();
+    const timeoutId = setTimeout(checkOverflow, 100);
+    window.addEventListener('resize', checkOverflow);
+    return () => {
+      window.removeEventListener('resize', checkOverflow);
+      clearTimeout(timeoutId);
+    };
+  }, [event, isAboutExpanded, isTermsExpanded]);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -106,8 +137,11 @@ const EventDetails = () => {
             displayPrice = `₹${data.price}`;
           }
 
+          const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
+
           setEvent({ 
             id: docSnap.id, 
+            promoted: isFeatured,
             title: data.eventName || "Untitled Event",
             image: (data.image && data.image.length > 0) ? data.image[0] : "",
             extraImages: (data.image && data.image.length > 1) ? data.image.slice(1) : [],
@@ -177,8 +211,11 @@ const EventDetails = () => {
               if (data.location && event.location && data.location.includes(event.location.split(',')[0])) score += 2;
               if (formattedDate === event.date) score += 1;
               
+              const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
+              
               allActiveEvents.push({
                 id: doc.id,
+                promoted: isFeatured,
                 title: data.eventName || "Untitled Event",
                 image: (data.image && data.image.length > 0) ? data.image[0] : "",
                 date: formattedDate,
@@ -270,6 +307,10 @@ const EventDetails = () => {
                 />
               </AnimatePresence>
 
+              {event.promoted && (
+                <span className="featured-badge-small" style={{ zIndex: 20 }}>✨ Featured</span>
+              )}
+
               {/* Navigation Chevrons */}
               {mediaList.length > 1 && (
                 <>
@@ -299,7 +340,19 @@ const EventDetails = () => {
                 <Info size={22} />
                 <h2>About the Event</h2>
               </div>
-              <p className="description">{event.description}</p>
+              <div className={`expandable-content ${isAboutExpanded ? 'expanded' : ''}`} ref={aboutRef}>
+                <p className="description">{event.description}</p>
+              </div>
+              {showAboutBtn && (
+                <button 
+                  className="read-more-btn" 
+                  onClick={() => setIsAboutExpanded(!isAboutExpanded)}
+                  aria-expanded={isAboutExpanded}
+                >
+                  {isAboutExpanded ? 'Read Less' : 'Read More'}
+                  <ChevronDown size={18} className={`chevron-icon ${isAboutExpanded ? 'expanded' : ''}`} />
+                </button>
+              )}
             </div>
 
 
@@ -309,9 +362,21 @@ const EventDetails = () => {
                 <Info size={22} />
                 <h2>Terms & Conditions</h2>
               </div>
-              <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
-                {event.termsAndConditions}
-              </p>
+              <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsDesktopRef}>
+                <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
+                  {event.termsAndConditions}
+                </p>
+              </div>
+              {showTermsDesktopBtn && (
+                <button 
+                  className="read-more-btn" 
+                  onClick={() => setIsTermsExpanded(!isTermsExpanded)}
+                  aria-expanded={isTermsExpanded}
+                >
+                  {isTermsExpanded ? 'Read Less' : 'Read More'}
+                  <ChevronDown size={18} className={`chevron-icon ${isTermsExpanded ? 'expanded' : ''}`} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -332,7 +397,7 @@ const EventDetails = () => {
                           borderRadius: '1rem',
                           fontWeight: '600'
                         }}>
-                          #{tag}
+                          {tag}
                         </span>
                       ))}
                     </div>
@@ -425,7 +490,7 @@ const EventDetails = () => {
                   variant={isEventExpired ? "secondary" : "primary"}
                   size="lg" 
                   className="book-now-btn"
-                  onClick={() => setIsBookingOpen(true)}
+                  onClick={() => navigate(`/events/${event.id}/book`)}
                   disabled={isEventExpired}
                 >
                   {isEventExpired ? 'Event Ended' : 'Book Tickets Now'}
@@ -441,14 +506,21 @@ const EventDetails = () => {
                 <Info size={22} />
                 <h2>Terms & Conditions</h2>
               </div>
-              <ul className="terms-list">
-                <li>Tickets once booked cannot be exchanged or refunded.</li>
-                <li>An Internet handling fee may be levied. Please check the total amount before payment.</li>
-                <li>We recommend that you arrive at least 30 minutes prior at the venue for a seamless entry.</li>
-                <li>It is mandatory to wear masks at all times and follow social distancing norms.</li>
-                <li>Please do not purchase tickets if you feel sick.</li>
-                <li>Unlawful resale (or attempted unlawful resale) of a ticket would lead to seizure or cancellation of that ticket without refund or other compensation.</li>
-              </ul>
+              <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsMobileRef}>
+                <p className="description" style={{ whiteSpace: 'pre-wrap', color: '#374151', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                  {event.termsAndConditions}
+                </p>
+              </div>
+              {showTermsMobileBtn && (
+                <button 
+                  className="read-more-btn" 
+                  onClick={() => setIsTermsExpanded(!isTermsExpanded)}
+                  aria-expanded={isTermsExpanded}
+                >
+                  {isTermsExpanded ? 'Read Less' : 'Read More'}
+                  <ChevronDown size={18} className={`chevron-icon ${isTermsExpanded ? 'expanded' : ''}`} />
+                </button>
+              )}
             </div>
 
             </div>
@@ -457,7 +529,7 @@ const EventDetails = () => {
 
         {/* Related Events Section */}
         {relatedEvents.length > 0 && (
-          <div className="related-events-section" style={{ marginTop: '4rem', paddingBottom: '2rem' }}>
+          <div className="related-events-section">
             <div className="section-header">
               <Sparkles size={22} style={{ color: '#7C3AED' }} />
               <h2>You might also like</h2>
@@ -468,6 +540,9 @@ const EventDetails = () => {
                   <Link to={`/events/${relatedEvent.id}`} className="portrait-event-card" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                     <div className="portrait-image-wrapper">
                       <img src={relatedEvent.image} alt={relatedEvent.title} loading="lazy" />
+                      {relatedEvent.promoted && (
+                        <span className="featured-badge-small">✨ Featured</span>
+                      )}
                     </div>
                     <div className="portrait-card-details">
                       <span className="portrait-card-date">{relatedEvent.date}</span>
@@ -494,22 +569,13 @@ const EventDetails = () => {
         <Button 
           variant={isEventExpired ? "secondary" : "primary"}
           size="lg" 
-          onClick={() => setIsBookingOpen(true)}
+          onClick={() => navigate(`/events/${event.id}/book`)}
           disabled={isEventExpired}
         >
           {isEventExpired ? 'Event Ended' : 'Book Now'}
         </Button>
       </div>
 
-      <AnimatePresence>
-        {isBookingOpen && (
-          <BookingModal 
-            isOpen={isBookingOpen} 
-            onClose={() => setIsBookingOpen(false)} 
-            event={event} 
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 };
