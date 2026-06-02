@@ -81,6 +81,25 @@
       flex-shrink: 0;
       position: sticky;
       top: 6rem;
+      max-height: calc(100vh - 8rem);
+      overflow-y: auto;
+      padding-right: 0.5rem;
+
+      // Custom premium thin scrollbar for sidebar
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: rgba($lavender-300, 0.4);
+        border-radius: 4px;
+        
+        &:hover {
+          background: rgba($lavender-500, 0.6);
+        }
+      }
     }
   }
 
@@ -163,7 +182,8 @@
 
     &.selected-tier {
       border-color: $lavender-500;
-      background: rgba($lavender-500, 0.03);
+      background: rgba($lavender-500, 0.02);
+      box-shadow: 0 4px 15px rgba($lavender-600, 0.05);
     }
 
     &.unavailable {
@@ -369,9 +389,22 @@
       .ticket-item-row {
         display: flex;
         justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
         margin-bottom: 0.75rem;
         font-size: 0.95rem;
         color: $text-700;
+
+        span:first-child {
+          flex: 1;
+          line-height: 1.4;
+        }
+
+        span:last-child {
+          flex-shrink: 0;
+          font-weight: 600;
+          color: $text-900;
+        }
       }
 
       .empty-cart-msg {
