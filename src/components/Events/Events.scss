@@ -675,6 +675,11 @@
       max-width: 100vw;
       overflow: hidden;
       box-sizing: border-box;
+
+      .category-slider {
+        // background-color: red; 
+        padding: 0 !important;
+      }
     }
   }
 
@@ -1437,7 +1442,7 @@
 
   // 3. Explore Section (Category Slider) on Mobile
   .explore-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: 0.5rem;
 
     .category-slider-mobile {
       margin: 0 -1rem;
