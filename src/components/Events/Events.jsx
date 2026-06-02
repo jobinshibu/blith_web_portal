@@ -264,6 +264,14 @@ const Events = () => {
               raw: data
             };
           });
+
+        // Sort events chronologically (ascending: earlier date first)
+        eventsData.sort((a, b) => {
+          const dateA = a.raw.eventStartDate ? (typeof a.raw.eventStartDate.toDate === 'function' ? a.raw.eventStartDate.toDate() : new Date(a.raw.eventStartDate)) : new Date(0);
+          const dateB = b.raw.eventStartDate ? (typeof b.raw.eventStartDate.toDate === 'function' ? b.raw.eventStartDate.toDate() : new Date(b.raw.eventStartDate)) : new Date(0);
+          return dateA - dateB;
+        });
+
         setEvents(eventsData);
       } catch (error) {
         console.error("Error fetching events: ", error);

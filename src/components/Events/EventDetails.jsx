@@ -222,14 +222,23 @@ const EventDetails = () => {
                 location: data.location || data.venue || "TBA",
                 price: displayPrice,
                 isPriceOnwards: isPriceOnwards,
-                score
+                score,
+                eventStartDate: data.eventStartDate || null
               });
             }
           }
         });
         
         allActiveEvents.sort((a, b) => b.score - a.score);
-        setRelatedEvents(allActiveEvents.slice(0, 4));
+        const topRelated = allActiveEvents.slice(0, 4);
+        // Sort top related events chronologically (ascending: earlier date first)
+        topRelated.sort((a, b) => {
+          const dateA = a.eventStartDate ? (typeof a.eventStartDate.toDate === 'function' ? a.eventStartDate.toDate() : new Date(a.eventStartDate)) : new Date(0);
+          const dateB = b.eventStartDate ? (typeof b.eventStartDate.toDate === 'function' ? b.eventStartDate.toDate() : new Date(b.eventStartDate)) : new Date(0);
+          return dateA - dateB;
+        });
+
+        setRelatedEvents(topRelated);
       } catch (err) {
         console.error("Error fetching related events", err);
       }
