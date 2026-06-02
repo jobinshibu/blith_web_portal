@@ -27,6 +27,10 @@
   background: transparent;
   padding: 0;
 
+  @media (min-width: 769px) {
+    margin-bottom: 1rem;
+  }
+
   @media (max-width: 768px) {
     margin-top: -4rem;
   }
@@ -36,7 +40,7 @@
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
-    height: 480px;
+    height: 361px;
     overflow: hidden;
 
     @media (max-width: 768px) {
@@ -83,8 +87,8 @@
       display: flex;
       height: 100%;
       align-items: center;
-      padding: 2.5rem 4%;
-      gap: 3rem;
+      padding: 1.5rem 4%;
+      gap: 2rem;
       width: 100%;
       transition: opacity 0.4s ease;
 
@@ -208,8 +212,8 @@
     }
 
     .card-poster-side {
-      width: 270px;
-      height: 380px;
+      width: 190px;
+      height: 260px;
       flex-shrink: 0;
       border-radius: 1rem;
       overflow: hidden;
@@ -315,7 +319,7 @@
 
 // 2. Search Section
 .search-section {
-  margin-bottom: 1.55rem;
+  margin-bottom: 0.75rem;
 
   @keyframes borderFlow {
     0% {
