@@ -317,7 +317,7 @@ const EventDetails = () => {
               </AnimatePresence>
 
               {event.promoted && (
-                <span className="featured-badge-small" style={{ zIndex: 20 }}>✨ Featured</span>
+                <span className="featured-badge-small" style={{ zIndex: 20 }}>Featured</span>
               )}
 
               {/* Navigation Chevrons */}
@@ -550,7 +550,7 @@ const EventDetails = () => {
                     <div className="portrait-image-wrapper">
                       <img src={relatedEvent.image} alt={relatedEvent.title} loading="lazy" />
                       {relatedEvent.promoted && (
-                        <span className="featured-badge-small">✨ Featured</span>
+                        <span className="featured-badge-small">Featured</span>
                       )}
                     </div>
                     <div className="portrait-card-details">

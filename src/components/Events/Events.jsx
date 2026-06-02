@@ -708,7 +708,7 @@ const Events = () => {
                           <div className={`card-content-layout ${index !== 0 ? 'hidden-content' : ''}`}>
                             <div className="card-text-side">
                               <div className="hero-meta-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                                <span className="hero-badge-modern">✨ Featured</span>
+                                <span className="hero-badge-modern">Featured</span>
                                 <div className="hero-date-time" style={{ margin: 0 }}>
                                   <Calendar size={18} className="orange-icon" />
                                   <span>{event.date}</span>
@@ -976,7 +976,7 @@ const Events = () => {
                             <div className="portrait-image-wrapper">
                               <img src={event.image} alt={event.title} loading="lazy" />
                               {event.promoted && (
-                                <span className="featured-badge-small">✨ Featured</span>
+                                <span className="featured-badge-small">Featured</span>
                               )}
                             </div>
 
