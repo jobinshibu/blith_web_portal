@@ -559,9 +559,19 @@ const EventBookingPage = () => {
               {isVerifyingUser ? 'Processing...' : 'Proceed to Payment'} <CreditCard size={18} style={{ marginLeft: '8px' }} />
             </Button>
 
-            <div className="payment-security-note" style={{ marginTop: '1rem', justifyContent: 'center' }}>
-              <ShieldCheck size={16} />
-              <span>Secured Checkout Protection</span>
+            <div className="payment-security-note" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={16} style={{ color: '#10B981' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#374151' }}>100% Secure Payments</span>
+              </div>
+              <div className="razorpay-info" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#6B7280' }}>
+                <span>Powered securely by</span>
+                <img 
+                  src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg" 
+                  alt="Razorpay" 
+                  style={{ height: '14px', opacity: 0.8 }} 
+                />
+              </div>
             </div>
           </div>
         </div>
