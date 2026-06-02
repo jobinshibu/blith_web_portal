@@ -520,6 +520,111 @@
 
 // 3. Explore Section (Category Grid & Mobile Slider)
 .explore-section {
+  .category-card-wrapper {
+    width: auto;
+    cursor: pointer;
+    border-radius: 2rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover,
+    &:active {
+      .category-card {
+        background: $lavender-600 !important;
+        border-color: $lavender-600 !important;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
+
+        .category-card-title,
+        .category-icon-box {
+          color: $white !important;
+        }
+      }
+    }
+
+    &.selected {
+      transform: translateY(-4px) scale(1.02);
+
+      @media (max-width: 768px) {
+        transform: translateY(-2px) scale(1.02);
+      }
+
+      .category-card {
+        background: $lavender-600 !important;
+        border-color: $lavender-600 !important;
+        box-shadow: none !important;
+
+        .category-card-title,
+        .category-icon-box {
+          color: $white !important;
+        }
+      }
+    }
+  }
+
+  .category-card {
+    position: relative;
+    width: auto;
+    border-radius: 2rem;
+    padding: 0.65rem 1.25rem;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+    white-space: nowrap;
+
+    @media (max-width: 768px) {
+      padding: 0.5rem 1rem;
+      gap: 0.4rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    &:hover,
+    &:active {
+      transform: translateY(-2px);
+
+      .category-icon-box {
+        transform: scale(1.12) rotate(5deg);
+
+        @media (max-width: 768px) {
+          transform: scale(1.05) rotate(3deg);
+        }
+      }
+    }
+
+    .category-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1;
+
+      @media (max-width: 768px) {
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+    }
+
+    .category-icon-box {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 0.95;
+
+      svg {
+        width: 20px !important;
+        height: 20px !important;
+
+        @media (max-width: 768px) {
+          width: 16px !important;
+          height: 16px !important;
+        }
+      }
+    }
+  }
+
   .category-grid-pc-wrapper {
     display: flex;
     align-items: flex-start;
@@ -540,13 +645,11 @@
       flex-wrap: wrap;
       gap: 1rem;
       align-items: center;
-      // background-color: red;
       padding-top: 10px !important;
       overflow: hidden;
       max-height: 52px; // Fits exactly one row with hover padding
       transition: max-height 0.4s cubic-bezier(0.1, 0, 0.2, 1);
       padding-bottom: 6px; // Slack for hover shadow/transform
-      // padding-top: 4px;
     }
 
     &.expanded .category-grid-pc {
@@ -586,84 +689,6 @@
         }
       }
     }
-
-    .category-card-wrapper {
-      width: auto;
-      cursor: pointer;
-      border-radius: 2rem;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-      &:hover {
-        .category-card {
-          background: $lavender-600 !important;
-          border-color: $lavender-600 !important;
-          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
-
-          .category-card-title,
-          .category-icon-box {
-            color: $white !important;
-          }
-        }
-      }
-
-      &.selected {
-        transform: translateY(-4px) scale(1.02);
-
-        .category-card {
-          background: $lavender-600 !important;
-          border-color: $lavender-600 !important;
-          box-shadow: none !important;
-
-          .category-card-title,
-          .category-icon-box {
-            color: $white !important;
-          }
-        }
-      }
-    }
-
-    .category-card {
-      position: relative;
-      width: auto;
-      border-radius: 2rem;
-      padding: 0.65rem 1.25rem;
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      align-items: center;
-      gap: 0.5rem;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
-      white-space: nowrap;
-
-      &:hover {
-        transform: translateY(-2px);
-
-        .category-icon-box {
-          transform: scale(1.12) rotate(5deg);
-        }
-      }
-
-      .category-card-title {
-        font-size: 0.95rem;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-        line-height: 1;
-      }
-
-      .category-icon-box {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        opacity: 0.95;
-
-        svg {
-          width: 20px !important;
-          height: 20px !important;
-        }
-      }
-    }
   }
 
   .category-slider-mobile {
@@ -677,8 +702,7 @@
       box-sizing: border-box;
 
       .category-slider {
-        // background-color: red; 
-        padding: 0 !important;
+        padding: 10px 0 0px 0px !important;
       }
     }
   }
@@ -704,59 +728,7 @@
     width: 100%;
 
     .category-card-wrapper {
-      width: auto;
       flex-shrink: 0;
-      cursor: pointer;
-      border-radius: 2rem;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-      &.selected {
-        transform: translateY(-2px) scale(1.02);
-      }
-    }
-
-    .category-card {
-      position: relative;
-      width: auto;
-      border-radius: 2rem;
-      padding: 0.5rem 1rem;
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      align-items: center;
-      gap: 0.4rem;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      white-space: nowrap;
-      border: 1px solid rgba(0, 0, 0, 0.05);
-
-      &:hover {
-        transform: translateY(-2px);
-
-        .category-icon-box {
-          transform: scale(1.05) rotate(3deg);
-        }
-      }
-
-      .category-card-title {
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 0.01em;
-        line-height: 1;
-      }
-
-      .category-icon-box {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        opacity: 0.95;
-
-        svg {
-          width: 16px !important;
-          height: 16px !important;
-        }
-      }
     }
   }
 }
