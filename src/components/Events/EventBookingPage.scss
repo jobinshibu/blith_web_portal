@@ -22,10 +22,23 @@
     padding: 1.5rem 0;
     margin-bottom: 2rem;
 
+    @media (max-width: 991px) {
+      padding: 1.25rem 0;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 767px) {
+      padding: 1rem 0;
+      margin-bottom: 1.25rem;
+    }
+
     .container {
       display: flex;
       flex-direction: column;
       gap: 1rem;
+
+      @media (max-width: 767px) {
+        gap: 0.5rem;
+      }
     }
 
     .back-link-btn {
@@ -38,6 +51,10 @@
       font-size: 0.95rem;
       transition: color 0.2s ease;
 
+      @media (max-width: 767px) {
+        font-size: 0.85rem;
+      }
+
       &:hover {
         color: $lavender-600;
       }
@@ -48,6 +65,13 @@
       font-weight: 800;
       color: $text-900;
       margin: 0;
+
+      @media (max-width: 991px) {
+        font-size: 1.75rem;
+      }
+      @media (max-width: 767px) {
+        font-size: 1.45rem;
+      }
     }
   }
 
@@ -57,6 +81,13 @@
     gap: 2rem;
     align-items: flex-start;
     width: 100%;
+
+    @media (max-width: 991px) {
+      gap: 1.5rem;
+    }
+    @media (max-width: 767px) {
+      gap: 1.25rem;
+    }
 
     @media (min-width: 992px) {
       flex-direction: row;
@@ -71,6 +102,13 @@
     gap: 2rem;
     width: 100%;
     min-width: 0;
+
+    @media (max-width: 991px) {
+      gap: 1.5rem;
+    }
+    @media (max-width: 767px) {
+      gap: 1rem;
+    }
   }
 
   .checkout-right-col {
@@ -112,6 +150,14 @@
     border: 1px solid rgba($lavender-200, 0.4);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 
+    @media (max-width: 991px) {
+      padding: 1.25rem;
+    }
+    @media (max-width: 767px) {
+      padding: 1rem;
+      border-radius: 0.75rem;
+    }
+
     h3 {
       font-size: 1.25rem;
       font-weight: 700;
@@ -120,6 +166,17 @@
       margin-bottom: 1.5rem;
       padding-bottom: 0.75rem;
       border-bottom: 1px solid $lavender-100;
+
+      @media (max-width: 991px) {
+        font-size: 1.15rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.6rem;
+      }
+      @media (max-width: 767px) {
+        font-size: 1.05rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+      }
     }
   }
 
@@ -127,12 +184,21 @@
   .input-group {
     margin-bottom: 1.25rem;
 
+    @media (max-width: 767px) {
+      margin-bottom: 1rem;
+    }
+
     label {
       display: block;
       font-size: 0.85rem;
       font-weight: 600;
       color: $text-700;
       margin-bottom: 0.5rem;
+
+      @media (max-width: 767px) {
+        font-size: 0.8rem;
+        margin-bottom: 0.35rem;
+      }
     }
 
     .input-wrapper {
@@ -144,6 +210,10 @@
         position: absolute;
         left: 1rem;
         color: $text-400;
+
+        @media (max-width: 767px) {
+          left: 0.85rem;
+        }
       }
 
       input {
@@ -154,6 +224,12 @@
         font-size: 0.95rem;
         color: $text-800;
         transition: all 0.2s ease;
+
+        @media (max-width: 767px) {
+          padding: 0.65rem 0.75rem 0.65rem 2.4rem;
+          font-size: 0.9rem;
+          border-radius: 0.375rem;
+        }
 
         &:focus {
           outline: none;
@@ -171,6 +247,11 @@
     color: #DC2626;
     font-size: 0.85rem;
     margin-top: 0.5rem;
+
+    @media (max-width: 767px) {
+      font-size: 0.78rem;
+      margin-top: 0.35rem;
+    }
   }
 
   // Tickets
@@ -181,6 +262,15 @@
     margin-bottom: 1rem;
     background: white;
     transition: all 0.2s ease;
+
+    @media (max-width: 991px) {
+      padding: 1rem;
+    }
+    @media (max-width: 767px) {
+      padding: 0.85rem;
+      border-radius: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
 
     &.selected-tier {
       border-color: $lavender-500;
@@ -199,17 +289,35 @@
       align-items: flex-start;
       margin-bottom: 1rem;
 
+      @media (max-width: 767px) {
+        margin-bottom: 0.75rem;
+      }
+
       h4 {
         margin: 0;
         font-weight: 700;
         font-size: 1.1rem;
         color: $text-900;
+
+        @media (max-width: 991px) {
+          font-size: 1rem;
+        }
+        @media (max-width: 767px) {
+          font-size: 0.95rem;
+        }
       }
 
       .tier-desc {
         margin: 0;
         font-size: 0.85rem;
         color: $text-500;
+
+        @media (max-width: 991px) {
+          font-size: 0.8rem;
+        }
+        @media (max-width: 767px) {
+          font-size: 0.75rem;
+        }
 
         &.error-text {
           color: #DC2626;
@@ -226,12 +334,23 @@
         font-size: 1.25rem;
         font-weight: 800;
         color: $lavender-600;
+
+        @media (max-width: 991px) {
+          font-size: 1.15rem;
+        }
+        @media (max-width: 767px) {
+          font-size: 1.1rem;
+        }
       }
 
       .tier-selector {
         display: flex;
         align-items: center;
         gap: 0.75rem;
+
+        @media (max-width: 767px) {
+          gap: 0.5rem;
+        }
 
         .qty-btn {
           width: 32px;
@@ -246,6 +365,12 @@
           display: flex;
           align-items: center;
           justify-content: center;
+
+          @media (max-width: 767px) {
+            width: 28px;
+            height: 28px;
+            font-size: 1rem;
+          }
 
           &:disabled {
             opacity: 0.5;
@@ -264,6 +389,11 @@
           font-size: 1rem;
           min-width: 20px;
           text-align: center;
+
+          @media (max-width: 767px) {
+            font-size: 0.9rem;
+            min-width: 16px;
+          }
         }
       }
     }
@@ -275,6 +405,10 @@
     gap: 1rem;
     overflow-x: auto;
     padding-bottom: 0.5rem;
+
+    @media (max-width: 767px) {
+      gap: 0.75rem;
+    }
 
     &::-webkit-scrollbar {
       height: 6px;
@@ -297,11 +431,28 @@
       cursor: pointer;
       transition: all 0.2s ease;
 
+      @media (max-width: 991px) {
+        min-width: 75px;
+        padding: 0.85rem 0.4rem;
+      }
+      @media (max-width: 767px) {
+        min-width: 68px;
+        padding: 0.75rem 0.35rem;
+        border-radius: 0.5rem;
+      }
+
       .date-month {
         font-size: 0.8rem;
         color: $text-500;
         font-weight: 600;
         text-transform: uppercase;
+
+        @media (max-width: 991px) {
+          font-size: 0.75rem;
+        }
+        @media (max-width: 767px) {
+          font-size: 0.7rem;
+        }
       }
 
       .date-day {
@@ -309,11 +460,26 @@
         font-weight: 800;
         color: $text-900;
         margin: 0.25rem 0;
+
+        @media (max-width: 991px) {
+          font-size: 1.35rem;
+        }
+        @media (max-width: 767px) {
+          font-size: 1.2rem;
+          margin: 0.15rem 0;
+        }
       }
 
       .date-weekday {
         font-size: 0.85rem;
         color: $text-600;
+
+        @media (max-width: 991px) {
+          font-size: 0.8rem;
+        }
+        @media (max-width: 767px) {
+          font-size: 0.75rem;
+        }
       }
 
       &:hover {
@@ -343,6 +509,14 @@
     border: 1px solid rgba($lavender-200, 0.4);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
 
+    @media (max-width: 991px) {
+      padding: 1.25rem;
+    }
+    @media (max-width: 767px) {
+      padding: 1rem;
+      border-radius: 0.75rem;
+    }
+
     h3 {
       font-size: 1.25rem;
       font-weight: 800;
@@ -351,6 +525,17 @@
       color: $text-900;
       padding-bottom: 0.75rem;
       border-bottom: 1px solid $lavender-100;
+
+      @media (max-width: 991px) {
+        font-size: 1.15rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.6rem;
+      }
+      @media (max-width: 767px) {
+        font-size: 1.05rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+      }
     }
 
     .event-mini-card {
@@ -360,11 +545,31 @@
       padding-bottom: 1.5rem;
       border-bottom: 1px dashed $lavender-200;
 
+      @media (max-width: 991px) {
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 1.25rem;
+      }
+      @media (max-width: 767px) {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+      }
+
       .mini-event-img {
         width: 70px;
         height: 70px;
         border-radius: 0.5rem;
         object-fit: cover;
+
+        @media (max-width: 991px) {
+          width: 60px;
+          height: 60px;
+        }
+        @media (max-width: 767px) {
+          width: 55px;
+          height: 55px;
+          border-radius: 0.375rem;
+        }
       }
 
       .mini-event-info {
@@ -374,6 +579,14 @@
           font-weight: 700;
           color: $text-900;
           line-height: 1.3;
+
+          @media (max-width: 991px) {
+            font-size: 0.95rem;
+          }
+          @media (max-width: 767px) {
+            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+          }
         }
 
         p {
@@ -383,6 +596,14 @@
           display: flex;
           align-items: center;
           gap: 0.4rem;
+
+          @media (max-width: 991px) {
+            font-size: 0.8rem;
+          }
+          @media (max-width: 767px) {
+            font-size: 0.78rem;
+            margin-bottom: 0.15rem;
+          }
         }
       }
     }
@@ -396,6 +617,12 @@
         margin-bottom: 0.75rem;
         font-size: 0.95rem;
         color: $text-700;
+
+        @media (max-width: 767px) {
+          font-size: 0.88rem;
+          margin-bottom: 0.6rem;
+          gap: 0.5rem;
+        }
 
         span:first-child {
           flex: 1;
@@ -414,6 +641,11 @@
         color: $text-400;
         text-align: center;
         padding: 1rem 0;
+
+        @media (max-width: 767px) {
+          font-size: 0.85rem;
+          padding: 0.75rem 0;
+        }
       }
 
       .summary-row {
@@ -423,12 +655,22 @@
         font-size: 0.95rem;
         color: $text-700;
 
+        @media (max-width: 767px) {
+          font-size: 0.88rem;
+          margin-bottom: 0.6rem;
+        }
+
         &.divider {
           margin-top: 1.5rem;
           padding-top: 1rem;
           border-top: 1px solid $lavender-100;
           font-weight: 600;
           color: $text-900;
+
+          @media (max-width: 767px) {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+          }
         }
 
         &.total-row {
@@ -438,6 +680,15 @@
           font-size: 1.25rem;
           font-weight: 800;
           color: $text-900;
+
+          @media (max-width: 991px) {
+            font-size: 1.2rem;
+          }
+          @media (max-width: 767px) {
+            font-size: 1.15rem;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+          }
 
           span:last-child {
             color: $lavender-600;
@@ -453,6 +704,11 @@
       color: #10B981;
       font-size: 0.85rem;
       font-weight: 600;
+
+      @media (max-width: 767px) {
+        font-size: 0.78rem;
+        gap: 0.4rem;
+      }
     }
   }
 
@@ -461,17 +717,31 @@
     align-items: flex-start;
     gap: 0.75rem;
 
+    @media (max-width: 767px) {
+      gap: 0.5rem;
+    }
+
     input[type="checkbox"] {
       margin-top: 0.25rem;
       width: 16px;
       height: 16px;
       accent-color: $lavender-600;
+
+      @media (max-width: 767px) {
+        width: 14px;
+        height: 14px;
+        margin-top: 0.15rem;
+      }
     }
 
     label {
       color: $text-600;
       line-height: 1.5;
       cursor: pointer;
+
+      @media (max-width: 767px) {
+        font-size: 0.78rem !important;
+      }
     }
   }
 
@@ -487,6 +757,13 @@
     padding-left: 0.2rem; // prevent overflow-x outline cutoffs
     padding-top: 0.2rem;
     padding-bottom: 0.5rem;
+
+    @media (max-width: 991px) {
+      gap: 1rem;
+    }
+    @media (max-width: 767px) {
+      gap: 0.75rem;
+    }
 
     // Custom sleek scrollbar
     &::-webkit-scrollbar {
@@ -521,6 +798,14 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
 
+    @media (max-width: 991px) {
+      padding: 1rem;
+    }
+    @media (max-width: 767px) {
+      padding: 0.85rem;
+      border-radius: 0.5rem;
+    }
+
     // Classic punched-ticket notches on left and right borders
     &::before,
     &::after {
@@ -535,16 +820,29 @@
       top: 50%;
       transform: translateY(-50%);
       z-index: 5;
+
+      @media (max-width: 767px) {
+        width: 10px;
+        height: 10px;
+      }
     }
 
     &::before {
       left: -8px;
       box-shadow: inset -3px 0 5px rgba(0, 0, 0, 0.02);
+
+      @media (max-width: 767px) {
+        left: -6px;
+      }
     }
 
     &::after {
       right: -8px;
       box-shadow: inset 3px 0 5px rgba(0, 0, 0, 0.02);
+
+      @media (max-width: 767px) {
+        right: -6px;
+      }
     }
 
     &:hover:not(.locked) {
@@ -592,6 +890,11 @@
       flex-direction: column;
       gap: 0.4rem;
       padding-right: 0.5rem;
+
+      @media (max-width: 767px) {
+        gap: 0.25rem;
+        padding-right: 0.25rem;
+      }
     }
 
     .coupon-badge-row {
@@ -599,6 +902,10 @@
       align-items: center;
       gap: 0.75rem;
       flex-wrap: wrap;
+
+      @media (max-width: 767px) {
+        gap: 0.4rem;
+      }
     }
 
     .coupon-code-tag {
@@ -614,6 +921,11 @@
       gap: 0.3rem;
       border: 1px solid rgba($lavender-500, 0.15);
 
+      @media (max-width: 767px) {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+      }
+
       .tag-icon {
         color: $lavender-600;
       }
@@ -627,6 +939,11 @@
       background: rgba(16, 185, 129, 0.1);
       padding: 0.25rem 0.5rem;
       border-radius: 0.35rem;
+
+      @media (max-width: 767px) {
+        font-size: 0.68rem;
+        padding: 0.2rem 0.45rem;
+      }
     }
 
     .applied-badge {
@@ -637,6 +954,11 @@
       padding: 0.25rem 0.5rem;
       border-radius: 0.35rem;
       animation: pulseActive 2s infinite ease-in-out;
+
+      @media (max-width: 767px) {
+        font-size: 0.68rem;
+        padding: 0.2rem 0.45rem;
+      }
     }
 
     @keyframes pulseActive {
@@ -656,6 +978,14 @@
       font-size: 0.95rem;
       font-weight: 700;
       color: $text-900;
+
+      @media (max-width: 991px) {
+        font-size: 0.9rem;
+      }
+      @media (max-width: 767px) {
+        font-size: 0.85rem;
+        margin-top: 0.15rem;
+      }
     }
 
     .coupon-min-spend {
@@ -663,6 +993,10 @@
       font-size: 0.8rem;
       color: $text-500;
       font-weight: 500;
+
+      @media (max-width: 767px) {
+        font-size: 0.75rem;
+      }
     }
 
     .unlock-progress-hint {
@@ -674,6 +1008,12 @@
       font-size: 0.78rem;
       font-weight: 600;
       margin-top: 0.25rem;
+
+      @media (max-width: 767px) {
+        font-size: 0.75rem;
+        margin-top: 0.15rem;
+        gap: 0.25rem;
+      }
     }
 
     // Dashed Ticket Divider
@@ -683,6 +1023,15 @@
       margin: 0 1.25rem;
       flex-shrink: 0;
       transition: border-color 0.2s ease;
+
+      @media (max-width: 991px) {
+        height: 50px;
+        margin: 0 1rem;
+      }
+      @media (max-width: 767px) {
+        height: 40px;
+        margin: 0 0.75rem;
+      }
     }
 
     .ticket-action-side {
@@ -691,6 +1040,13 @@
       align-items: center;
       min-width: 90px;
       flex-shrink: 0;
+
+      @media (max-width: 991px) {
+        min-width: 80px;
+      }
+      @media (max-width: 767px) {
+        min-width: 70px;
+      }
     }
 
     .coupon-apply-btn {
@@ -704,6 +1060,15 @@
       letter-spacing: 0.05em;
       transition: all 0.2s ease;
       cursor: pointer;
+
+      @media (max-width: 991px) {
+        padding: 0.35rem 1rem;
+        font-size: 0.75rem;
+      }
+      @media (max-width: 767px) {
+        padding: 0.35rem 0.85rem;
+        font-size: 0.72rem;
+      }
 
       &:hover {
         background-color: $lavender-600;
@@ -722,12 +1087,22 @@
       font-weight: 800;
       letter-spacing: 0.05em;
 
+      @media (max-width: 767px) {
+        font-size: 0.65rem;
+        gap: 0.15rem;
+      }
+
       &.active {
         color: $lavender-600;
 
         .check-icon {
           color: $lavender-600;
           filter: drop-shadow(0 2px 5px rgba($lavender-600, 0.2));
+
+          @media (max-width: 767px) {
+            width: 18px;
+            height: 18px;
+          }
         }
 
         span {
@@ -735,6 +1110,10 @@
           color: #EF4444;
           cursor: pointer;
           opacity: 0.8;
+
+          @media (max-width: 767px) {
+            font-size: 0.6rem;
+          }
 
           &:hover {
             opacity: 1;
@@ -745,6 +1124,13 @@
 
       &.locked {
         color: $text-400;
+
+        .lock-icon {
+          @media (max-width: 767px) {
+            width: 16px;
+            height: 16px;
+          }
+        }
       }
     }
   }
