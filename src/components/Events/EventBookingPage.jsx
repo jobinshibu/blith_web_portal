@@ -538,7 +538,7 @@ const EventBookingPage = () => {
             <div className="terms-checkbox" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
               <input type="checkbox" id="terms" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
               <label htmlFor="terms" style={{ fontSize: '0.85rem' }}>
-                I agree to Blithe's standard terms, event regulations and cancellation policies.
+                I agree to Blithe's <Link to="/terms" target="_blank" style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600 }}>standard terms, event regulations and cancellation policies</Link>.
               </label>
               {showErrors && !agreeTerms && (
                 <div className="validation-hint" style={{ marginTop: '0.5rem' }}>
