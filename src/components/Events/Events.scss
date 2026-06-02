@@ -317,31 +317,100 @@
 .search-section {
   margin-bottom: 1.55rem;
 
+  @keyframes borderFlow {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
   .search-bar-wrapper {
+    position: relative;
     @include glass-panel;
     display: flex;
     align-items: center;
     padding: 0.95rem 1.75rem;
     border-radius: 2rem;
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
-    transition: all 0.3s ease;
+    
+    // Promotes the element to its own GPU composite layer for maximum frame rates
+    will-change: transform, box-shadow;
+    
+    // Performance optimized transitions targeting strictly high-performance GPU properties
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+    // Gorgeous hardware-accelerated gradient border overlay using masking
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(90deg, $lavender-600, $lavender-400, $lavender-300, $lavender-500, $lavender-600);
+      background-size: 200% auto;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    &:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 6px 24px -2px rgba(0, 0, 0, 0.05);
+      
+      &::after {
+        opacity: 0.4;
+      }
+    }
 
     &:focus-within {
-      border-color: rgba($lavender-500, 0.45);
-      box-shadow: 0 8px 30px rgba($lavender-600, 0.08);
-      transform: translateY(-2px);
+      transform: translateY(-3px);
+      background-color: rgba(255, 255, 255, 0.94);
+      
+      // Soft glowing ring halo plus soft shadow
+      box-shadow: 0 0 0 4px rgba($lavender-500, 0.15),
+                  0 16px 32px -8px rgba($lavender-600, 0.18),
+                  0 8px 16px -10px rgba(0, 0, 0, 0.04);
+
+      &::after {
+        opacity: 1;
+        animation: borderFlow 3s linear infinite;
+      }
+
+      .hashtag-prefix {
+        color: $lavender-500;
+        transform: scale(1.15) rotate(15deg);
+        filter: drop-shadow(0 2px 8px rgba($lavender-500, 0.25));
+      }
     }
 
     .hashtag-prefix {
+      position: relative;
+      z-index: 2;
       color: #6B7280;
       font-size: 1.35rem;
       font-weight: 700;
       margin-right: 0.75rem;
       line-height: 1;
       user-select: none;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                  color 0.3s ease,
+                  filter 0.3s ease;
     }
 
     input {
+      position: relative;
+      z-index: 2;
       flex: 1;
       border: none;
       background: transparent;
@@ -353,19 +422,40 @@
       &::placeholder {
         color: $text-500;
         opacity: 0.7;
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                    opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      &:focus::placeholder {
+        opacity: 0.35;
+        transform: translateX(6px);
       }
     }
 
     .clear-search-btn {
+      position: relative;
+      z-index: 2;
       color: $text-500;
+      background: none;
+      border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                  color 0.3s ease, 
+                  background-color 0.3s ease;
+      padding: 4px;
+      border-radius: 50%;
 
       &:hover {
         color: $text-900;
+        background-color: rgba($lavender-500, 0.15);
+        transform: scale(1.1) rotate(90deg);
+      }
+
+      &:active {
+        transform: scale(0.9);
       }
     }
   }
@@ -496,6 +586,18 @@
       cursor: pointer;
       border-radius: 2rem;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+      &:hover {
+        .category-card {
+          background: $lavender-600 !important;
+          border-color: $lavender-600 !important;
+          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
+          
+          .category-card-title, .category-icon-box {
+            color: $white !important;
+          }
+        }
+      }
 
       &.selected {
         transform: translateY(-4px) scale(1.02);
