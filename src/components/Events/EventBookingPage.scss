@@ -388,4 +388,256 @@
       cursor: pointer;
     }
   }
+
+  // Coupon Ticket Cards
+  .coupons-list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-height: 330px; /* contains roughly 2.3 coupon cards, hinting scrollability */
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    padding-left: 0.2rem; // prevent overflow-x outline cutoffs
+    padding-top: 0.2rem;
+    padding-bottom: 0.5rem;
+
+    // Custom sleek scrollbar
+    &::-webkit-scrollbar {
+      width: 5px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba($lavender-300, 0.4);
+      border-radius: 4px;
+      
+      &:hover {
+        background: rgba($lavender-500, 0.6);
+      }
+    }
+  }
+
+  .coupon-ticket-card {
+    position: relative;
+    background: white;
+    border: 1px solid rgba($lavender-300, 0.5);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+
+    // Classic punched-ticket notches on left and right borders
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background-color: #fafafa; /* matches page background */
+      border: 1px solid rgba($lavender-300, 0.5);
+      border-radius: 50%;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 5;
+    }
+    &::before {
+      left: -8px;
+      box-shadow: inset -3px 0 5px rgba(0, 0, 0, 0.02);
+    }
+    &::after {
+      right: -8px;
+      box-shadow: inset 3px 0 5px rgba(0, 0, 0, 0.02);
+    }
+
+    &:hover:not(.locked) {
+      border-color: $lavender-400;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba($lavender-600, 0.06);
+
+      .coupon-apply-btn {
+        background-color: $lavender-600;
+        color: white;
+        border-color: $lavender-600;
+      }
+    }
+
+    &.selected {
+      border-color: $lavender-500;
+      background: rgba($lavender-500, 0.02);
+      box-shadow: 0 10px 25px rgba($lavender-500, 0.08);
+
+      &::before, &::after {
+        border-color: $lavender-500;
+      }
+
+      .ticket-divider-line {
+        border-left-color: rgba($lavender-500, 0.3);
+      }
+    }
+
+    &.locked {
+      cursor: not-allowed;
+      opacity: 0.65;
+      background-color: #FAFAFA;
+      border-color: rgba($lavender-200, 0.6);
+
+      &::before, &::after {
+        border-color: rgba($lavender-200, 0.6);
+      }
+    }
+
+    .ticket-details-side {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding-right: 0.5rem;
+    }
+
+    .coupon-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .coupon-code-tag {
+      background: rgba($lavender-500, 0.1);
+      color: $lavender-600;
+      padding: 0.25rem 0.6rem;
+      border-radius: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      border: 1px solid rgba($lavender-500, 0.15);
+
+      .tag-icon {
+        color: $lavender-600;
+      }
+    }
+
+    .save-amount-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #10B981; /* emerald green */
+      background: rgba(16, 185, 129, 0.1);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.35rem;
+    }
+
+    .applied-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: $lavender-600;
+      background: rgba($lavender-600, 0.15);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.35rem;
+      animation: pulseActive 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseActive {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+
+    .coupon-title {
+      margin: 0.25rem 0 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $text-900;
+    }
+
+    .coupon-min-spend {
+      margin: 0;
+      font-size: 0.8rem;
+      color: $text-500;
+      font-weight: 500;
+    }
+
+    .unlock-progress-hint {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #EF4444; /* red */
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-top: 0.25rem;
+    }
+
+    // Dashed Ticket Divider
+    .ticket-divider-line {
+      border-left: 2px dashed rgba($lavender-300, 0.6);
+      height: 60px;
+      margin: 0 1.25rem;
+      flex-shrink: 0;
+      transition: border-color 0.2s ease;
+    }
+
+    .ticket-action-side {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 90px;
+      flex-shrink: 0;
+    }
+
+    .coupon-apply-btn {
+      background-color: transparent;
+      color: $lavender-600;
+      border: 1.5px solid $lavender-500;
+      padding: 0.4rem 1.15rem;
+      border-radius: 2rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      transition: all 0.2s ease;
+      cursor: pointer;
+
+      &:hover {
+        background-color: $lavender-600;
+        color: white;
+        border-color: $lavender-600;
+        transform: scale(1.05);
+      }
+    }
+
+    .coupon-action-status {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+
+      &.active {
+        color: $lavender-600;
+        .check-icon {
+          color: $lavender-600;
+          filter: drop-shadow(0 2px 5px rgba($lavender-600, 0.2));
+        }
+        
+        span {
+          font-size: 0.65rem;
+          color: #EF4444;
+          cursor: pointer;
+          opacity: 0.8;
+          &:hover { opacity: 1; text-decoration: underline; }
+        }
+      }
+
+      &.locked {
+        color: $text-400;
+      }
+    }
+  }
 }
+

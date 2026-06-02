@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import Button from '../Button/Button';
@@ -401,53 +401,76 @@ const EventBookingPage = () => {
             {allCoupons.length === 0 ? (
               <p style={{ color: '#6B7280', fontStyle: 'italic' }}>No active coupons available right now.</p>
             ) : (
-              <div className="coupons-list-view" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="coupons-list-view">
                 {allCoupons.map(coupon => {
                   const potDiscount = calculateDiscount(coupon, subtotal);
                   const isApplicable = subtotal >= (coupon.minOrderAmount || 0);
+                  const isSelected = appliedCoupon?.id === coupon.id;
+                  const neededAmount = (coupon.minOrderAmount || 0) - subtotal;
 
                   return (
                     <div
                       key={coupon.id}
-                      style={{
-                        padding: '1rem',
-                        border: `2px solid ${appliedCoupon?.id === coupon.id ? '#7C3AED' : '#E5E7EB'}`,
-                        borderRadius: '0.5rem',
-                        background: appliedCoupon?.id === coupon.id ? 'rgba(124, 58, 237, 0.05)' : 'white',
-                        cursor: isApplicable ? 'pointer' : 'not-allowed',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        transition: 'all 0.2s ease',
-                        opacity: isApplicable ? 1 : 0.6
-                      }}
+                      className={`coupon-ticket-card ${isSelected ? 'selected' : ''} ${!isApplicable ? 'locked' : ''}`}
                       onClick={() => {
                         if (isApplicable) {
-                          setAppliedCoupon(appliedCoupon?.id === coupon.id ? null : coupon);
+                          setAppliedCoupon(isSelected ? null : coupon);
                         }
                       }}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{ background: '#7C3AED', color: 'white', padding: '0.25rem 0.6rem', borderRadius: '0.25rem', fontSize: '0.8rem', fontWeight: 700 }}>
+                      {/* Left Side: Offer Details */}
+                      <div className="ticket-details-side">
+                        <div className="coupon-badge-row">
+                          <span className="coupon-code-tag">
+                            <Tag size={12} className="tag-icon" />
                             {coupon.code}
                           </span>
-                          {appliedCoupon?.id === coupon.id && <CheckCircle size={16} color="#7C3AED" />}
+                          {isApplicable && !isSelected && (
+                            <span className="save-amount-badge">SAVE ₹{potDiscount}</span>
+                          )}
+                          {isSelected && (
+                            <span className="applied-badge">APPLIED</span>
+                          )}
                         </div>
-                        <h4 style={{ margin: '0.25rem 0 0', fontWeight: 600, color: '#1F2937', fontSize: '0.95rem' }}>
+                        
+                        <h4 className="coupon-title">
                           {coupon.title || 'Special Discount'}
                         </h4>
-                        {!isApplicable && (
-                          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#DC2626', fontWeight: 500 }}>
-                            Requires order above ₹{coupon.minOrderAmount}
+                        
+                        {coupon.minOrderAmount > 0 && !isSelected && (
+                          <p className="coupon-min-spend">
+                            Min. order: ₹{coupon.minOrderAmount}
                           </p>
                         )}
+                        
+                        {!isApplicable && neededAmount > 0 && (
+                          <div className="unlock-progress-hint">
+                            <Lock size={12} className="lock-icon" />
+                            <span>Add ₹{neededAmount} more to unlock</span>
+                          </div>
+                        )}
                       </div>
-                      
-                      <div style={{ textAlign: 'right', minWidth: '100px' }}>
-                        <div style={{ fontSize: '0.9rem', color: '#10B981', fontWeight: 700, marginBottom: '0.25rem' }}>
-                          -₹{potDiscount}
-                        </div>
+
+                      {/* Ticket Stub Dashed Divider */}
+                      <div className="ticket-divider-line"></div>
+
+                      {/* Right Side: Action Trigger */}
+                      <div className="ticket-action-side">
+                        {isSelected ? (
+                          <div className="coupon-action-status active">
+                            <CheckCircle size={20} className="check-icon" />
+                            <span>REMOVE</span>
+                          </div>
+                        ) : !isApplicable ? (
+                          <div className="coupon-action-status locked">
+                            <Lock size={18} className="lock-icon" />
+                            <span>LOCKED</span>
+                          </div>
+                        ) : (
+                          <button type="button" className="coupon-apply-btn">
+                            APPLY
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
