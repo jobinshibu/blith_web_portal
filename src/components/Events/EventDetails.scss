@@ -4,7 +4,7 @@
 .featured-badge-small {
   // Premium static background
   background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(88, 28, 135, 0.95));
-  
+
   color: #ffffff;
   padding: 0.35rem 0.8rem;
   border-radius: 2rem;
@@ -18,7 +18,7 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  
+
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -52,7 +52,7 @@
     .overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%);
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(0, 0, 0, 0.1) 100%);
     }
 
     .banner-content {
@@ -118,6 +118,7 @@
   .details-header-bar {
     padding-top: 1.5rem;
     padding-bottom: 1rem;
+
     .back-link-btn {
       display: inline-flex;
       align-items: center;
@@ -126,7 +127,10 @@
       text-decoration: none;
       font-weight: 600;
       transition: color 0.3s ease;
-      &:hover { color: $lavender-600; }
+
+      &:hover {
+        color: $lavender-600;
+      }
     }
   }
 
@@ -163,7 +167,7 @@
     backdrop-filter: blur(20px);
     border: 1px solid rgba($white, 0.3);
     border-radius: 1.5rem;
-    padding: 2.5rem;
+    padding: 2.5rem 3rem;
     box-shadow: $shadow-lg;
     margin-bottom: 2rem;
 
@@ -172,7 +176,8 @@
     }
   }
 
-  .about-details-card, .terms-details-card {
+  .about-details-card,
+  .terms-details-card {
     .description {
       font-size: 1.1rem;
       line-height: 1.8;
@@ -185,7 +190,7 @@
       display: -webkit-box;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      
+
       &:not(.expanded) {
         -webkit-line-clamp: 2;
       }
@@ -212,6 +217,7 @@
 
       .chevron-icon {
         transition: transform 0.3s ease;
+
         &.expanded {
           transform: rotate(180deg);
         }
@@ -272,24 +278,24 @@
   // --- Media Carousel Left Column ---
   .media-carousel-area {
     width: 100%;
-    
+
     .main-carousel-view {
       position: relative;
       width: 100%;
       aspect-ratio: 3 / 4;
-      max-height: 650px;
+      max-height: 542px;
       border-radius: 1.5rem;
       overflow: hidden;
       margin-bottom: 1.5rem;
       background-color: $text-900;
       box-shadow: $shadow-xl;
-      
+
       .featured-badge-small {
         position: absolute;
         top: 1.25rem;
         left: 1.25rem;
       }
-      
+
       .carousel-main-image {
         position: absolute;
         top: 0;
@@ -298,7 +304,7 @@
         height: 100%;
         object-fit: cover;
       }
-      
+
       .slide-arrow-btn {
         position: absolute;
         top: 50%;
@@ -314,7 +320,7 @@
         cursor: pointer;
         transition: all 0.3s ease;
         z-index: 10;
-        
+
         &:hover {
           background: rgba($white, 0.15);
           backdrop-filter: blur(4px);
@@ -322,11 +328,11 @@
           opacity: 1;
           transform: translateY(-50%) scale(1.1);
         }
-        
+
         &.prev {
           left: 1rem;
         }
-        
+
         &.next {
           right: 1rem;
         }
@@ -355,7 +361,7 @@
     .mobile-date-highlight {
       display: none; // Hidden on desktop
     }
-    
+
     .mobile-only-item {
       display: none; // Hidden on desktop
     }
@@ -375,27 +381,27 @@
     }
 
     .event-title {
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       font-weight: 800;
       color: $text-900;
       line-height: 1.2;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
     }
 
     .action-box {
-      margin-top: 1.75rem;
+      margin-top: 1rem;
       background: linear-gradient(135deg, rgba($lavender-100, 0.25) 0%, rgba(255, 255, 255, 0.9) 100%);
       border: 1px solid rgba($lavender-200, 0.8);
       border-radius: 1.25rem;
-      padding: 1.5rem;
+      padding: 1rem;
       box-shadow: 0 10px 25px -5px rgba($lavender-600, 0.05);
 
       .price-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding-bottom: 1.15rem;
-        margin-bottom: 1.15rem;
+        padding-bottom: 0.75rem;
+        margin-bottom: 0.75rem;
         border-bottom: 1px dashed rgba($lavender-300, 0.6);
 
         .label {
@@ -407,12 +413,12 @@
         }
 
         .amount {
-          font-size: 2.15rem;
+          font-size: 1.8rem;
           font-weight: 900;
           color: $lavender-600;
           line-height: 1;
         }
-        
+
         .amount-sub {
           font-size: 0.85rem !important;
           font-weight: 700 !important;
@@ -427,8 +433,8 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        font-size: 1.15rem;
-        padding: 1.25rem;
+        font-size: 1rem;
+        padding: 1rem;
         background: linear-gradient(135deg, $lavender-600, $lavender-500) !important;
         color: $white !important;
         border-radius: 1rem !important;
@@ -447,7 +453,7 @@
         &:active {
           transform: translateY(-0.5px) !important;
         }
-        
+
         &:disabled {
           background: #D1D5DB !important;
           color: #9CA3AF !important;
@@ -461,13 +467,13 @@
     .info-list {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
 
       .info-item {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.75rem;
 
         .icon-box {
           display: flex;
@@ -477,12 +483,12 @@
           height: 36px;
           border-radius: 0.75rem;
           background: rgba($lavender-100, 0.5);
-          
+
           .icon {
             color: $lavender-600;
           }
         }
-        
+
         .text-content {
           flex: 1;
         }
@@ -553,9 +559,10 @@
       color: $text-700;
       font-size: 0.95rem;
       line-height: 1.6;
-      
+
       li {
         margin-bottom: 0.75rem;
+
         &::marker {
           color: $lavender-400;
         }
@@ -571,7 +578,7 @@
     @media (max-width: 768px) {
       margin-top: 1.5rem;
     }
-    
+
     .events-portrait-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -580,7 +587,7 @@
       @media (max-width: 1200px) {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
-      
+
       @media (max-width: 768px) {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 1.75rem 1.25rem;
@@ -608,11 +615,12 @@
         .portrait-image-wrapper {
           transform: translateY(-8px);
           box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.16);
-          
+
           img {
             transform: scale(1.06);
           }
         }
+
         .portrait-card-title {
           color: $text-900;
         }
@@ -671,7 +679,7 @@
           line-height: 1.3;
           margin-bottom: 0.4rem;
           transition: color 0.2s;
-          
+
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
@@ -732,7 +740,7 @@
       order: 1;
       width: 100%;
     }
-    
+
     .event-info-sidebar {
       position: static;
       margin-top: 0;
@@ -759,9 +767,11 @@
   .mobile-fixed-booking-bar {
     display: none;
   }
+
   .desktop-booking-box {
     display: block;
   }
+
   .mobile-terms {
     display: none;
   }
@@ -770,7 +780,7 @@
 @media (max-width: 768px) {
   .event-details-page {
     padding-bottom: 6rem; // space for fixed bottom bar
-    
+
     // Header actions overlay
     .details-header-bar {
       position: absolute;
@@ -781,19 +791,23 @@
       padding: 1.5rem;
       display: flex;
       justify-content: space-between;
-      
+
       .back-link-btn {
         background: rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(8px);
         color: #fff;
         padding: 0.5rem;
         border-radius: 50%;
-        .text { display: none; }
+
+        .text {
+          display: none;
+        }
       }
-      
+
       .header-actions {
         display: flex;
         gap: 0.75rem;
+
         .icon-action-btn {
           width: 40px;
           height: 40px;
@@ -811,13 +825,15 @@
     .main-content {
       margin-top: 0;
     }
+
     .content-grid {
       display: flex;
       flex-direction: column;
       gap: 0;
     }
 
-    .media-carousel-area, .event-info-sidebar {
+    .media-carousel-area,
+    .event-info-sidebar {
       display: contents;
     }
 
@@ -833,7 +849,7 @@
       border-radius: 0 !important;
       border: none;
       margin-bottom: 0;
-      
+
       .carousel-main-image {
         border-radius: 0 !important;
         object-fit: cover !important;
@@ -850,13 +866,13 @@
       position: relative;
       z-index: 10;
       margin-top: -3rem !important; // Overlap sticky carousel
-      
+
       background: rgba($white, 0.95);
       border-radius: 2rem 2rem 0 0;
       padding: 2.5rem 1.5rem 2rem;
       border: none;
-      box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
-      
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+
       &::before {
         content: '';
         position: absolute;
@@ -868,13 +884,13 @@
         background: rgba($text-500, 0.3);
         border-radius: 4px;
       }
-      
+
       .event-title {
         font-size: 1.5rem;
         margin-bottom: 0.25rem;
         color: $text-900;
       }
-      
+
       .mobile-date-highlight {
         display: block;
         color: $lavender-600;
@@ -882,11 +898,11 @@
         font-size: 1rem;
         margin-bottom: 1.5rem;
       }
-      
+
       .desktop-date-time {
         display: none; // Hide desktop individual date/time
       }
-      
+
       .mobile-only-item {
         display: flex; // Show mobile combined schedule
       }
@@ -900,55 +916,87 @@
       .info-list .info-item {
         gap: 1rem;
         margin-bottom: 1rem;
-        
+
         .icon-box {
           background: rgba($lavender-100, 0.5);
           border-radius: 12px;
           width: 52px;
           height: 52px;
-          .icon { color: $lavender-600; }
+
+          .icon {
+            color: $lavender-600;
+          }
         }
-        
-        .val { color: $text-900; font-weight: 600; font-size: 1rem; margin-bottom: 0.15rem; }
-        .sub { color: $text-500; font-size: 0.85rem; }
-        
+
+        .val {
+          color: $text-900;
+          font-weight: 600;
+          font-size: 1rem;
+          margin-bottom: 0.15rem;
+        }
+
+        .sub {
+          color: $text-500;
+          font-size: 0.85rem;
+        }
+
         .chevron {
           display: block;
           color: $text-500;
         }
       }
 
-      .guarantee { display: none; }
+      .guarantee {
+        display: none;
+      }
     }
 
     // Extra details cards adapt to mobile layout
-    .about-details-card { order: 3; }
-    .venue-details-card { order: 4; }
-    
-    .about-details-card, 
-    .venue-details-card, 
+    .about-details-card {
+      order: 3;
+    }
+
+    .venue-details-card {
+      order: 4;
+    }
+
+    .about-details-card,
+    .venue-details-card,
     .terms-details-card {
       width: 100vw !important;
       margin-left: calc(-50vw + 50%) !important;
       box-sizing: border-box;
       position: relative;
       z-index: 10;
-      
+
       background: rgba($white, 0.95);
       border: none;
       border-radius: 0;
       margin-bottom: 0;
       padding: 1.5rem;
       border-top: 1px solid rgba($lavender-200, 0.3);
-      
-      .section-header h2 { color: $text-900; }
-      .description, .venue-details p, .terms-list { color: $text-500; }
-      .terms-list li::marker { color: $text-500; }
+
+      .section-header h2 {
+        color: $text-900;
+      }
+
+      .description,
+      .venue-details p,
+      .terms-list {
+        color: $text-500;
+      }
+
+      .terms-list li::marker {
+        color: $text-500;
+      }
     }
 
-    .desktop-terms { display: none; }
-    .mobile-terms { 
-      display: block; 
+    .desktop-terms {
+      display: none;
+    }
+
+    .mobile-terms {
+      display: block;
       order: 5;
     }
   }
@@ -961,20 +1009,21 @@
   }
 }
 
-@media (max-width: 800px), (max-height: 600px) {
+@media (max-width: 800px),
+(max-height: 600px) {
   .event-details-page {
     .desktop-booking-box {
       display: none !important;
     }
-    
+
     .event-info-sidebar {
       padding-bottom: 8rem; // Prevent content from hiding behind the fixed bar
     }
-    
+
     .mobile-terms {
       padding-bottom: 8rem; // For mobile layout specifically
     }
-    
+
     .mobile-fixed-booking-bar {
       display: flex;
       position: fixed;
@@ -989,7 +1038,7 @@
       align-items: center;
       padding: 1rem 1.5rem;
       box-shadow: 0 -4px 20px rgba($lavender-600, 0.1);
-      
+
       .price-row {
         flex-direction: column;
         align-items: flex-start;
@@ -997,27 +1046,33 @@
         background: transparent;
         padding: 0;
         border: none;
+
         .amount {
           color: $text-900;
           font-size: 1.25rem;
           font-weight: 700;
           line-height: 1;
         }
+
         .amount-sub {
           font-size: 0.8rem;
           color: $text-500;
           margin-top: 0.2rem;
         }
       }
-      
+
       .action-buttons {
         gap: 0;
+
         .book-now-btn {
           border-radius: 0.5rem;
           padding: 0.75rem 1.5rem;
           font-weight: 700;
           border: none;
-          svg { display: none; }
+
+          svg {
+            display: none;
+          }
         }
       }
     }
