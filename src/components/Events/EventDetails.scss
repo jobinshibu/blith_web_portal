@@ -2,16 +2,8 @@
 
 // Global Badge style for Featured Event
 .featured-badge-small {
-  // Luxury animated background
-  background: linear-gradient(120deg, 
-    rgba(17, 24, 39, 0.95) 30%, 
-    rgba(139, 92, 246, 0.35) 45%, 
-    rgba(167, 139, 250, 0.55) 50%, 
-    rgba(139, 92, 246, 0.35) 55%, 
-    rgba(17, 24, 39, 0.95) 70%
-  );
-  background-size: 200% auto;
-  animation: badgeShimmer 6s infinite linear;
+  // Premium static background
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(88, 28, 135, 0.95));
   
   color: #ffffff;
   padding: 0.35rem 0.8rem;
@@ -19,8 +11,8 @@
   font-size: 0.62rem;
   font-weight: 800;
   z-index: 10;
-  border: 1px solid rgba(139, 92, 246, 0.4);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25), 0 0 10px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   text-transform: uppercase;
@@ -38,19 +30,8 @@
     height: 5px;
     border-radius: 50%;
     background-color: #a78bfa;
-    box-shadow: 0 0 6px rgba(167, 139, 250, 0.8);
-    animation: badgePulse 2s infinite ease-in-out;
+    box-shadow: 0 0 2px rgba(167, 139, 250, 0.5);
   }
-}
-
-@keyframes badgeShimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes badgePulse {
-  0%, 100% { opacity: 0.5; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
 }
 
 .event-details-page {
