@@ -379,23 +379,79 @@
       margin-bottom: 0.75rem;
     }
 
-    .price-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid rgba($lavender-200, 0.5);
-      margin-bottom: 0.75rem;
+    .action-box {
+      margin-top: 1.75rem;
+      background: linear-gradient(135deg, rgba($lavender-100, 0.25) 0%, rgba(255, 255, 255, 0.9) 100%);
+      border: 1px solid rgba($lavender-200, 0.8);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px -5px rgba($lavender-600, 0.05);
 
-      .label {
-        font-weight: 600;
-        color: $text-500;
+      .price-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 1.15rem;
+        margin-bottom: 1.15rem;
+        border-bottom: 1px dashed rgba($lavender-300, 0.6);
+
+        .label {
+          font-size: 0.85rem;
+          font-weight: 800;
+          color: $text-500;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
+        .amount {
+          font-size: 2.15rem;
+          font-weight: 900;
+          color: $lavender-600;
+          line-height: 1;
+        }
+        
+        .amount-sub {
+          font-size: 0.85rem !important;
+          font-weight: 700 !important;
+          color: $lavender-500 !important;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
       }
 
-      .amount {
-        font-size: 2.25rem;
-        font-weight: 800;
-        color: $lavender-600;
+      .book-now-btn {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.15rem;
+        padding: 1.25rem;
+        background: linear-gradient(135deg, $lavender-600, $lavender-500) !important;
+        color: $white !important;
+        border-radius: 1rem !important;
+        font-weight: 800 !important;
+        border: none !important;
+        cursor: pointer;
+        box-shadow: 0 8px 22px rgba($lavender-600, 0.25) !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+
+        &:hover {
+          background: linear-gradient(135deg, darken($lavender-600, 5%), darken($lavender-500, 5%)) !important;
+          transform: translateY(-2.5px) !important;
+          box-shadow: 0 12px 28px rgba($lavender-600, 0.35) !important;
+        }
+
+        &:active {
+          transform: translateY(-0.5px) !important;
+        }
+        
+        &:disabled {
+          background: #D1D5DB !important;
+          color: #9CA3AF !important;
+          box-shadow: none !important;
+          cursor: not-allowed !important;
+          transform: none !important;
+        }
       }
     }
 
@@ -467,51 +523,7 @@
       }
     }
 
-    .action-buttons {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
 
-      .book-now-btn {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.75rem;
-        font-size: 1.1rem;
-        padding: 1.25rem;
-        background: linear-gradient(135deg, $lavender-600, $lavender-500);
-        color: $white;
-        border-radius: 1rem;
-        font-weight: 700;
-        box-shadow: 0 10px 25px rgba($lavender-600, 0.3);
-        transition: all 0.3s ease;
-
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 15px 35px rgba($lavender-600, 0.4);
-        }
-      }
-
-      .icon-action-btn {
-        width: 60px;
-        height: 60px;
-        border-radius: 1rem;
-        border: 2px solid $lavender-100;
-        background: $white;
-        color: $text-700;
-        @include flex-center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-
-        &:hover {
-          background: $lavender-50;
-          color: $lavender-600;
-          border-color: $lavender-200;
-          transform: translateY(-2px);
-        }
-      }
-    }
 
     .guarantee {
       display: flex;

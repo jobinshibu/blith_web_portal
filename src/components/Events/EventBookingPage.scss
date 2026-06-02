@@ -4,7 +4,7 @@
   background-color: #fafafa;
   min-height: 100vh;
   padding-bottom: 5rem;
-  padding-top: 1rem; // navbar offset
+  padding-top: 0rem; // navbar offset
   color: $text-800;
 
   .booking-page-loading {
@@ -89,13 +89,15 @@
       &::-webkit-scrollbar {
         width: 4px;
       }
+
       &::-webkit-scrollbar-track {
         background: transparent;
       }
+
       &::-webkit-scrollbar-thumb {
         background: rgba($lavender-300, 0.4);
         border-radius: 4px;
-        
+
         &:hover {
           background: rgba($lavender-500, 0.6);
         }
