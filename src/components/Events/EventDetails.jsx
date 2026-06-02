@@ -435,14 +435,12 @@ const EventDetails = () => {
                   <div className="icon-box"><Calendar size={20} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.date}</p>
-                    <p className="sub">Date & Schedule</p>
                   </div>
                 </div>
                 <div className="info-item desktop-date-time">
                   <div className="icon-box"><Clock size={20} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.time}</p>
-                    <p className="sub">Event Time</p>
                   </div>
                 </div>
                 
@@ -468,7 +466,6 @@ const EventDetails = () => {
                   <div className="icon-box"><Ticket size={20} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.eventType} Event</p>
-                    <p className="sub">Event Type</p>
                   </div>
                 </div>
                 
