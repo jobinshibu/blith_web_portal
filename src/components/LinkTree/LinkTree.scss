@@ -1,0 +1,283 @@
+.linktree-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 1.5rem;
+  /* Deep, sophisticated dark gradient */
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  color: #f3f4f6;
+  font-family: var(--font-body);
+  position: relative;
+  overflow: hidden;
+
+  /* Ambient glowing orbs in the background */
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  &::before {
+    top: -100px;
+    left: -100px;
+    background: var(--lavender-600);
+  }
+
+  &::after {
+    bottom: -100px;
+    right: -100px;
+    background: #EC4899;
+  }
+
+  > * {
+    z-index: 1; /* Keep content above ambient orbs */
+  }
+
+  .profile-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 3rem;
+    text-align: center;
+
+    .avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+      padding: 6px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+      &:hover {
+        transform: scale(1.08) rotate(5deg);
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        background-color: #0f0c29;
+      }
+    }
+
+    h1 {
+      font-family: var(--font-heading);
+      font-size: 2rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.7);
+      max-width: 480px;
+      line-height: 1.6;
+      font-weight: 300;
+    }
+  }
+
+  .links-section {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+
+    .loading-text {
+      text-align: center;
+      color: rgba(255,255,255,0.6);
+      padding: 3rem;
+      font-weight: 500;
+      animation: pulse 2s infinite;
+    }
+
+    .link-button {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 1.25rem;
+      text-decoration: none;
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+      position: relative;
+      overflow: hidden;
+
+      /* Shimmer effect setup */
+      &::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
+        transform: rotate(45deg) translate(-100%, 100%);
+        transition: all 0.6s ease;
+        z-index: 0;
+      }
+
+      > * {
+        z-index: 1; /* Keep content above shimmer */
+      }
+
+      &:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.3);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2), 0 0 20px rgba(124, 58, 237, 0.3);
+        
+        &::after {
+          transform: rotate(45deg) translate(100%, -100%);
+        }
+
+        .event-thumbnail {
+          transform: scale(1.05);
+        }
+
+        .arrow-icon {
+          opacity: 1;
+          transform: translateX(0);
+          color: #ffffff;
+        }
+      }
+
+      .event-thumbnail {
+        width: 65px;
+        height: 65px;
+        border-radius: 14px;
+        object-fit: cover;
+        margin-right: 1.25rem;
+        flex-shrink: 0;
+        background-color: rgba(255,255,255,0.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        transition: transform 0.4s ease;
+      }
+
+      .event-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+        padding-right: 1rem;
+
+        h3 {
+          font-family: var(--font-heading);
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: #ffffff;
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          letter-spacing: 0.02em;
+        }
+
+        .event-meta {
+          font-size: 0.85rem;
+          color: rgba(255,255,255,0.6);
+          margin-top: 0.4rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          
+          span {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+          }
+        }
+      }
+
+      .arrow-icon {
+        color: rgba(255,255,255,0.4);
+        opacity: 0.7;
+        transform: translateX(-5px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+    }
+  }
+
+  .footer-logo {
+    margin-top: auto;
+    padding-top: 4rem;
+    
+    img {
+      height: 32px;
+      opacity: 0.5;
+      transition: opacity 0.3s ease;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .linktree-container {
+    padding: 3rem 1rem;
+    
+    .profile-section {
+      margin-bottom: 2rem;
+      
+      .avatar {
+        width: 100px;
+        height: 100px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+    
+    .links-section .link-button {
+      padding: 1rem;
+      border-radius: 16px;
+      
+      .event-thumbnail {
+        width: 55px;
+        height: 55px;
+        margin-right: 1rem;
+        border-radius: 12px;
+      }
+      
+      .event-info h3 {
+        font-size: 1.05rem;
+      }
+      
+      .event-info .event-meta {
+        font-size: 0.8rem;
+      }
+    }
+  }
+}

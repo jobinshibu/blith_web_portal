@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { createDefaultUserObject, generateUID } from '../../services/userService';
 import Button from '../Button/Button';
 import './EventBookingPage.scss';
 
@@ -188,12 +189,14 @@ const EventBookingPage = () => {
   const total = Math.max(0, (subtotal - discountAmount) + bookingFee);
   const totalTickets = Object.values(quantities).reduce((a, b) => a + b, 0);
 
+  const isPhoneValid = /^\d{10}$/.test(attendee.phone.trim());
+
   const isValid = 
     totalTickets > 0 && 
     (isMultiDay ? selectedDate !== null : true) &&
     attendee.name.trim() !== '' &&
     attendee.email.trim() !== '' &&
-    attendee.phone.trim() !== '' &&
+    isPhoneValid &&
     agreeTerms;
 
   const handleCheckout = async (e) => {
@@ -217,23 +220,14 @@ const EventBookingPage = () => {
 
       if (!querySnapshot.empty) {
         uId = querySnapshot.docs[0].id;
+        console.log(`User already exists with UID: ${uId}`);
       } else {
-        const newDocRef = doc(usersRef);
-        uId = newDocRef.id;
-        await setDoc(newDocRef, {
-          uid: uId,
-          name: attendee.name,
-          email: attendee.email,
-          phoneNo: attendee.phone,
-          countryCode: "91",
-          createdTime: serverTimestamp(),
-          loginTime: serverTimestamp(),
-          online: true,
-          deleted: false,
-          admin: false,
-          block: false,
-          organiser: false
-        });
+        uId = generateUID();
+        const newDocRef = doc(usersRef, uId);
+        console.log(`User does not exist. Creating new record with UID: ${uId}`);
+        const newUserDocument = createDefaultUserObject(uId, attendee.name, attendee.email, attendee.phone);
+        await setDoc(newDocRef, newUserDocument);
+        console.log(`New user record created successfully with UID: ${uId}`);
       }
 
       setResolvedUserId(uId);
@@ -389,8 +383,8 @@ const EventBookingPage = () => {
                 <Phone size={18} className="input-icon" />
                 <input type="tel" id="phone" placeholder="e.g. 9876543210" value={attendee.phone} onChange={(e) => setAttendee(prev => ({ ...prev, phone: e.target.value }))} />
               </div>
-              {showErrors && !attendee.phone.trim() && (
-                <div className="validation-hint"><Info size={16} /><span>Please provide your phone number.</span></div>
+              {showErrors && !isPhoneValid && (
+                <div className="validation-hint"><Info size={16} /><span>Please provide a valid 10-digit phone number.</span></div>
               )}
             </div>
           </div>
