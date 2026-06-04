@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from '../../firebase';
@@ -240,6 +240,7 @@ const EventDetails = () => {
   const [showTermsDesktopBtn, setShowTermsDesktopBtn] = useState(false);
   const [showTermsMobileBtn, setShowTermsMobileBtn] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const aboutRef = useRef(null);
   const termsDesktopRef = useRef(null);
@@ -249,6 +250,53 @@ const EventDetails = () => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
+
+  const handleShareClick = async () => {
+    if (sharing) return;
+
+    if (navigator.share && event) {
+      setSharing(true);
+      const shareUrl = window.location.href;
+      const shareText = `Check out "${event.title}" on Blithe!`;
+      const shareData = {
+        title: event.title,
+        text: shareText,
+        url: shareUrl,
+      };
+
+      if (event.image) {
+        try {
+          const response = await fetch(event.image);
+          const blob = await response.blob();
+          const mimeType = blob.type || 'image/jpeg';
+          const extension = mimeType.split('/')[1] || 'jpg';
+          const file = new File([blob], `event-image.${extension}`, { type: mimeType });
+
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            shareData.files = [file];
+          }
+        } catch (err) {
+          console.error("Could not fetch event image for native sharing:", err);
+        }
+      }
+
+      try {
+        await navigator.share(shareData);
+        setSharing(false);
+        return; // Shared or user cancelled dialog
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Error with native share, falling back to modal:", err);
+        } else {
+          setSharing(false);
+          return; // User cancelled, don't show modal
+        }
+      }
+      setSharing(false);
+    }
+
+    setShowShareModal(true);
+  };
 
   useEffect(() => {
     const checkOverflow = () => {
@@ -589,12 +637,13 @@ const EventDetails = () => {
                     </div>
                   )}
                 </div>
-                <button
+                 <button
                   className="share-btn"
                   aria-label="Share Event"
-                  onClick={() => setShowShareModal(true)}
+                  onClick={handleShareClick}
+                  disabled={sharing}
                 >
-                  <Share2 size={18} />
+                  {sharing ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Share2 size={18} />}
                 </button>
               </div>
               <h1 className="event-title">{event.title}</h1>
