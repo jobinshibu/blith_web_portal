@@ -142,6 +142,8 @@
         font-size: 0.95rem;
         color: #E2E8F0;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        margin-top: 0.1rem;
+        margin-bottom: 0.6rem;
 
         .orange-icon {
           color: #E05A47;
@@ -169,7 +171,7 @@
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
-        margin-bottom: 1.25rem;
+        margin-bottom: 0.5rem;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
 
         .hero-meta-item {
@@ -603,7 +605,7 @@
     }
 
     .category-card-title {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 700;
       letter-spacing: 0.01em;
       line-height: 1;
@@ -1192,11 +1194,10 @@
         margin-bottom: 0.4rem;
         transition: color 0.2s;
 
-        // Truncate to maximum 2 lines
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+        // Truncate to exactly one line with ellipsis
+        white-space: nowrap;
         overflow: hidden;
+        text-overflow: ellipsis;
 
         @media (max-width: 480px) {
           font-size: 0.9rem;

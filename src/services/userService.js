@@ -64,8 +64,21 @@ export const checkPhoneExists = async (phoneNo) => {
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('phoneNo', '==', phoneNo));
     const querySnapshot = await getDocs(q);
-    console.log(`Phone number ${phoneNo} exists: ${!querySnapshot.empty}`);
-    return !querySnapshot.empty;
+    
+    if (querySnapshot.empty) {
+      console.log(`Phone number ${phoneNo} does not exist in any document.`);
+      return false;
+    }
+
+    // Check if there is at least one active user (not deleted AND not blocked)
+    const hasActiveUser = querySnapshot.docs.some(docSnap => {
+      const data = docSnap.data();
+      // An account counts as "existing" if it is active (not deleted and not blocked)
+      return data.deleted !== true && data.block !== true;
+    });
+
+    console.log(`Phone number ${phoneNo} has an active account: ${hasActiveUser}`);
+    return hasActiveUser;
   } catch (error) {
     console.error("Error checking phone number:", error);
     throw new Error("Failed to check phone number availability.");

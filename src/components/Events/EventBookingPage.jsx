@@ -1,10 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { createDefaultUserObject, generateUID } from '../../services/userService';
+import {
+  fetchFilteredCoupons,
+  applyCoupon as applyCouponService,
+  commitCoupon as commitCouponService,
+  releaseCoupon as releaseCouponService,
+} from '../../services/couponService';
 import Button from '../Button/Button';
 import './EventBookingPage.scss';
 
@@ -133,24 +139,46 @@ const EventBookingPage = () => {
   const [isVerifyingUser, setIsVerifyingUser] = useState(false);
   const [resolvedUserId, setResolvedUserId] = useState(null);
 
-  const [allCoupons, setAllCoupons] = useState([]);
-  const [validCoupons, setValidCoupons] = useState([]);
+  // Coupon state
+  const [filteredCoupons, setFilteredCoupons] = useState([]);
+  const [couponLoading, setCouponLoading] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [couponSession, setCouponSession] = useState(null);     // sessionId of active reservation
+  const [couponReservedUntil, setCouponReservedUntil] = useState(null); // Date when reservation expires
+  const [couponTimeLeft, setCouponTimeLeft] = useState(null);   // seconds remaining (for countdown)
+  const [couponApplyingId, setCouponApplyingId] = useState(null); // couponId currently being applied
+  const [couponErrors, setCouponErrors] = useState({});         // { [couponId]: errorString }
+  const [resolvedUserIdForCoupons, setResolvedUserIdForCoupons] = useState(null);
   const [settings, setSettings] = useState(null);
+  const couponTimerRef = useRef(null);
 
   // Fetch Settings
   useEffect(() => {
     const fetchSettings = async () => {
-      try {
-        const settingsRef = collection(db, "settings");
-        const snapshot = await getDocs(settingsRef);
-        if (!snapshot.empty) {
-          setSettings(snapshot.docs[0].data());
-        }
-      } catch (err) {
-        console.error("Error fetching settings:", err);
+      // Try common collection/document paths where app config (GST, serviceCode) may live.
+      // The 'settings' collection only stores event categories in this project.
+      const attempts = [
+        () => getDocs(collection(db, 'appConfig')),
+        () => getDocs(collection(db, 'config')),
+        () => getDocs(collection(db, 'platformSettings')),
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          const snapshot = await attempt();
+          if (!snapshot.empty) {
+            const data = snapshot.docs[0].data();
+            if (data.gst !== undefined || data.serviceCode !== undefined) {
+              setSettings(data);
+              return;
+            }
+          }
+        } catch (_) {}
       }
+
+      // Config collection not found — fall back to a safe default so GST still renders.
+      // 18% is the standard Indian GST rate applied on platform fees.
+      setSettings({ gst: 18 });
     };
     fetchSettings();
   }, []);
@@ -190,57 +218,60 @@ const EventBookingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event]);
 
-  // Fetch Coupons
+  // ─── Fetch filtered coupons (re-runs when event or resolved userId changes) ─
   useEffect(() => {
     if (!event) return;
-    const fetchCoupons = async () => {
+    const load = async () => {
+      setCouponLoading(true);
       try {
-        const couponsRef = collection(db, "coupon");
-        const q = query(couponsRef, where("isActive", "==", true));
-        const snapshot = await getDocs(q);
-        
-        const now = new Date();
-        const couponsData = [];
-
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          const expiry = data.expiryDate ? parseDate(data.expiryDate) : null;
-          if (expiry && expiry < now) return;
-          if (data.eventId && data.eventId !== event.id) return;
-          couponsData.push({ id: docSnap.id, ...data });
-        });
-        
-        // Inject dummy coupons if DB is empty for UI testing
-        if (couponsData.length === 0) {
-          couponsData.push({
-            id: 'dummy_1',
-            code: 'BLITHE50',
-            title: 'Welcome Discount',
-            percentage: false,
-            discountValue: 50,
-            minOrderAmount: 100,
-            type: 'general',
-            isActive: true
-          });
-          couponsData.push({
-            id: 'dummy_2',
-            code: 'EARLYBIRD',
-            title: 'Early Bird Special',
-            percentage: true,
-            discountValue: 15,
-            maxDiscount: 150,
-            minOrderAmount: 0,
-            type: 'general',
-            isActive: true
-          });
-        }
-        setAllCoupons(couponsData);
+        const coupons = await fetchFilteredCoupons(
+          resolvedUserIdForCoupons ?? null,
+          event.id
+        );
+        setFilteredCoupons(coupons);
       } catch (err) {
-        console.error("Error fetching coupons:", err);
+        console.error('Error fetching coupons:', err);
+      } finally {
+        setCouponLoading(false);
       }
     };
-    fetchCoupons();
-  }, [event]);
+    load();
+  }, [event, resolvedUserIdForCoupons]);
+
+  // ─── Countdown timer for active coupon reservation ─────────────────────────
+  useEffect(() => {
+    if (couponTimerRef.current) clearInterval(couponTimerRef.current);
+    if (!couponReservedUntil) { setCouponTimeLeft(null); return; }
+
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((couponReservedUntil.getTime() - Date.now()) / 1000));
+      setCouponTimeLeft(diff);
+      if (diff === 0) {
+        clearInterval(couponTimerRef.current);
+        // Reservation expired — clear applied coupon silently
+        setAppliedCoupon(null);
+        setCouponSession(null);
+        setCouponReservedUntil(null);
+      }
+    };
+    tick();
+    couponTimerRef.current = setInterval(tick, 1000);
+    return () => clearInterval(couponTimerRef.current);
+  }, [couponReservedUntil]);
+
+  // ─── Release reservation when user leaves the page ─────────────────────────
+  useEffect(() => {
+    return () => {
+      if (appliedCoupon && couponSession) {
+        releaseCouponService({
+          couponId: appliedCoupon.id,
+          userId: resolvedUserIdForCoupons || resolvedUserId,
+          sessionId: couponSession,
+        }).catch(() => {});
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedCoupon, couponSession]);
 
   if (loading) {
     return <div className="booking-page-loading">Loading booking details...</div>;
@@ -270,9 +301,15 @@ const EventBookingPage = () => {
     return sum + (quantities[idx] || 0) * (ticket.blithePrice || 0);
   }, 0);
 
-  const gstPercentage = (event && event.paid && settings) ? (parseFloat(settings.gst) || 0.0) : 0.0;
-  const platformFeeRate = (event && event.paid) ? (event.platformFee || 0.0) : 0.0;
+  // Use event.platformFee directly when present; fall back to 0 only if the field
+  // is genuinely absent. This avoids GST being zeroed out when event.paid is missing.
+  const platformFeeRate = (event && (event.paid || event.platformFee)) ? (event.platformFee || 0.0) : 0.0;
   const platformFeeVal = subtotal > 0 ? (subtotal * (platformFeeRate / 100)) : 0;
+
+  // GST applies whenever there is a platform fee and the settings doc provides a rate.
+  // We intentionally do NOT gate on event.paid here because that boolean is sometimes
+  // absent from the Firestore document while platformFee is still set.
+  const gstPercentage = (settings && platformFeeVal > 0) ? (parseFloat(settings.gst) || 0.0) : 0.0;
   const gstAmount = platformFeeVal * (gstPercentage / 100);
 
   const calculateDiscount = (coupon, currentSubtotal) => {
@@ -402,7 +439,7 @@ const EventBookingPage = () => {
       eventId: event.id,
       eventName: event.eventName || event.title || "",
       eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
-      eventLocation: event.location || event.venue || "",
+      eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
       eventLat: event.lat || event.latitude || 0.0,
       eventLong: event.long || event.longitude || 0.0,
       bookingDate: new Date(),
@@ -488,15 +525,16 @@ const EventBookingPage = () => {
       }
 
       setResolvedUserId(uId);
+      // Update userId for coupon context so re-fetch filters properly
+      if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
 
-      // Validate Coupon
-      if (appliedCoupon) {
-        const usageRef = collection(db, `coupons/${appliedCoupon.id}/usage`);
-        const usageQ = query(usageRef, where("userId", "==", uId));
-        const usageSnap = await getDocs(usageQ);
-        if (!usageSnap.empty) {
+      // Validate coupon reservation is still live
+      if (appliedCoupon && couponSession) {
+        if (!couponReservedUntil || couponReservedUntil < new Date()) {
           setAppliedCoupon(null);
-          alert("The coupon you selected has already been used by you.");
+          setCouponSession(null);
+          setCouponReservedUntil(null);
+          alert('Your coupon reservation has expired. Please re-apply the coupon.');
           setIsVerifyingUser(false);
           return;
         }
@@ -546,6 +584,22 @@ const EventBookingPage = () => {
 
       // Transaction-based Booking Confirmation Logic
       const performSaveBooking = async (paymentId, orderId, paymentStatusVal) => {
+        // Commit coupon reservation as early as possible (before the main transaction)
+        // so the seat is permanently claimed even if the below transaction takes time.
+        let couponCommitted = false;
+        if (appliedCoupon && couponSession && uId) {
+          const commitResult = await commitCouponService({
+            couponId: appliedCoupon.id,
+            userId: uId,
+            sessionId: couponSession,
+          });
+          if (commitResult.success) {
+            couponCommitted = true;
+          } else {
+            console.warn('[Coupon] commitCoupon failed:', commitResult.error);
+            // Non-fatal — the booking still goes through; the reservation will auto-expire
+          }
+        }
         const bId = generateBookingId();
         
         // Regenerate searchList including the generated booking ID
@@ -570,7 +624,7 @@ const EventBookingPage = () => {
           eventId: event.id,
           eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
           eventLat: event.lat || event.latitude || 0.0,
-          eventLocation: event.location || event.venue || "",
+          eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
           eventLong: event.long || event.longitude || 0.0,
           eventName: event.eventName || event.title || "",
           eventType: event.eventType || "Online",
@@ -589,13 +643,13 @@ const EventBookingPage = () => {
             discountValue: appliedCoupon.discountValue,
             id: appliedCoupon.id,
             percentage: !!appliedCoupon.percentage
-          } : null,
+          } : {},
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
           eventId: event.id,
           eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
           eventLat: event.lat || event.latitude || 0.0,
-          eventLocation: event.location || event.venue || "",
+          eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
           eventLong: event.long || event.longitude || 0.0,
           eventName: event.eventName || event.title || "",
           eventType: event.eventType || "Online",
@@ -891,9 +945,13 @@ const EventBookingPage = () => {
           }
         }
 
-        console.log("Successfully created booking records!");
-        alert("Booking confirmed successfully!");
-        navigate("/events");
+        console.log('Successfully created booking records!');
+        // Clear coupon state now that it's committed and booking is done
+        setAppliedCoupon(null);
+        setCouponSession(null);
+        setCouponReservedUntil(null);
+        alert('Booking confirmed successfully!');
+        navigate('/events');
       };
 
       // 2. Process booking flow
@@ -1108,25 +1166,96 @@ const EventBookingPage = () => {
           {/* Coupons Section */}
           <div className="section-block coupons-block glass">
             <h3>{isMultiDay ? '4. Available Offers' : '3. Available Offers'}</h3>
-            {allCoupons.length === 0 ? (
+
+            {couponLoading ? (
+              <div className="coupon-cards-loading">
+                {[1, 2].map(i => (
+                  <div key={i} className="coupon-skeleton">
+                    <div className="skeleton-left" />
+                    <div className="skeleton-right">
+                      <div className="skeleton-line short" />
+                      <div className="skeleton-line long" />
+                      <div className="skeleton-line medium" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredCoupons.length === 0 ? (
               <p style={{ color: '#6B7280', fontStyle: 'italic' }}>No active coupons available right now.</p>
             ) : (
               <div className="coupons-list-view">
-                {allCoupons.map(coupon => {
+                {filteredCoupons.map(coupon => {
                   const potDiscount = calculateDiscount(coupon, subtotal);
                   const isApplicable = subtotal >= (coupon.minOrderAmount || 0);
                   const isSelected = appliedCoupon?.id === coupon.id;
+                  const isApplying = couponApplyingId === coupon.id;
                   const neededAmount = (coupon.minOrderAmount || 0) - subtotal;
+                  const cardError = couponErrors[coupon.id];
+
+                  const handleApply = async () => {
+                    if (!isApplicable || isApplying) return;
+
+                    // Resolve userId first if not yet done (phone might not be entered)
+                    let uId = resolvedUserIdForCoupons;
+                    if (!uId && attendee.phone && /^\d{10}$/.test(attendee.phone.trim())) {
+                      try {
+                        const uRef = collection(db, 'users');
+                        const uQ = query(uRef, where('countryCode', '==', '91'), where('phoneNo', '==', attendee.phone));
+                        const uSnap = await getDocs(uQ);
+                        if (!uSnap.empty) {
+                          uId = uSnap.docs[0].id;
+                          setResolvedUserIdForCoupons(uId);
+                        }
+                      } catch (_) {}
+                    }
+
+                    if (!uId) {
+                      setCouponErrors(prev => ({ ...prev, [coupon.id]: 'Please enter your phone number first so we can verify eligibility.' }));
+                      return;
+                    }
+
+                    setCouponApplyingId(coupon.id);
+                    setCouponErrors(prev => { const n = { ...prev }; delete n[coupon.id]; return n; });
+
+                    // Release previous reservation if a different coupon was selected
+                    if (appliedCoupon && couponSession && appliedCoupon.id !== coupon.id) {
+                      await releaseCouponService({ couponId: appliedCoupon.id, userId: uId, sessionId: couponSession });
+                      setAppliedCoupon(null);
+                      setCouponSession(null);
+                      setCouponReservedUntil(null);
+                    }
+
+                    const result = await applyCouponService({
+                      couponId: coupon.id,
+                      userId: uId,
+                      orderAmount: subtotal,
+                    });
+
+                    setCouponApplyingId(null);
+
+                    if (result.success) {
+                      setAppliedCoupon(coupon);
+                      setCouponSession(result.sessionId);
+                      setCouponReservedUntil(result.reservedUntil);
+                    } else {
+                      setCouponErrors(prev => ({ ...prev, [coupon.id]: result.error }));
+                    }
+                  };
+
+                  const handleRemove = async () => {
+                    const uId = resolvedUserIdForCoupons || resolvedUserId;
+                    if (uId && couponSession) {
+                      await releaseCouponService({ couponId: coupon.id, userId: uId, sessionId: couponSession });
+                    }
+                    setAppliedCoupon(null);
+                    setCouponSession(null);
+                    setCouponReservedUntil(null);
+                  };
 
                   return (
                     <div
                       key={coupon.id}
                       className={`coupon-ticket-card ${isSelected ? 'selected' : ''} ${!isApplicable ? 'locked' : ''}`}
-                      onClick={() => {
-                        if (isApplicable) {
-                          setAppliedCoupon(isSelected ? null : coupon);
-                        }
-                      }}
                     >
                       {/* Left Side: Offer Details */}
                       <div className="ticket-details-side">
@@ -1135,50 +1264,70 @@ const EventBookingPage = () => {
                             <Tag size={12} className="tag-icon" />
                             {coupon.code}
                           </span>
-                          {isApplicable && !isSelected && (
+                          {isApplicable && !isSelected && potDiscount > 0 && (
                             <span className="save-amount-badge">SAVE ₹{potDiscount}</span>
                           )}
                           {isSelected && (
                             <span className="applied-badge">APPLIED</span>
                           )}
                         </div>
-                        
+
                         <h4 className="coupon-title">
                           {coupon.title || 'Special Discount'}
                         </h4>
-                        
+
                         {coupon.minOrderAmount > 0 && !isSelected && (
-                          <p className="coupon-min-spend">
-                            Min. order: ₹{coupon.minOrderAmount}
-                          </p>
+                          <p className="coupon-min-spend">Min. order: ₹{coupon.minOrderAmount}</p>
                         )}
-                        
+
                         {!isApplicable && neededAmount > 0 && (
                           <div className="unlock-progress-hint">
                             <Lock size={12} className="lock-icon" />
                             <span>Add ₹{neededAmount} more to unlock</span>
                           </div>
                         )}
+
+                        {/* Countdown timer for active reservation */}
+                        {isSelected && couponTimeLeft !== null && (
+                          <div className="coupon-timer-badge">
+                            <Timer size={12} />
+                            <span>
+                              Reserved for{' '}
+                              {String(Math.floor(couponTimeLeft / 60)).padStart(2, '0')}:
+                              {String(couponTimeLeft % 60).padStart(2, '0')}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Inline error */}
+                        {cardError && (
+                          <p className="coupon-error-msg">{cardError}</p>
+                        )}
                       </div>
 
                       {/* Ticket Stub Dashed Divider */}
                       <div className="ticket-divider-line"></div>
 
-                      {/* Right Side: Action Trigger */}
+                      {/* Right Side: Action */}
                       <div className="ticket-action-side">
                         {isSelected ? (
-                          <div className="coupon-action-status active">
+                          <button type="button" className="coupon-action-status active" onClick={handleRemove}>
                             <CheckCircle size={20} className="check-icon" />
                             <span>REMOVE</span>
-                          </div>
+                          </button>
                         ) : !isApplicable ? (
                           <div className="coupon-action-status locked">
                             <Lock size={18} className="lock-icon" />
                             <span>LOCKED</span>
                           </div>
                         ) : (
-                          <button type="button" className="coupon-apply-btn">
-                            APPLY
+                          <button
+                            type="button"
+                            className={`coupon-apply-btn ${isApplying ? 'applying' : ''}`}
+                            onClick={handleApply}
+                            disabled={isApplying}
+                          >
+                            {isApplying ? '...' : 'APPLY'}
                           </button>
                         )}
                       </div>

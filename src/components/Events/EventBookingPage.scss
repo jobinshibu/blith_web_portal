@@ -1094,6 +1094,10 @@
 
       &.active {
         color: $lavender-600;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
 
         .check-icon {
           color: $lavender-600;
@@ -1108,7 +1112,6 @@
         span {
           font-size: 0.65rem;
           color: #EF4444;
-          cursor: pointer;
           opacity: 0.8;
 
           @media (max-width: 767px) {
@@ -1133,5 +1136,133 @@
         }
       }
     }
+
+    // Coupon reservation countdown timer badge
+    .coupon-timer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-top: 0.25rem;
+      padding: 0.2rem 0.55rem;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 2rem;
+      color: #D97706;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      animation: timerPulse 1s ease-in-out infinite;
+
+      @media (max-width: 767px) {
+        font-size: 0.68rem;
+        padding: 0.15rem 0.45rem;
+      }
+
+      svg {
+        flex-shrink: 0;
+        color: #D97706;
+      }
+    }
+
+    @keyframes timerPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    // Inline error message per coupon card
+    .coupon-error-msg {
+      margin: 0.25rem 0 0;
+      font-size: 0.78rem;
+      color: #DC2626;
+      font-weight: 500;
+      line-height: 1.4;
+
+      @media (max-width: 767px) {
+        font-size: 0.72rem;
+      }
+    }
+
+    // Applying (loading) state for apply button
+    .coupon-apply-btn.applying {
+      opacity: 0.6;
+      cursor: wait;
+      pointer-events: none;
+    }
   }
-}
+
+  // Loading skeleton for coupon cards
+  .coupon-cards-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .coupon-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    border: 1px solid rgba($lavender-200, 0.4);
+    border-radius: 0.75rem;
+    background: white;
+    overflow: hidden;
+    position: relative;
+
+    @media (max-width: 767px) {
+      padding: 1rem;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.6) 50%,
+        transparent 100%
+      );
+      transform: translateX(-100%);
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+
+    .skeleton-left {
+      width: 56px;
+      height: 56px;
+      border-radius: 0.5rem;
+      background: $lavender-100;
+      flex-shrink: 0;
+
+      @media (max-width: 767px) {
+        width: 44px;
+        height: 44px;
+      }
+    }
+
+    .skeleton-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .skeleton-line {
+      height: 10px;
+      background: $lavender-100;
+      border-radius: 4px;
+
+      &.short  { width: 35%; }
+      &.long   { width: 70%; }
+      &.medium { width: 50%; }
+
+      @media (max-width: 767px) {
+        height: 9px;
+      }
+    }
+  }
+
+  @keyframes shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+}

@@ -154,7 +154,15 @@ const Events = () => {
   const [locationError, setLocationError] = useState(null);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(0); // 0 = May, 1 = June
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const foundIndex = CALENDAR_MONTHS.findIndex(
+      m => m.monthIndex === currentMonth && m.year === currentYear
+    );
+    return foundIndex !== -1 ? foundIndex : 0;
+  }); // dynamically defaults to current month if present, otherwise 0 (May)
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -756,10 +764,7 @@ const Events = () => {
                             <div className="card-text-side">
                               <div className="hero-meta-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                                 <span className="hero-badge-modern">Featured</span>
-                                <div className="hero-date-time" style={{ margin: 0 }}>
-                                  <Calendar size={18} className="orange-icon" />
-                                  <span>{event.date}</span>
-                                </div>
+
                               </div>
                               <h1 className="hero-title">{event.title}</h1>
 
@@ -768,8 +773,12 @@ const Events = () => {
                                   <MapPin size={18} className="meta-icon" />
                                   <span>{event.location}</span>
                                 </div>
-                              </div>
 
+                              </div>
+                              <div className="hero-date-time">
+                                <Calendar size={18} className="orange-icon" />
+                                <span>{event.date}</span>
+                              </div>
                               <p className="hero-price">{event.price}</p>
 
                               <div className={`hero-actions ${index !== 0 ? 'disabled' : ''}`}>
