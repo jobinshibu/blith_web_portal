@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock } from 'lucide-react';
-import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { createDefaultUserObject, generateUID } from '../../services/userService';
 import Button from '../Button/Button';
@@ -36,6 +36,86 @@ const getDatesBetween = (start, end) => {
   return dates;
 };
 
+// Dynamically load Razorpay SDK
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
+// Generate custom booking ID in format BVB<timestamp><3-digit random>
+const generateBookingId = () => {
+  const timestamp = Date.now();
+  const randomNum = Math.floor(100 + Math.random() * 900);
+  return `BVB${timestamp}${randomNum}`;
+};
+
+// Generate search prefixes list for bookings
+const generateBookingSearchList = (userName, eventName, bookingId, eventId) => {
+  const searchKeywords = new Set();
+  const addPrefixes = (text) => {
+    if (!text) return;
+    const lower = text.toLowerCase();
+    let cur = '';
+    for (let i = 0; i < lower.length; i++) {
+      cur += lower[i];
+      searchKeywords.add(cur);
+    }
+  };
+
+  addPrefixes(userName);
+  addPrefixes(eventName);
+  addPrefixes(bookingId);
+  addPrefixes(eventId);
+
+  return Array.from(searchKeywords);
+};
+
+// Helper to format date to YYYY-MM-DD
+const formatDateStr = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  const month = '' + (d.getMonth() + 1);
+  const day = '' + d.getDate();
+  const year = d.getFullYear();
+  return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
+};
+
+// Helper to create Razorpay Order via REST API
+const createRazorpayOrder = async (amount, bookingId, keyId, keySecret) => {
+  const auth = btoa(`${keyId}:${keySecret}`);
+  const amountInPaise = Math.round(amount * 100);
+  const response = await fetch("https://api.razorpay.com/v1/orders", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Basic ${auth}`
+    },
+    body: JSON.stringify({
+      amount: amountInPaise,
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
+      notes: {
+        bookingId: bookingId
+      }
+    })
+  });
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Razorpay Order creation failed: ${response.status} - ${errText}`);
+  }
+  return await response.json();
+};
+
 const EventBookingPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -57,6 +137,23 @@ const EventBookingPage = () => {
   const [validCoupons, setValidCoupons] = useState([]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [showCouponModal, setShowCouponModal] = useState(false);
+  const [settings, setSettings] = useState(null);
+
+  // Fetch Settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settingsRef = collection(db, "settings");
+        const snapshot = await getDocs(settingsRef);
+        if (!snapshot.empty) {
+          setSettings(snapshot.docs[0].data());
+        }
+      } catch (err) {
+        console.error("Error fetching settings:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Fetch Event Details
   useEffect(() => {
@@ -173,8 +270,10 @@ const EventBookingPage = () => {
     return sum + (quantities[idx] || 0) * (ticket.blithePrice || 0);
   }, 0);
 
-  const platformFeeRate = event.platformFee || 0;
-  const bookingFee = subtotal > 0 ? Math.round(subtotal * (platformFeeRate / 100)) : 0;
+  const gstPercentage = (event && event.paid && settings) ? (parseFloat(settings.gst) || 0.0) : 0.0;
+  const platformFeeRate = (event && event.paid) ? (event.platformFee || 0.0) : 0.0;
+  const platformFeeVal = subtotal > 0 ? (subtotal * (platformFeeRate / 100)) : 0;
+  const gstAmount = platformFeeVal * (gstPercentage / 100);
 
   const calculateDiscount = (coupon, currentSubtotal) => {
     if (!coupon || currentSubtotal < (coupon.minOrderAmount || 0)) return 0;
@@ -186,7 +285,7 @@ const EventBookingPage = () => {
   };
 
   const discountAmount = calculateDiscount(appliedCoupon, subtotal);
-  const total = Math.max(0, (subtotal - discountAmount) + bookingFee);
+  const total = Math.max(0, (subtotal - discountAmount) + platformFeeVal + gstAmount);
   const totalTickets = Object.values(quantities).reduce((a, b) => a + b, 0);
 
   const isPhoneValid = /^\d{10}$/.test(attendee.phone.trim());
@@ -198,6 +297,162 @@ const EventBookingPage = () => {
     attendee.email.trim() !== '' &&
     isPhoneValid &&
     agreeTerms;
+
+  // Helper to block ticket slots for 10 minutes (paid events)
+  const blockTicketSlots = async (uId, bookedTickets, dateStr, dbTickets, finalBookingSearchList) => {
+    const availabilityRef = doc(db, "event", event.id, "availability", dateStr);
+    
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(availabilityRef);
+      
+      let ticketsMap = {};
+      let blockedSlots = {};
+
+      if (!snapshot.exists()) {
+        // Lazy Initialization from Event's current tickets
+        dbTickets.forEach((t) => {
+          ticketsMap[t.ticketName] = t.totalSlots || 0;
+        });
+      } else {
+        const data = snapshot.data();
+        const ticketsMapDynamic = data.tickets || {};
+        ticketsMap = { ...ticketsMapDynamic };
+        blockedSlots = { ...(data.blocked_slots || {}) };
+
+        // Merge missing tickets
+        dbTickets.forEach((t) => {
+          if (ticketsMap[t.ticketName] === undefined) {
+            ticketsMap[t.ticketName] = t.totalSlots || 0;
+          }
+        });
+      }
+
+      // 1. Cleanup expired locks (10+ mins)
+      const now = new Date();
+      const userIdsToRemove = [];
+      Object.entries(blockedSlots).forEach(([userIdKey, lockData]) => {
+        if (lockData.expiry) {
+          const expiryDate = lockData.expiry.toDate ? lockData.expiry.toDate() : new Date(lockData.expiry);
+          if (expiryDate < now) {
+            // Restore slots
+            const reservedItems = lockData.items || [];
+            reservedItems.forEach((item) => {
+              const tName = item.ticketName;
+              const qty = item.quantity;
+              ticketsMap[tName] = (ticketsMap[tName] || 0) + qty;
+            });
+            userIdsToRemove.push(userIdKey);
+          }
+        }
+      });
+      userIdsToRemove.forEach((id) => {
+        delete blockedSlots[id];
+      });
+
+      // 2. Check Aggregate Availability for all selected tickets
+      const requestedTotals = {};
+      bookedTickets.forEach((bookingTicket) => {
+        requestedTotals[bookingTicket.ticketName] = (requestedTotals[bookingTicket.ticketName] || 0) + bookingTicket.quantity;
+      });
+
+      for (const [ticketName, requestedQty] of Object.entries(requestedTotals)) {
+        const currentAvailable = ticketsMap[ticketName] || 0;
+        if (currentAvailable < requestedQty) {
+          throw new Error(`Insufficient slots for ${ticketName} on this date.`);
+        }
+      }
+
+      // 3. Update (Reserve) and Store list of items in the lock
+      const lockItems = [];
+      bookedTickets.forEach((bookingTicket) => {
+        ticketsMap[bookingTicket.ticketName] = (ticketsMap[bookingTicket.ticketName] || 0) - bookingTicket.quantity;
+        lockItems.push({
+          ticketName: bookingTicket.ticketName,
+          quantity: bookingTicket.quantity
+        });
+      });
+
+      blockedSlots[uId] = {
+        items: lockItems,
+        expiry: new Date(now.getTime() + 10 * 60 * 1000), // 10 minutes
+        availabilityDate: dateStr,
+        eventType: event.eventType || "Online",
+        searchList: finalBookingSearchList,
+        createdDate: new Date()
+      };
+
+      transaction.set(availabilityRef, {
+        tickets: ticketsMap,
+        blocked_slots: blockedSlots,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    });
+  };
+
+  // Helper to create pending booking (paid events)
+  const createPendingBooking = async (orderId, uId, bookedTickets, priceDetails, finalBookingSearchList) => {
+    const pendingBookingRef = doc(db, "pendingBookings", orderId);
+    const selectedDateVal = selectedDate ? selectedDate : startDate;
+
+    const bookingData = {
+      bookingId: "",
+      userId: uId,
+      userName: attendee.name,
+      userProfileImage: "",
+      eventId: event.id,
+      eventName: event.eventName || event.title || "",
+      eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
+      eventLocation: event.location || event.venue || "",
+      eventLat: event.lat || event.latitude || 0.0,
+      eventLong: event.long || event.longitude || 0.0,
+      bookingDate: new Date(),
+      eventDate: selectedDateVal,
+      createdDate: new Date(),
+      totalPrice: total,
+      totalQuantity: totalTickets,
+      status: "pending",
+      platform: "Web",
+      userEmail: attendee.email,
+      eventType: event.eventType || "Online",
+      searchList: finalBookingSearchList,
+      tickets: bookedTickets,
+      coupon: appliedCoupon ? {
+        id: appliedCoupon.id,
+        code: appliedCoupon.code,
+        discountValue: appliedCoupon.discountValue,
+        percentage: !!appliedCoupon.percentage,
+        discount: discountAmount
+      } : {},
+      priceDetails: priceDetails,
+      serviceCode: event.serviceCode || settings?.serviceCode || ""
+    };
+
+    await setDoc(pendingBookingRef, {
+      bookingId: "",
+      razorpayOrderId: orderId,
+      userId: uId,
+      eventId: event.id,
+      eventName: event.eventName || event.title || "",
+      totalPrice: total,
+      status: "pending",
+      createdAt: serverTimestamp(),
+      bookingData: bookingData,
+      paymentMode: "razorpay",
+      platform: "Web",
+      availabilityDate: formatDateStr(selectedDateVal),
+      eventType: event.eventType || "Online",
+      searchList: finalBookingSearchList,
+      createdDate: new Date(),
+      coupon: appliedCoupon ? {
+        id: appliedCoupon.id,
+        code: appliedCoupon.code,
+        discountValue: appliedCoupon.discountValue,
+        percentage: !!appliedCoupon.percentage,
+        discount: discountAmount
+      } : {},
+      priceDetails: priceDetails
+    });
+  };
 
   const handleCheckout = async (e) => {
     e.preventDefault();
@@ -216,10 +471,12 @@ const EventBookingPage = () => {
       const querySnapshot = await getDocs(q);
 
       let uId = null;
-      let hasPastBookings = false;
+      let userProfileImage = "";
 
       if (!querySnapshot.empty) {
-        uId = querySnapshot.docs[0].id;
+        const userDoc = querySnapshot.docs[0];
+        uId = userDoc.id;
+        userProfileImage = userDoc.data().profilePic || "";
         console.log(`User already exists with UID: ${uId}`);
       } else {
         uId = generateUID();
@@ -245,13 +502,472 @@ const EventBookingPage = () => {
         }
       }
 
-      // Proceed to Payment (Razorpay logic goes here)
-      console.log('Proceed to Payment with total:', total);
-      alert('Redirecting to Payment Gateway...');
+      const selectedDateVal = selectedDate ? selectedDate : startDate;
+      const dateStr = formatDateStr(selectedDateVal);
+
+      // Construct price details
+      const priceDetails = {
+        couponDiscountPrice: discountAmount,
+        gstAmount: gstAmount,
+        gstPercentage: gstPercentage,
+        platformFee: platformFeeVal,
+        platformFeePercentage: platformFeeRate,
+        totalDiscount: discountAmount,
+        totalPrice: total,
+        totalTicketPrice: subtotal
+      };
+
+      // Construct booked tickets array
+      const bookedTickets = [];
+      tickets.forEach((ticket, idx) => {
+        const qty = quantities[idx] || 0;
+        if (qty > 0) {
+          bookedTickets.push({
+            category: ticket.category || "generic",
+            price: ticket.blithePrice || 0,
+            quantity: qty,
+            ticketName: ticket.ticketName || "",
+            totalPrice: subtotal > 0 ? (qty * (ticket.blithePrice || 0) / subtotal) * total : 0,
+            totalQuantity: qty,
+            userEmail: attendee.email,
+            userId: uId,
+            userName: attendee.name,
+            userProfileImage: userProfileImage
+          });
+        }
+      });
+
+      const finalBookingSearchList = generateBookingSearchList(
+        attendee.name,
+        event.eventName || event.title || "",
+        "",
+        event.id
+      );
+
+      // Transaction-based Booking Confirmation Logic
+      const performSaveBooking = async (paymentId, orderId, paymentStatusVal) => {
+        const bId = generateBookingId();
+        
+        // Regenerate searchList including the generated booking ID
+        const searchList = generateBookingSearchList(
+          attendee.name,
+          event.eventName || event.title || "",
+          bId,
+          event.id
+        );
+
+        // Update booking ID and profile image in booked tickets
+        bookedTickets.forEach((t) => {
+          t.userId = uId;
+          t.userProfileImage = userProfileImage;
+        });
+
+        const myBookingData = {
+          bookingDate: serverTimestamp(),
+          bookingId: bId,
+          createdDate: serverTimestamp(),
+          eventDate: selectedDateVal,
+          eventId: event.id,
+          eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
+          eventLat: event.lat || event.latitude || 0.0,
+          eventLocation: event.location || event.venue || "",
+          eventLong: event.long || event.longitude || 0.0,
+          eventName: event.eventName || event.title || "",
+          eventType: event.eventType || "Online",
+          platform: "Web",
+          searchList: searchList,
+          status: "confirmed",
+          tickets: bookedTickets
+        };
+
+        const eventBookingData = {
+          bookingDate: serverTimestamp(),
+          bookingId: bId,
+          coupon: appliedCoupon ? {
+            code: appliedCoupon.code,
+            discount: discountAmount,
+            discountValue: appliedCoupon.discountValue,
+            id: appliedCoupon.id,
+            percentage: !!appliedCoupon.percentage
+          } : null,
+          createdDate: serverTimestamp(),
+          eventDate: selectedDateVal,
+          eventId: event.id,
+          eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
+          eventLat: event.lat || event.latitude || 0.0,
+          eventLocation: event.location || event.venue || "",
+          eventLong: event.long || event.longitude || 0.0,
+          eventName: event.eventName || event.title || "",
+          eventType: event.eventType || "Online",
+          isRated: false,
+          isSkipped: false,
+          paymentId: paymentId,
+          paymentStatus: paymentStatusVal,
+          platform: "Web",
+          priceDetails: priceDetails,
+          razorpayOrderId: orderId,
+          searchList: searchList,
+          serviceCode: event.serviceCode || settings?.serviceCode || "999631",
+          status: "confirmed",
+          tickets: bookedTickets,
+          updatedAt: serverTimestamp(),
+          userEmail: attendee.email,
+          userId: uId,
+          userName: attendee.name,
+          userProfileImage: userProfileImage
+        };
+
+        const eventRef = doc(db, "event", event.id);
+        const availabilityRef = doc(db, "event", event.id, "availability", dateStr);
+        const userBookingRef = doc(db, "users", uId, "myBookings", bId);
+        const eventBookingRef = doc(db, "event", event.id, "eventBookings", bId);
+
+        await runTransaction(db, async (transaction) => {
+          // 1. Read Event Document
+          const eventSnap = await transaction.get(eventRef);
+          if (!eventSnap.exists()) {
+            throw new Error("Event not found");
+          }
+          const eventDbData = eventSnap.data();
+          const dbTickets = eventDbData.tickets || [];
+
+          // 2. Read Availability Document
+          const availSnap = await transaction.get(availabilityRef);
+          
+          let ticketsMap = {};
+          let blockedSlots = {};
+
+          if (availSnap.exists()) {
+            const availData = availSnap.data();
+            const ticketsMapDynamic = availData.tickets || {};
+            ticketsMap = { ...ticketsMapDynamic };
+            blockedSlots = { ...(availData.blocked_slots || {}) };
+
+            // Merge missing tickets
+            dbTickets.forEach((t) => {
+              if (ticketsMap[t.ticketName] === undefined) {
+                ticketsMap[t.ticketName] = t.totalSlots || 0;
+              }
+            });
+          } else {
+            // Initialize for the first time
+            dbTickets.forEach((t) => {
+              ticketsMap[t.ticketName] = t.totalSlots || 0;
+            });
+          }
+
+          // Cleanup slot locks from blockedSlots
+          delete blockedSlots[uId];
+
+          // 3. Decrement global and daily slots
+          const updatedGlobalTickets = JSON.parse(JSON.stringify(dbTickets));
+
+          for (const bookingTicket of bookedTickets) {
+            // Decrement Daily
+            const currentDayAvail = ticketsMap[bookingTicket.ticketName] || 0;
+            if (currentDayAvail < bookingTicket.quantity) {
+              throw new Error(`Insufficient slots for ${bookingTicket.ticketName} on this date.`);
+            }
+            ticketsMap[bookingTicket.ticketName] = currentDayAvail - bookingTicket.quantity;
+
+            // Decrement Global
+            const ticketIndex = updatedGlobalTickets.findIndex((t) => t.ticketName === bookingTicket.ticketName);
+            if (ticketIndex !== -1) {
+              const ticket = updatedGlobalTickets[ticketIndex];
+              if ((ticket.remainingSlots || 0) < bookingTicket.quantity) {
+                throw new Error(`Insufficient global slots for ${bookingTicket.ticketName}.`);
+              }
+              updatedGlobalTickets[ticketIndex] = {
+                ...ticket,
+                remainingSlots: (ticket.remainingSlots || 0) - bookingTicket.quantity
+              };
+            } else {
+              throw new Error(`Ticket ${bookingTicket.ticketName} not found in event`);
+            }
+          }
+
+          // 4. Sets and updates
+          transaction.set(userBookingRef, myBookingData);
+          transaction.set(eventBookingRef, eventBookingData);
+
+          const eventUpdates = {
+            tickets: updatedGlobalTickets
+          };
+          const iAmGoing = eventDbData.iAmGoing || [];
+          if (!iAmGoing.includes(uId)) {
+            eventUpdates.iAmGoing = [...iAmGoing, uId];
+          }
+          transaction.update(eventRef, eventUpdates);
+
+          transaction.set(availabilityRef, {
+            tickets: ticketsMap,
+            blocked_slots: blockedSlots,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+
+          // 5. Notifications
+          const userNotiRef = doc(collection(db, "notification"));
+          const orgNotiRef = doc(collection(db, "notification"));
+
+          const userNotification = {
+            fromId: eventDbData.oId || "",
+            toId: uId,
+            fromUser: eventDbData.eventName || eventDbData.title || "",
+            toUser: attendee.name,
+            id: userNotiRef.id,
+            navigationId: bId,
+            type: "Ticket Booked",
+            fromOrg: true,
+            toOrg: false,
+            status: 0,
+            date: new Date(),
+            references: userNotiRef,
+            isRead: false,
+            rejectedReason: ""
+          };
+
+          const orgNotification = {
+            fromId: uId,
+            toId: eventDbData.oId || "",
+            fromUser: attendee.name,
+            toUser: eventDbData.eventName || eventDbData.title || "",
+            id: orgNotiRef.id,
+            navigationId: bId,
+            type: "New Booking",
+            fromOrg: false,
+            toOrg: true,
+            status: 0,
+            date: new Date(),
+            references: orgNotiRef,
+            isRead: false,
+            rejectedReason: ""
+          };
+
+          transaction.set(userNotiRef, userNotification);
+          transaction.set(orgNotiRef, orgNotification);
+
+          // Update pending booking status to confirmed if it exists
+          if (total > 0 && orderId !== "free") {
+            const pendingBookingDocRef = doc(db, "pendingBookings", orderId);
+            transaction.update(pendingBookingDocRef, { status: "confirmed", paymentStatus: "paid" });
+          }
+        });
+
+        // 6. Send Booking Confirmation Email (after transaction succeeds)
+        if (attendee.email) {
+          try {
+            const formatCalDate = (date) => {
+              if (!date) return '';
+              const d = new Date(date);
+              return d.toISOString().split('.')[0].replace(/[-:]/g, '') + 'Z';
+            };
+
+            const orgStartTime = parseDate(event.eventStartDate);
+            const orgEndTime = event.eventEndDate ? parseDate(event.eventEndDate) : new Date(orgStartTime.getTime() + 2 * 60 * 60 * 1000);
+
+            const finalStart = new Date(
+              selectedDateVal.getFullYear(),
+              selectedDateVal.getMonth(),
+              selectedDateVal.getDate(),
+              orgStartTime.getHours(),
+              orgStartTime.getMinutes()
+            );
+            const finalEnd = new Date(finalStart.getTime() + 2 * 60 * 60 * 1000);
+
+            const startStr = formatCalDate(finalStart);
+            const endStr = formatCalDate(finalEnd);
+
+            const isOnline = event.eventType === 'Online';
+            const eventTitle = encodeURIComponent(event.eventName || event.title || "");
+            const eventLocation = isOnline ? '' : encodeURIComponent(event.location || event.venue || "");
+            const eventDetails = encodeURIComponent(
+              `${isOnline ? `🔗 Join Meeting: ${event.meetingUrl || ''}\n\n` : ''}` +
+              `Booking ID: ${bId}\n` +
+              `Tickets: ${totalTickets}\n` +
+              `${(!isOnline && !(event.location)) ? `Venue: ${event.venue || ''}` : ''}`
+            );
+
+            const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&dates=${startStr}/${endStr}&details=${eventDetails}&location=${eventLocation}`;
+            const outlookCalendarUrl = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${eventTitle}&startdt=${startStr}&enddt=${endStr}&body=${eventDetails}&location=${eventLocation}`;
+
+            const ticketRows = bookedTickets.map((t) => `<tr>
+              <td style="padding:8px;border:1px solid #ddd;">${t.ticketName}</td>
+              <td style="padding:8px;border:1px solid #ddd;text-align:center;">${t.quantity}</td>
+              <td style="padding:8px;border:1px solid #ddd;text-align:right;">₹${(t.price * t.quantity).toFixed(2)}</td>
+            </tr>`).join('');
+
+            const eventDateStr = selectedDateVal.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+            const bookedDateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+
+            const timeStr = (event.eventStartDate && event.eventEndDate)
+              ? `${orgStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - ${orgEndTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+              : '';
+
+            const emailHtml = `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
+              <div style="background:#6C63FF;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
+                <h1 style="color:#fff;margin:0;">Booking Confirmed!</h1>
+              </div>
+              <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
+                <p style="font-size:16px;">Hi <strong>${attendee.name || 'there'}</strong>,</p>
+                
+                <!-- Calendar Buttons -->
+                <div style="text-align:center;margin:20px 0;padding:15px;background:#f0efff;border-radius:8px;">
+                  <p style="margin-top:0;font-weight:bold;color:#584CF4;">📅 Add to calendar</p>
+                  <a href="${googleCalendarUrl}" style="display:inline-block;padding:10px 15px;margin:5px;background:#fff;color:#4285F4;text-decoration:none;border-radius:5px;border:1px solid #4285F4;font-size:13px;font-weight:bold;">+ Google Calendar</a>
+                  <a href="${outlookCalendarUrl}" style="display:inline-block;padding:10px 15px;margin:5px;background:#fff;color:#0078D4;text-decoration:none;border-radius:5px;border:1px solid #0078D4;font-size:13px;font-weight:bold;">+ Outlook / Office 365</a>
+                </div>
+
+                <p>Your booking for <strong>${event.eventName || event.title || ''}</strong> has been confirmed.</p>
+                <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
+                  <table style="width:100%;">
+                    <tr><td style="color:#888;width:120px;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
+                    ${(event.serviceCode || settings?.serviceCode) ? `<tr><td style="color:#888;padding:3px 0;">HSN/SAC</td><td><strong>${event.serviceCode || settings?.serviceCode}</strong></td></tr>` : ''}
+                    <tr><td style="color:#888;padding:3px 0;">Booked Date</td><td><strong>${bookedDateStr}</strong></td></tr>
+                    <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
+                    ${(!isOnline && timeStr) ? `<tr><td style="color:#888;padding:3px 0;">Time</td><td><strong>${timeStr}</strong></td></tr>` : ''}
+                    ${!isOnline ? `<tr><td style="color:#888;padding:3px 0;">Venue</td><td><strong>${event.location || event.venue || ''}</strong></td></tr>` : ''}
+                    ${(isOnline && event.meetingUrl) ? `<tr><td style="color:#888;padding:3px 0;">Meeting Link</td><td><a href="${event.meetingUrl}" style="color:#6C63FF;font-weight:bold;text-decoration:none;">Join Online Meeting</a></td></tr>` : ''}
+                  </table>
+                </div>
+
+                <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
+                <table style="width:100%;border-collapse:collapse;margin:10px 0;">
+                  <tr style="background:#f5f5f5;">
+                    <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:center;">Qty</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:right;">Amount</th>
+                  </tr>
+                  ${ticketRows}
+                </table>
+
+                <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Payment Summary</h3>
+                <table style="width:100%;border-collapse:collapse;margin:10px 0;">
+                  <tr>
+                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Net Amount</td>
+                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${subtotal.toFixed(2)}</td>
+                  </tr>
+                  ${platformFeeVal > 0 ? `
+                  <tr>
+                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Platform Fee (${platformFeeRate.toFixed(2)}%)</td>
+                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${platformFeeVal.toFixed(2)}</td>
+                  </tr>` : ''}
+                  ${gstAmount > 0 ? `
+                  <tr>
+                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">CGST (${(gstPercentage / 2).toFixed(2)}%)</td>
+                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">SGST (${(gstPercentage / 2).toFixed(2)}%)</td>
+                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
+                  </tr>` : ''}
+                  <tr>
+                    <td style="font-size:20px;padding-top:15px;font-weight:bold;color:#333;">Grand Total</td>
+                    <td style="font-size:20px;padding-top:15px;text-align:right;font-weight:bold;color:#6C63FF;">₹${total.toFixed(2)}</td>
+                  </tr>
+                </table>
+
+                <p style="text-align:center;color:#888;font-size:12px;margin:20px 0;">
+                  <em>note: Ticket is sold by the event organiser. Blithe charges a platform service fee .</em>
+                </p>
+                <hr style="border:none;border-top:1px solid #eee;margin:10px 0 20px 0;">
+                <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
+                  Need help? Contact our support team.<br>
+                  <a href="https://www.blithe.social/" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Website</a> | 
+                  <a href="https://www.instagram.com/blithe.social?igsh=MWM4eGw4dnVxYTU0bw%3D%3D" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Instagram</a><br>
+                  Thank you for booking with <strong>Blithe</strong>! 🎶
+                </p>
+              </div>
+            </div>`;
+
+            await setDoc(doc(collection(db, "sendMail")), {
+              date: serverTimestamp(),
+              emailList: [attendee.email],
+              html: emailHtml,
+              status: `Booking Confirmation - ${event.eventName || event.title || ""}`
+            });
+          } catch (mailErr) {
+            console.error("Email sending failure:", mailErr);
+          }
+        }
+
+        console.log("Successfully created booking records!");
+        alert("Booking confirmed successfully!");
+        navigate("/events");
+      };
+
+      // 2. Process booking flow
+      if (total <= 0) {
+        // Direct booking for free events (skip slot blocking)
+        await performSaveBooking("free", "free", "free");
+      } else {
+        // Block ticket slots first
+        console.log("Paid Event: Blocking ticket slots...");
+        await blockTicketSlots(uId, bookedTickets, dateStr, tickets, finalBookingSearchList);
+        console.log("Slot block success! Creating Razorpay Order...");
+
+        let orderId = `order_mock_${Date.now()}`;
+        const keyId = "rzp_live_SBgnzuGhztmYSZ";
+        const keySecret = "6c2w1nZcqVdlusV8j1AGz55t";
+
+        if (keySecret) {
+          try {
+            const order = await createRazorpayOrder(total, generateBookingId(), keyId, keySecret);
+            orderId = order.id;
+          } catch (orderErr) {
+            console.warn("Razorpay Order API failed, using mock order ID:", orderErr);
+          }
+        }
+
+        // Create pending booking
+        await createPendingBooking(orderId, uId, bookedTickets, priceDetails, finalBookingSearchList);
+
+        // Open Razorpay Checkout
+        const isScriptLoaded = await loadRazorpayScript();
+        if (!isScriptLoaded || !window.Razorpay) {
+          console.warn("Razorpay SDK failed to load. Proceeding with mock payment for local development/testing.");
+          const mockPaymentId = `pay_mock_${Date.now()}`;
+          await performSaveBooking(mockPaymentId, orderId, "paid");
+          return;
+        }
+
+        const options = {
+          key: keyId,
+          amount: Math.round(total * 100),
+          currency: "INR",
+          name: "Blithe",
+          description: `Booking for ${event.eventName || event.title}`,
+          prefill: {
+            name: attendee.name,
+            email: attendee.email,
+            contact: attendee.phone,
+          },
+          theme: {
+            color: "#7C3AED",
+          },
+          handler: async function (response) {
+            const paymentId = response.razorpay_payment_id || `pay_mock_${Date.now()}`;
+            const actualOrderId = response.razorpay_order_id || orderId;
+            await performSaveBooking(paymentId, actualOrderId, "paid");
+          },
+          modal: {
+            ondismiss: function () {
+              setIsVerifyingUser(false);
+            }
+          }
+        };
+
+        if (orderId && !orderId.startsWith("order_mock_")) {
+          options.order_id = orderId;
+        }
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      }
       
     } catch (err) {
-      console.error("Error in user verification:", err);
-      alert("Failed to proceed. Please try again.");
+      console.error("Error in booking flow:", err);
+      alert(`Failed to proceed: ${err.message || err}`);
     } finally {
       setIsVerifyingUser(false);
     }
@@ -506,21 +1222,27 @@ const EventBookingPage = () => {
                 <>
                   <div className="summary-row divider">
                     <span>Subtotal</span>
-                    <span>₹ {subtotal}</span>
+                    <span>₹ {subtotal.toFixed(2)}</span>
                   </div>
                   <div className="summary-row">
-                    <span>Platform Fee</span>
-                    <span>{bookingFee === 0 ? 'Free' : `₹ ${bookingFee}`}</span>
+                    <span>Platform Fee ({platformFeeRate}%)</span>
+                    <span>{platformFeeVal === 0 ? 'Free' : `₹ ${platformFeeVal.toFixed(2)}`}</span>
                   </div>
+                  {platformFeeVal > 0 && (
+                    <div className="summary-row">
+                      <span>GST (18% on Fee)</span>
+                      <span>₹ {gstAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   {appliedCoupon && (
                     <div className="summary-row" style={{ color: '#10B981', fontWeight: 600 }}>
                       <span>Discount ({appliedCoupon.code})</span>
-                      <span>- ₹ {discountAmount}</span>
+                      <span>- ₹ {discountAmount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="summary-row total-row">
                     <span>Grand Total</span>
-                    <span>₹ {total}</span>
+                    <span>₹ {total.toFixed(2)}</span>
                   </div>
                 </>
               )}

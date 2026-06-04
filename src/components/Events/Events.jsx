@@ -165,6 +165,19 @@ const Events = () => {
   const [visibleCount, setVisibleCount] = useState(12);
 
   const calendarRef = useRef(null);
+  const searchSectionRef = useRef(null);
+
+  // Scroll search bar to top when user starts typing
+  useEffect(() => {
+    if (searchQuery.trim() !== "") {
+      const element = searchSectionRef.current;
+      if (element) {
+        const yOffset = -90; // sticky navbar offset + spacing
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -339,7 +352,7 @@ const Events = () => {
     if (total === 0) return;
     const currentMod = ((absoluteIndex % total) + total) % total;
     let diff = idx - currentMod;
-    
+
     if (diff > total / 2) diff -= total;
     if (diff < -total / 2) diff += total;
 
@@ -383,12 +396,43 @@ const Events = () => {
     setIsNearbyFilterActive(false);
   };
 
+  const getWeekendDates = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+
+    let start = new Date(today);
+    let end = new Date(today);
+
+    if (dayOfWeek === 5) {
+      // Friday
+      start.setDate(today.getDate());
+      end.setDate(today.getDate() + 2);
+    } else if (dayOfWeek === 6) {
+      // Saturday
+      start.setDate(today.getDate());
+      end.setDate(today.getDate() + 1);
+    } else if (dayOfWeek === 0) {
+      // Sunday
+      start.setDate(today.getDate());
+      end.setDate(today.getDate());
+    } else {
+      // Monday to Thursday
+      const daysToFriday = 5 - dayOfWeek;
+      start.setDate(today.getDate() + daysToFriday);
+      end.setDate(today.getDate() + daysToFriday + 2);
+    }
+
+    return { start, end };
+  };
+
   // Quick select date ranges
   const handleQuickDateSelect = (pill) => {
-    const today = new Date(2026, 4, 20);
-    const tomorrow = new Date(2026, 4, 21);
-    const weekendStart = new Date(2026, 4, 23);
-    const weekendEnd = new Date(2026, 4, 24);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
     if (pill === "Today") {
       if (startDate && !endDate && startDate.getTime() === today.getTime()) {
@@ -413,21 +457,23 @@ const Events = () => {
         setEndDate(tomorrow);
       }
     } else if (pill === "This Weekend") {
-      if (startDate && endDate && startDate.getTime() === weekendStart.getTime() && endDate.getTime() === weekendEnd.getTime()) {
+      const { start, end } = getWeekendDates();
+      if (startDate && endDate && startDate.getTime() === start.getTime() && endDate.getTime() === end.getTime()) {
         setStartDate(null);
         setEndDate(null);
       } else {
-        setStartDate(weekendStart);
-        setEndDate(weekendEnd);
+        setStartDate(start);
+        setEndDate(end);
       }
     }
   };
 
   const isPillActive = (pill) => {
-    const today = new Date(2026, 4, 20);
-    const tomorrow = new Date(2026, 4, 21);
-    const weekendStart = new Date(2026, 4, 23);
-    const weekendEnd = new Date(2026, 4, 24);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
     if (!startDate) return false;
 
@@ -438,7 +484,8 @@ const Events = () => {
       return startDate.getTime() === tomorrow.getTime() && (!endDate || endDate.getTime() === tomorrow.getTime());
     }
     if (pill === "This Weekend") {
-      return endDate && startDate.getTime() === weekendStart.getTime() && endDate.getTime() === weekendEnd.getTime();
+      const { start, end } = getWeekendDates();
+      return endDate && startDate.getTime() === start.getTime() && endDate.getTime() === end.getTime();
     }
     return false;
   };
@@ -463,22 +510,22 @@ const Events = () => {
     // 1. Unified Search & Category Filter (OR logic for multiple terms)
     if (searchQuery.trim() !== "") {
       const queries = searchQuery.toLowerCase().split(/,\s*/).filter(q => q.trim() !== "");
-      
+
       const isMatch = queries.some(queryClean => {
         const q = queryClean.startsWith('#') ? queryClean.slice(1) : queryClean;
-        
+
         const matchHashtag = event.hashtags && event.hashtags.some(tag => {
           const tagClean = tag.toLowerCase().replace('#', '');
           return tagClean.includes(q);
         });
-        
+
         const matchTitle = event.title.toLowerCase().includes(q);
         const matchLoc = event.location.toLowerCase().includes(q);
         const matchCat = event.category.toLowerCase().includes(q);
-        
+
         return matchHashtag || matchTitle || matchLoc || matchCat;
       });
-      
+
       if (!isMatch) return false;
     }
 
@@ -491,7 +538,7 @@ const Events = () => {
     if (isNearbyFilterActive && userLocation) {
       const eLat = parseFloat(event.raw.lat || event.raw.latitude);
       const eLng = parseFloat(event.raw.long || event.raw.lng || event.raw.longitude);
-      
+
       if (isNaN(eLat) || isNaN(eLng)) return false;
 
       const distance = calculateDistance(userLocation.lat, userLocation.lng, eLat, eLng);
@@ -617,9 +664,9 @@ const Events = () => {
       ) : (
         <>
           {/* Featured Event Hero Section */}
-          {activeFeaturedEvent && !searchQuery.trim() && (() => {
+          {activeFeaturedEvent && (() => {
             const maxVisible = 1;
-            const peekPercent = 5; 
+            const peekPercent = 5;
             const totalPeek = (maxVisible - 1) * peekPercent;
             const activeWidth = maxVisible === 1 ? '100%' : `${100 / (1 + totalPeek / 100)}%`;
             const borderRadius = '0';
@@ -739,7 +786,7 @@ const Events = () => {
 
                   <div className="hero-card-controls-wrapper">
                     <div className="hero-card-controls">
-                      <button className="card-nav-btn prev-btn" onClick={handlePrevClick} aria-label="Previous Slide"><ChevronLeft size={24}/></button>
+                      <button className="card-nav-btn prev-btn" onClick={handlePrevClick} aria-label="Previous Slide"><ChevronLeft size={24} /></button>
                       <div className="hero-carousel-indicators">
                         {promotedEvents.map((event, idx) => (
                           <button
@@ -750,7 +797,7 @@ const Events = () => {
                           />
                         ))}
                       </div>
-                      <button className="card-nav-btn next-btn" onClick={handleNextClick} aria-label="Next Slide"><ChevronRight size={24}/></button>
+                      <button className="card-nav-btn next-btn" onClick={handleNextClick} aria-label="Next Slide"><ChevronRight size={24} /></button>
                     </div>
                   </div>
                 </div>
@@ -758,9 +805,9 @@ const Events = () => {
             );
           })()}
 
-          <div className="container">
+          <div className="event-card-main-container">
             {/* Search Bar Section */}
-            <section className="search-section" style={{ paddingTop: (!activeFeaturedEvent || searchQuery.trim() !== '') ? '20px' : '0' }}>
+            <section ref={searchSectionRef} className="search-section" style={{ paddingTop: !activeFeaturedEvent ? '20px' : '0' }}>
               <div className="search-bar-wrapper glass">
                 <span className="hashtag-prefix">#</span>
                 <input
@@ -790,13 +837,13 @@ const Events = () => {
                       return bSel - aSel;
                     })
                     .map((cat, i) => (
-                    <CategoryCard
-                      key={i}
-                      cat={cat}
-                      isSelected={isCategorySelected(cat.name)}
-                      onClick={() => toggleCategory(cat.name)}
-                    />
-                  ))}
+                      <CategoryCard
+                        key={i}
+                        cat={cat}
+                        isSelected={isCategorySelected(cat.name)}
+                        onClick={() => toggleCategory(cat.name)}
+                      />
+                    ))}
                 </div>
 
                 <button
@@ -820,13 +867,13 @@ const Events = () => {
                       return bSel - aSel;
                     })
                     .map((cat, i) => (
-                    <CategoryCard
-                      key={i}
-                      cat={cat}
-                      isSelected={isCategorySelected(cat.name)}
-                      onClick={() => toggleCategory(cat.name)}
-                    />
-                  ))}
+                      <CategoryCard
+                        key={i}
+                        cat={cat}
+                        isSelected={isCategorySelected(cat.name)}
+                        onClick={() => toggleCategory(cat.name)}
+                      />
+                    ))}
                 </div>
               </div>
             </section>

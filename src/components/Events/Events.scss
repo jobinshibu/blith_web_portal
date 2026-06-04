@@ -17,6 +17,10 @@
   padding-bottom: 6rem;
 }
 
+.event-card-main-container {
+  padding: 0px 30px !important;
+}
+
 // 1. Featured Event Hero Carousel
 .hero-carousel-section {
   position: relative;
@@ -37,7 +41,7 @@
 
   .hero-card-stack {
     position: relative;
-    width: 100%;
+    width: 95.5%;
     max-width: 100%;
     margin: 0 auto;
     height: 361px;
@@ -1086,7 +1090,7 @@
     .portrait-image-wrapper {
       position: relative;
       width: 100%;
-      aspect-ratio: 3/4.15;
+      aspect-ratio: 1080 / 1350;
       border-radius: 1.25rem;
       overflow: hidden;
       background-color: #E5E7EB;
@@ -1445,4 +1449,5 @@
       }
     }
   }
+
 }

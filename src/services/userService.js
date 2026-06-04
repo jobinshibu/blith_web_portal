@@ -24,7 +24,7 @@ const createKeywords = (text) => {
  */
 export const generateSearchKeywords = (name, email) => {
   const keywords = new Set();
-  
+
   // Basic prefixes for name parts
   const nameParts = name.toUpperCase().split(' ');
   nameParts.forEach(part => {
@@ -49,7 +49,7 @@ export const generateSearchKeywords = (name, email) => {
  */
 export const generateUID = () => {
   const timestamp = Date.now();
-  const randomNum = Math.floor(Math.random() * 1000); 
+  const randomNum = Math.floor(Math.random() * 1000);
   return `BLU-${timestamp}-${randomNum}`;
 };
 
@@ -74,7 +74,7 @@ export const checkPhoneExists = async (phoneNo) => {
 
 /**
  * Registers a new user if the phone number does not already exist.
- * @param {Object} userData - User details (name, email, phoneNo, password, etc.)
+ * @param {Object} userData - User details (name, email,    , password, etc.)
  * @returns {Promise<Object>} The created user data or throws an error
  */
 /**
@@ -98,7 +98,7 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     favoritePost: [],
     followRequest: [],
     followers: [],
-    gender: "Male",
+    gender: "",
     geo: { geohash: "" },
     instagramUrl: "",
     interests: {},
@@ -124,7 +124,7 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     private: false,
     profilePic: "",
     qrCode: "",
-    reference: `/users/${uid}`,
+    reference: doc(db, 'users', uid),
     setSearch: setSearch,
     token: [],
     uid: uid,
@@ -155,10 +155,10 @@ export const registerNewUser = async (userData) => {
   // 2. Prepare the new user document data
   const uid = generateUID();
   console.log(`Generated new UID: ${uid}`);
-  
+
   const newUserDocument = createDefaultUserObject(uid, name, email, phoneNo, {
     password: password || "",
-    gender: gender || "Male",
+    gender: gender || "",
     countryCode: countryCode || "91",
     countryShortName: countryShortName || "IN",
     dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null
