@@ -555,7 +555,14 @@ const EventBookingPage = () => {
     e.preventDefault();
     if (!isValid) {
       setShowErrors(true);
-      if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector('.validation-hint');
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (scrollRef.current) {
+          scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 100);
       return;
     }
     setShowErrors(false);

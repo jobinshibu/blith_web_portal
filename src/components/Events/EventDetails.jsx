@@ -69,6 +69,51 @@ const ShareModal = ({ event, onClose }) => {
       ),
       url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
     },
+    {
+      id: 'linkedin',
+      label: 'LinkedIn',
+      color: '#0A66C2',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M22.23 0H1.77C.8 0 0 .77 0 1.72v20.56C0 23.23.8 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.2 0 22.23 0zM7.12 20.45H3.56V9H7.12v11.45zM5.34 7.43c-1.14 0-2.06-.92-2.06-2.06 0-1.14.92-2.06 2.06-2.06 1.14 0 2.06.92 2.06 2.06 0 1.14-.92 2.06-2.06 2.06zm15.11 13.02h-3.56v-5.6c0-1.34-.03-3.05-1.86-3.05-1.86 0-2.14 1.45-2.14 2.95v5.7h-3.56V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29z"/>
+        </svg>
+      ),
+      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+    },
+    {
+      id: 'reddit',
+      label: 'Reddit',
+      color: '#FF4500',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M24 11.5c0-1.65-1.35-3-3-3-.96 0-1.86.48-2.42 1.24-1.64-1-3.85-1.64-6.29-1.72l1.35-4.24 3.71.79c.07.9.84 1.63 1.78 1.63 1 0 1.8-1 1.8-2s-.8-2-1.8-2c-.9 0-1.64.66-1.77 1.51l-4.14-.88c-.23-.05-.47.09-.53.33L9.33 8c-2.49.06-4.75.7-6.42 1.72C2.35 8.98 1.45 8.5 1 8.5c-1.65 0-3 1.35-3 3 0 1.12.63 2.1 1.56 2.62-.06.39-.09.79-.09 1.19 0 3.73 4.25 6.75 9.5 6.75s9.5-3.02 9.5-6.75c0-.4-.03-.8-.09-1.19.93-.52 1.56-1.5 1.56-2.62zm-18-1c.72 0 1.3.58 1.3 1.3s-.58 1.3-1.3 1.3-1.3-.58-1.3-1.3.58-1.3 1.3-1.3zm10.6 5.8c-.83.83-2.4 1.2-4.6 1.2s-3.77-.37-4.6-1.2c-.2-.2-.2-.52 0-.72s.52-.2.72 0c.64.64 1.94.92 3.88.92s3.24-.28 3.88-.92c.2-.2.52-.2.72 0s.2.52 0 .72zm-.4-3.5c.72 0 1.3.58 1.3 1.3s-.58 1.3-1.3 1.3-1.3-.58-1.3-1.3.58-1.3 1.3-1.3z"/>
+        </svg>
+      ),
+      url: `https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(shareText)}`,
+    },
+    {
+      id: 'pinterest',
+      label: 'Pinterest',
+      color: '#E60023',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.906 2.17-2.906 1.023 0 1.517.769 1.517 1.686 0 1.02-.648 2.546-.98 3.958-.283 1.192.599 2.161 1.776 2.161 2.128 0 3.765-2.244 3.765-5.48 0-2.861-2.062-4.869-5.005-4.869-3.41 0-5.413 2.561-5.413 5.2 0 1.03.397 2.138.893 2.738.1.12.115.22.085.345-.09.375-.293 1.199-.334 1.363-.053.21-.174.254-.402.149-1.498-.697-2.435-2.887-2.435-4.647 0-3.785 2.75-7.261 7.929-7.261 4.164 0 7.397 2.965 7.397 6.93 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.748-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.36 11.985-11.988C24.005 5.367 18.623 0 12.017 0z"/>
+        </svg>
+      ),
+      url: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${encodeURIComponent(shareText)}`,
+    },
+    {
+      id: 'email',
+      label: 'Email',
+      color: '#EA4335',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+      ),
+      url: `mailto:?subject=${encodeURIComponent(shareText)}&body=${encodeURIComponent(shareUrl)}`,
+    },
   ];
 
   return (
@@ -240,7 +285,6 @@ const EventDetails = () => {
   const [showTermsDesktopBtn, setShowTermsDesktopBtn] = useState(false);
   const [showTermsMobileBtn, setShowTermsMobileBtn] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [sharing, setSharing] = useState(false);
 
   const aboutRef = useRef(null);
   const termsDesktopRef = useRef(null);
@@ -251,50 +295,7 @@ const EventDetails = () => {
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
 
-  const handleShareClick = async () => {
-    if (sharing) return;
-
-    if (navigator.share && event) {
-      setSharing(true);
-      const shareUrl = window.location.href;
-      const shareText = `Check out "${event.title}" on Blithe!`;
-      const shareData = {
-        title: event.title,
-        text: shareText,
-        url: shareUrl,
-      };
-
-      if (event.image) {
-        try {
-          const response = await fetch(event.image);
-          const blob = await response.blob();
-          const mimeType = blob.type || 'image/jpeg';
-          const extension = mimeType.split('/')[1] || 'jpg';
-          const file = new File([blob], `event-image.${extension}`, { type: mimeType });
-
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            shareData.files = [file];
-          }
-        } catch (err) {
-          console.error("Could not fetch event image for native sharing:", err);
-        }
-      }
-
-      try {
-        await navigator.share(shareData);
-        setSharing(false);
-        return; // Shared or user cancelled dialog
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error("Error with native share, falling back to modal:", err);
-        } else {
-          setSharing(false);
-          return; // User cancelled, don't show modal
-        }
-      }
-      setSharing(false);
-    }
-
+  const handleShareClick = () => {
     setShowShareModal(true);
   };
 
@@ -641,9 +642,8 @@ const EventDetails = () => {
                   className="share-btn"
                   aria-label="Share Event"
                   onClick={handleShareClick}
-                  disabled={sharing}
                 >
-                  {sharing ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Share2 size={18} />}
+                  <Share2 size={18} />
                 </button>
               </div>
               <h1 className="event-title">{event.title}</h1>

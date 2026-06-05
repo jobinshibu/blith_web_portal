@@ -1253,10 +1253,10 @@
 
 // Social icons grid
 .share-socials-row {
-  display: flex;
-  gap: 0.65rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem 0.65rem;
+  margin-bottom: 1.5rem;
 }
 
 .share-social-btn {
@@ -1265,8 +1265,6 @@
   align-items: center;
   gap: 0.4rem;
   text-decoration: none;
-  flex: 1;
-  min-width: 60px;
 
   .share-social-icon {
     width: 52px;
