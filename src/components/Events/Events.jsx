@@ -8,18 +8,18 @@ import logo from '../../assets/logo.jpeg';
 import './Events.scss';
 
 const CATEGORY_STYLES = [
-  { name: "Music Shows", label: "Music", icon: Music, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Nightlife", label: "Nightlife", icon: Sparkles, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Comedy Shows", label: "Comedy", icon: Mic, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Sports", label: "Sports", icon: Trophy, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Performances", label: "Performances", icon: Mic2, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Food & Drinks", label: "Food & Drinks", icon: Utensils, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Fests & Fairs", label: "Fests & Fairs", icon: Tent, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Social Mixers", label: "Social Mixers", icon: Sparkles, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Screenings", label: "Screenings", icon: Film, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Fitness", label: "Fitness", icon: Dumbbell, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Conferences", label: "Conferences", icon: Presentation, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
-  { name: "Open Mics", label: "Open Mics", icon: Mic2, gradient: "linear-gradient(135deg, #ffffff, #f3f4f6)", color: "#111827", glow: "rgba(17, 24, 39, 0.1)" },
+  { name: "Music Shows", label: "Music", icon: Music, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Nightlife", label: "Nightlife", icon: Sparkles, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Comedy Shows", label: "Comedy", icon: Mic, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Sports", label: "Sports", icon: Trophy, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Performances", label: "Performances", icon: Mic2, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Food & Drinks", label: "Food & Drinks", icon: Utensils, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Fests & Fairs", label: "Fests & Fairs", icon: Tent, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Social Mixers", label: "Social Mixers", icon: Sparkles, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Screenings", label: "Screenings", icon: Film, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Fitness", label: "Fitness", icon: Dumbbell, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Conferences", label: "Conferences", icon: Presentation, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
+  { name: "Open Mics", label: "Open Mics", icon: Mic2, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
 ];
 
 const CALENDAR_MONTHS = [
@@ -52,14 +52,17 @@ const CategoryCard = ({ cat, isSelected, onClick }) => {
       <div
         className="category-card"
         style={{
-          background: cat.gradient,
-          border: isSelected ? `2px solid ${cat.color}` : '1px solid rgba(255, 255, 255, 0.4)'
+          '--cat-color': cat.color,
+          '--cat-bg': cat.bg,
+          '--cat-border': cat.border,
+          '--cat-selected-bg': cat.selectedBg,
+          '--cat-glow': cat.glow
         }}
       >
-        <div className="category-icon-box" style={{ color: cat.color }}>
+        <div className="category-icon-box">
           <IconComponent size={18} strokeWidth={2.5} />
         </div>
-        <span className="category-card-title" style={{ color: cat.color }}>
+        <span className="category-card-title">
           {cat.label}
         </span>
       </div>
@@ -218,8 +221,10 @@ const Events = () => {
             name: name,
             label: name,
             icon: style.icon,
-            gradient: style.gradient,
             color: style.color,
+            bg: style.bg,
+            border: style.border,
+            selectedBg: style.selectedBg,
             glow: style.glow
           };
         });

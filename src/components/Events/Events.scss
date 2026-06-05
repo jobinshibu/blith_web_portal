@@ -543,9 +543,9 @@
     &:hover,
     &:active {
       .category-card {
-        background: $lavender-600 !important;
-        border-color: $lavender-600 !important;
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
+        background: var(--cat-selected-bg) !important;
+        border-color: var(--cat-color) !important;
+        box-shadow: 0 6px 15px var(--cat-glow) !important;
 
         .category-card-title,
         .category-icon-box {
@@ -562,9 +562,9 @@
       }
 
       .category-card {
-        background: $lavender-600 !important;
-        border-color: $lavender-600 !important;
-        box-shadow: none !important;
+        background: var(--cat-selected-bg) !important;
+        border-color: var(--cat-color) !important;
+        box-shadow: 0 6px 20px var(--cat-glow) !important;
 
         .category-card-title,
         .category-icon-box {
@@ -585,14 +585,21 @@
     align-items: center;
     gap: 0.5rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--cat-bg);
+    border: 1px solid var(--cat-border);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
     white-space: nowrap;
+
+    .category-card-title,
+    .category-icon-box {
+      color: var(--cat-color);
+    }
 
     @media (max-width: 768px) {
       padding: 0.5rem 1rem;
       gap: 0.4rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      border: 1px solid rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--cat-border);
     }
 
     &:hover,
