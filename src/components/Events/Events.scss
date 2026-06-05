@@ -103,7 +103,7 @@
 
       @media (max-width: 768px) {
         flex-direction: column;
-        padding: 2rem 1.5rem 6rem;
+        padding: 4rem 1.5rem 5rem;
         text-align: left;
         align-items: flex-start;
         justify-content: flex-end;
@@ -123,12 +123,12 @@
 
       .hero-badge-modern {
         display: inline-block;
-        padding: 0.4rem 1rem;
+        padding: 0.35rem 0.8rem;
         background: rgba($lavender-500, 0.15);
         color: #d8b4fe;
         border: 1px solid rgba($lavender-500, 0.3);
         border-radius: 2rem;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -139,11 +139,11 @@
         align-items: center;
         gap: 0.5rem;
         font-weight: 700;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         color: #E2E8F0;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
         margin-top: 0.1rem;
-        margin-bottom: 0.6rem;
+        margin-bottom: 0.5rem;
 
         .orange-icon {
           color: #E05A47;
@@ -153,10 +153,10 @@
 
       .hero-title {
         font-family: $font-heading;
-        font-size: clamp(2rem, 3.5vw, 3rem);
+        font-size: clamp(1.5rem, 2.5vw, 2.2rem);
         font-weight: 800;
         color: #F8FAFC;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.6rem;
         line-height: 1.15;
         letter-spacing: -0.02em;
         text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
@@ -171,24 +171,24 @@
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
 
         .hero-meta-item {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          font-size: 0.95rem;
+          font-size: 0.85rem;
           color: #CBD5E1;
           font-weight: 600;
         }
       }
 
       .hero-price {
-        font-size: 1.25rem;
+        font-size: 1.05rem;
         font-weight: 800;
         color: #F8FAFC;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.25rem;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
       }
 
@@ -203,8 +203,8 @@
         justify-content: center;
         background: linear-gradient(135deg, $lavender-600, $lavender-500);
         color: $white;
-        padding: 0.8rem 2.25rem;
-        font-size: 1rem;
+        padding: 0.7rem 1.8rem;
+        font-size: 0.9rem;
         font-weight: 700;
         border-radius: 2rem;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -950,6 +950,7 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
       transition: all 0.3s ease;
       cursor: pointer;
+      white-space: nowrap;
 
       &:hover {
         border-color: $lavender-400;
@@ -1032,6 +1033,21 @@
       &:hover {
         opacity: 0.8;
         text-decoration: underline;
+      }
+    }
+
+    @media (max-width: 768px) {
+
+      .filter-btn-toggle,
+      .filter-pill,
+      .clear-all-pill {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+
+        svg {
+          width: 14px;
+          height: 14px;
+        }
       }
     }
   }
@@ -1317,7 +1333,7 @@
 // 5. Responsive Adjustments
 @media (max-width: 1024px) {
   .hero-carousel-section {
-    padding: 3rem 0;
+    padding: 0rem 0;
 
     .hero-grid {
       gap: 2.5rem;
@@ -1325,7 +1341,7 @@
 
     .hero-content-col {
       .hero-title {
-        font-size: 2.5rem; // Decreased font size for tablets
+        font-size: 1.8rem; // Decreased font size for tablets
       }
     }
   }
@@ -1333,8 +1349,8 @@
 
 @media (max-width: 768px) {
   .hero-carousel-section {
-    height: 540px; // STRICT fixed height for stacked mobile layout
-    padding: 1.25rem 0 1rem; // Significantly reduced padding on phone to fit without scroll
+    height: auto; // STRICT fixed height for stacked mobile layout
+    padding: 3.25rem 0 1rem; // Significantly reduced padding on phone to fit without scroll
     margin-bottom: 1.5rem;
 
     .hero-grid {
@@ -1354,7 +1370,7 @@
       }
 
       .hero-title {
-        font-size: clamp(1.2rem, 5vw, 1.6rem); // Decreased snug fit font size for mobile
+        font-size: clamp(1rem, 4.5vw, 1.35rem); // Decreased snug fit font size for mobile
         margin-bottom: 0.75rem;
         line-height: 1.25;
         max-width: 90%;
@@ -1365,13 +1381,13 @@
       }
 
       .hero-price {
-        font-size: 1.05rem;
+        font-size: 0.95rem;
         margin-bottom: 1.25rem;
       }
 
       .hero-cta-btn {
-        padding: 0.8rem 2.25rem;
-        font-size: 0.95rem;
+        padding: 0.6rem 1.5rem;
+        font-size: 0.85rem;
       }
     }
 
