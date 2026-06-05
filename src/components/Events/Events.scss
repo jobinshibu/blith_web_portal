@@ -19,6 +19,10 @@
 
 .event-card-main-container {
   padding: 0px 30px !important;
+
+  @media (max-width: 768px) {
+    padding: 0px 12px !important;
+  }
 }
 
 // 1. Featured Event Hero Carousel
@@ -1406,7 +1410,7 @@
 
   // 2. Search Section on Mobile
   .search-section {
-    margin-bottom: 2rem;
+    margin-bottom: 10px;
 
     .search-bar-wrapper {
       padding: 0.65rem 1.15rem;
