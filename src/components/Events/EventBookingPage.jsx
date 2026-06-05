@@ -134,7 +134,7 @@ const EventBookingPage = () => {
   const [attendee, setAttendee] = useState({ name: '', email: '', phone: '' });
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [bookingId, setBookingId] = useState('');
-  
+
   const [showErrors, setShowErrors] = useState(false);
   const [isVerifyingUser, setIsVerifyingUser] = useState(false);
   const [resolvedUserId, setResolvedUserId] = useState(null);
@@ -173,7 +173,7 @@ const EventBookingPage = () => {
               return;
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       // Config collection not found — fall back to a safe default so GST still renders.
@@ -267,11 +267,71 @@ const EventBookingPage = () => {
           couponId: appliedCoupon.id,
           userId: resolvedUserIdForCoupons || resolvedUserId,
           sessionId: couponSession,
-        }).catch(() => {});
+        }).catch(() => { });
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedCoupon, couponSession]);
+
+  // ─── Fetch user info by phone number & save to localStorage ─────────────────
+  useEffect(() => {
+    const fetchExistingUser = async () => {
+      const trimmedPhone = attendee.phone.trim();
+      if (/^\d{10}$/.test(trimmedPhone)) {
+        console.log(`[Phone Fetch] 10-digit phone entered: ${trimmedPhone}`);
+        try {
+          const cacheKey = `blithe_user_${trimmedPhone}`;
+          const cachedUser = localStorage.getItem(cacheKey);
+          if (cachedUser) {
+            console.log(`[Phone Fetch] Found cached user in localStorage:`, cachedUser);
+            const userData = JSON.parse(cachedUser);
+            setAttendee(prev => ({
+              ...prev,
+              name: userData.name || prev.name,
+              email: userData.email || prev.email
+            }));
+            setResolvedUserId(userData.uid);
+            setResolvedUserIdForCoupons(userData.uid);
+            return;
+          }
+
+          console.log(`[Phone Fetch] Querying Firestore for phoneNo == ${trimmedPhone}`);
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("phoneNo", "==", trimmedPhone));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            const userData = { uid: userDoc.id, ...userDoc.data() };
+            console.log(`[Phone Fetch] Found user in Firestore:`, userData);
+
+            // Save user information to localStorage
+            localStorage.setItem(cacheKey, JSON.stringify(userData));
+            console.log(`[Phone Fetch] Saved user to localStorage key: ${cacheKey}`);
+
+            setAttendee(prev => ({
+              ...prev,
+              name: userData.name || prev.name,
+              email: userData.email || prev.email
+            }));
+            setResolvedUserId(userData.uid);
+            setResolvedUserIdForCoupons(userData.uid);
+          } else {
+            console.log(`[Phone Fetch] No user found with phoneNo == ${trimmedPhone}`);
+            setResolvedUserId(null);
+            setResolvedUserIdForCoupons(null);
+          }
+        } catch (err) {
+          console.error("Error fetching existing user by phone:", err);
+        }
+      } else {
+        setResolvedUserId(null);
+        setResolvedUserIdForCoupons(null);
+      }
+    };
+
+    fetchExistingUser();
+  }, [attendee.phone]);
 
   if (loading) {
     return <div className="booking-page-loading">Loading booking details...</div>;
@@ -327,8 +387,8 @@ const EventBookingPage = () => {
 
   const isPhoneValid = /^\d{10}$/.test(attendee.phone.trim());
 
-  const isValid = 
-    totalTickets > 0 && 
+  const isValid =
+    totalTickets > 0 &&
     (isMultiDay ? selectedDate !== null : true) &&
     attendee.name.trim() !== '' &&
     attendee.email.trim() !== '' &&
@@ -338,10 +398,10 @@ const EventBookingPage = () => {
   // Helper to block ticket slots for 10 minutes (paid events)
   const blockTicketSlots = async (uId, bookedTickets, dateStr, dbTickets, finalBookingSearchList) => {
     const availabilityRef = doc(db, "event", event.id, "availability", dateStr);
-    
+
     await runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(availabilityRef);
-      
+
       let ticketsMap = {};
       let blockedSlots = {};
 
@@ -601,7 +661,7 @@ const EventBookingPage = () => {
           }
         }
         const bId = generateBookingId();
-        
+
         // Regenerate searchList including the generated booking ID
         const searchList = generateBookingSearchList(
           attendee.name,
@@ -687,7 +747,7 @@ const EventBookingPage = () => {
 
           // 2. Read Availability Document
           const availSnap = await transaction.get(availabilityRef);
-          
+
           let ticketsMap = {};
           let blockedSlots = {};
 
@@ -1009,8 +1069,22 @@ const EventBookingPage = () => {
             await performSaveBooking(paymentId, actualOrderId, "paid");
           },
           modal: {
-            ondismiss: function () {
+            ondismiss: async function () {
               setIsVerifyingUser(false);
+              if (appliedCoupon && couponSession && uId) {
+                try {
+                  await releaseCouponService({
+                    couponId: appliedCoupon.id,
+                    userId: uId,
+                    sessionId: couponSession,
+                  });
+                  setAppliedCoupon(null);
+                  setCouponSession(null);
+                  setCouponReservedUntil(null);
+                } catch (err) {
+                  console.warn('[Coupon] releaseCouponService failed on payment close:', err);
+                }
+              }
             }
           }
         };
@@ -1022,7 +1096,7 @@ const EventBookingPage = () => {
         const rzp = new window.Razorpay(options);
         rzp.open();
       }
-      
+
     } catch (err) {
       console.error("Error in booking flow:", err);
       alert(`Failed to proceed: ${err.message || err}`);
@@ -1048,7 +1122,7 @@ const EventBookingPage = () => {
       <div className="container main-content checkout-layout two-col">
         {/* LEFT COLUMN: User Input & Tickets */}
         <div className="checkout-left-col">
-          
+
           {/* Date Selection */}
           {isMultiDay && (
             <div className="section-block date-selection-block glass">
@@ -1206,7 +1280,7 @@ const EventBookingPage = () => {
                           uId = uSnap.docs[0].id;
                           setResolvedUserIdForCoupons(uId);
                         }
-                      } catch (_) {}
+                      } catch (_) { }
                     }
 
                     if (!uId) {
@@ -1378,10 +1452,16 @@ const EventBookingPage = () => {
                     <span>{platformFeeVal === 0 ? 'Free' : `₹ ${platformFeeVal.toFixed(2)}`}</span>
                   </div>
                   {platformFeeVal > 0 && (
-                    <div className="summary-row">
-                      <span>GST (18% on Fee)</span>
-                      <span>₹ {gstAmount.toFixed(2)}</span>
-                    </div>
+                    <>
+                      <div className="summary-row">
+                        <span>CGST ({(gstPercentage / 2).toFixed(1)}%)</span>
+                        <span>₹ {(gstAmount / 2).toFixed(2)}</span>
+                      </div>
+                      <div className="summary-row">
+                        <span>SGST ({(gstPercentage / 2).toFixed(1)}%)</span>
+                        <span>₹ {(gstAmount / 2).toFixed(2)}</span>
+                      </div>
+                    </>
                   )}
                   {appliedCoupon && (
                     <div className="summary-row" style={{ color: '#10B981', fontWeight: 600 }}>
@@ -1431,10 +1511,10 @@ const EventBookingPage = () => {
               </div>
               <div className="razorpay-info" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#6B7280' }}>
                 <span>Powered securely by</span>
-                <img 
-                  src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg" 
-                  alt="Razorpay" 
-                  style={{ height: '14px', opacity: 0.8 }} 
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg"
+                  alt="Razorpay"
+                  style={{ height: '14px', opacity: 0.8 }}
                 />
               </div>
             </div>

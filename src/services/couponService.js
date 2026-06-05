@@ -196,7 +196,7 @@ export const fetchFilteredCoupons = async (userId, eventId) => {
       ? await Promise.all([getUsedCouponIds(userId), checkHasBookings(userId)])
       : [new Set(), false];
 
-    // 2. Fetch all active, non-deleted, non-expired coupons
+    // 2. Fetch all active, deleted (for testing), non-expired coupons
     const now = Timestamp.now();
     const q = query(
       couponsRef(),
