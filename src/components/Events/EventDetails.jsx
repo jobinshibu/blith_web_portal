@@ -391,6 +391,7 @@ const EventDetails = () => {
             platformFee: data.platformFee || 0,
             eventStartDate: data.eventStartDate || null,
             eventEndDate: data.eventEndDate || null,
+            soldOut: data.soldOut || false,
             raw: data
           });
         } else {
@@ -518,6 +519,7 @@ const EventDetails = () => {
   const isEventExpired = event.eventEndDate
     ? event.eventEndDate.toDate() < today
     : (event.eventStartDate ? event.eventStartDate.toDate() < today : false);
+  const isSoldOut = event.soldOut === true;
 
   return (
     <div className="event-details-page">
@@ -703,22 +705,28 @@ const EventDetails = () => {
               </div>
 
               <div className="action-box desktop-booking-box">
-                <div className="price-row">
-                  <span className="label">Ticket Price</span>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
-                    <span className="amount">{event.price}</span>
-                    {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500 }}>onwards</span>}
-                    {event.priceMessage && <span className="price-message" style={{ fontSize: '0.9rem', color: '#EF4444', fontWeight: 600, marginLeft: '6px' }}>{event.priceMessage}</span>}
+                <div className="price-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span className="label">Ticket Price</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                      <span className="amount">{event.price}</span>
+                      {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500 }}>onwards</span>}
+                    </div>
                   </div>
+                  {event.priceMessage && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', marginTop: '2px' }}>
+                      <span className="price-message" style={{ fontSize: '0.85rem', color: '#EF4444', fontWeight: 600 }}>{event.priceMessage}</span>
+                    </div>
+                  )}
                 </div>
                 <Button
-                  variant={isEventExpired ? "secondary" : "primary"}
+                  variant={(isEventExpired || isSoldOut) ? "secondary" : "primary"}
                   size="lg"
                   className="book-now-btn"
                   onClick={() => navigate(`/events/${event.id}/book`)}
-                  disabled={isEventExpired}
+                  disabled={isEventExpired || isSoldOut}
                 >
-                  {isEventExpired ? 'Event Ended' : 'Book Now'}
+                  {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : 'Book Now'}
                 </Button>
                 <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
                   <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
@@ -776,9 +784,11 @@ const EventDetails = () => {
                       <span className="portrait-card-date">{relatedEvent.date}</span>
                       <h3 className="portrait-card-title">{relatedEvent.title}</h3>
                       <p className="portrait-card-location">{relatedEvent.location}</p>
-                      <p className="portrait-card-price">
-                        {relatedEvent.price}
-                        {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
+                      <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span>
+                          {relatedEvent.price}
+                          {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
+                        </span>
                         {relatedEvent.priceMessage && <span className="price-message" style={{ fontSize: '0.8em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
                       </p>
                     </div>
@@ -791,20 +801,20 @@ const EventDetails = () => {
       </div>
 
       <div className="mobile-fixed-booking-bar">
-        <div className="price-row">
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
+        <div className="price-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
             <span className="amount">{event.price}</span>
             {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500, marginLeft: '4px' }}>onwards</span>}
-            {event.priceMessage && <span className="price-message" style={{ fontSize: '0.85rem', color: '#EF4444', fontWeight: 600, marginLeft: '6px' }}>{event.priceMessage}</span>}
           </div>
+          {event.priceMessage && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 600, display: 'block', marginTop: '2px' }}>{event.priceMessage}</span>}
         </div>
         <Button
-          variant={isEventExpired ? "secondary" : "primary"}
+          variant={(isEventExpired || isSoldOut) ? "secondary" : "primary"}
           size="lg"
           onClick={() => navigate(`/events/${event.id}/book`)}
-          disabled={isEventExpired}
+          disabled={isEventExpired || isSoldOut}
         >
-          {isEventExpired ? 'Event Ended' : 'Book Now'}
+          {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : 'Book Now'}
         </Button>
       </div>
 

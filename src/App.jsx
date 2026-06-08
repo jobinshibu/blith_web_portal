@@ -1,5 +1,6 @@
 import React from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import Navbar from './components/Navbar/Navbar'
 import Events from './components/Events/Events'
 import EventDetails from './components/Events/EventDetails'
@@ -16,6 +17,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <Toaster position="top-center" reverseOrder={false} />
       <ScrollToTop />
       {!isLinkTree && <Navbar />}
       <main>

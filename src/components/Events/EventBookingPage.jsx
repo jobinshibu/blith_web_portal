@@ -12,6 +12,7 @@ import {
   releaseCoupon as releaseCouponService,
 } from '../../services/couponService';
 import Button from '../Button/Button';
+import { toast } from 'react-hot-toast';
 import './EventBookingPage.scss';
 
 // Helper to parse Firestore timestamp to Date
@@ -667,7 +668,7 @@ const EventBookingPage = () => {
           setAppliedCoupon(null);
           setCouponSession(null);
           setCouponReservedUntil(null);
-          alert('Your coupon reservation has expired. Please re-apply the coupon.');
+          toast.error('Your coupon reservation has expired. Please re-apply the coupon.');
           setIsVerifyingUser(false);
           return;
         }
@@ -1087,8 +1088,10 @@ const EventBookingPage = () => {
         try {
           sessionStorage.removeItem('blithe_checkout_attendee');
         } catch (_) {}
-        alert('Booking confirmed successfully!');
-        navigate('/events');
+        toast.success('Booking confirmed successfully!');
+        setTimeout(() => {
+          navigate('/events');
+        }, 1500);
       };
 
       // 2. Process booking flow
@@ -1113,7 +1116,7 @@ const EventBookingPage = () => {
         } catch (orderErr) {
           console.error("Razorpay Order API failed:", orderErr);
           await releaseTicketSlots(uId, dateStr);
-          alert("Failed to initiate payment. Please try again.");
+          toast.error("Failed to initiate payment. Please try again.");
           return;
         }
 
@@ -1124,7 +1127,7 @@ const EventBookingPage = () => {
         const isScriptLoaded = await loadRazorpayScript();
         if (!isScriptLoaded || !window.Razorpay) {
           await releaseTicketSlots(uId, dateStr);
-          alert("Razorpay SDK failed to load. Please check your internet connection.");
+          toast.error("Razorpay SDK failed to load. Please check your internet connection.");
           return;
         }
 
@@ -1145,7 +1148,7 @@ const EventBookingPage = () => {
           handler: async function (response) {
             const paymentId = response.razorpay_payment_id;
             if (!paymentId) {
-              alert("Payment verification failed. No payment ID returned.");
+              toast.error("Payment verification failed. No payment ID returned.");
               return;
             }
             const actualOrderId = response.razorpay_order_id || orderId;
@@ -1183,7 +1186,7 @@ const EventBookingPage = () => {
 
     } catch (err) {
       console.error("Error in booking flow:", err);
-      alert(`Failed to proceed: ${err.message || err}`);
+      toast.error(`Failed to proceed: ${err.message || err}`);
     } finally {
       setIsVerifyingUser(false);
     }
