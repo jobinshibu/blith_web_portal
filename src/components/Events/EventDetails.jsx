@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from '../../firebase';
@@ -379,6 +379,7 @@ const EventDetails = () => {
             geopoint: data.position?.geopoint || null,
             price: displayPrice,
             isPriceOnwards: isPriceOnwards,
+            priceMessage: data.priceMessage || "",
             category: data.category || "Other",
             eventType: data.eventType || "Offline",
             ageRestriction: data.ageRestriction || false,
@@ -449,6 +450,7 @@ const EventDetails = () => {
                 location: data.location || data.venue || "TBA",
                 price: displayPrice,
                 isPriceOnwards: isPriceOnwards,
+                priceMessage: data.priceMessage || "",
                 score,
                 eventStartDate: data.eventStartDate || null
               });
@@ -700,16 +702,13 @@ const EventDetails = () => {
                 )}
               </div>
 
-              <p className="guarantee">
-                <Ticket size={14} /> 100% SECURE TRANSACTION
-              </p>
-
               <div className="action-box desktop-booking-box">
                 <div className="price-row">
                   <span className="label">Ticket Price</span>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
                     <span className="amount">{event.price}</span>
                     {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500 }}>onwards</span>}
+                    {event.priceMessage && <span className="price-message" style={{ fontSize: '0.9rem', color: '#EF4444', fontWeight: 600, marginLeft: '6px' }}>{event.priceMessage}</span>}
                   </div>
                 </div>
                 <Button
@@ -721,6 +720,9 @@ const EventDetails = () => {
                 >
                   {isEventExpired ? 'Event Ended' : 'Book Now'}
                 </Button>
+                <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
+                  <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
+                </p>
               </div>
             </div>
 
@@ -777,6 +779,7 @@ const EventDetails = () => {
                       <p className="portrait-card-price">
                         {relatedEvent.price}
                         {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
+                        {relatedEvent.priceMessage && <span className="price-message" style={{ fontSize: '0.8em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
                       </p>
                     </div>
                   </Link>
@@ -789,8 +792,11 @@ const EventDetails = () => {
 
       <div className="mobile-fixed-booking-bar">
         <div className="price-row">
-          <span className="amount">{event.price}</span>
-          {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500, marginLeft: '4px' }}>onwards</span>}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
+            <span className="amount">{event.price}</span>
+            {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500, marginLeft: '4px' }}>onwards</span>}
+            {event.priceMessage && <span className="price-message" style={{ fontSize: '0.85rem', color: '#EF4444', fontWeight: 600, marginLeft: '6px' }}>{event.priceMessage}</span>}
+          </div>
         </div>
         <Button
           variant={isEventExpired ? "secondary" : "primary"}

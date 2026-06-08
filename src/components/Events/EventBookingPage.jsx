@@ -132,7 +132,37 @@ const EventBookingPage = () => {
   const [quantities, setQuantities] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const [attendee, setAttendee] = useState({ name: '', email: '', phone: '' });
+
+  // Load attendee details from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+      if (cachedDetails) {
+        const parsed = JSON.parse(cachedDetails);
+        setAttendee(prev => ({
+          ...prev,
+          name: parsed.name || prev.name,
+          email: parsed.email || prev.email,
+          phone: parsed.phone || prev.phone
+        }));
+      }
+    } catch (err) {
+      console.warn("Failed to load checkout details from session:", err);
+    }
+  }, []);
+
+  // Save attendee details to sessionStorage when they change
+  useEffect(() => {
+    if (attendee.name || attendee.email || attendee.phone) {
+      try {
+        sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify(attendee));
+      } catch (err) {
+        console.warn("Failed to save checkout details to session:", err);
+      }
+    }
+  }, [attendee]);
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [bookingId, setBookingId] = useState('');
 
   const [showErrors, setShowErrors] = useState(false);
@@ -1017,6 +1047,10 @@ const EventBookingPage = () => {
         setAppliedCoupon(null);
         setCouponSession(null);
         setCouponReservedUntil(null);
+        // Clear session storage details
+        try {
+          sessionStorage.removeItem('blithe_checkout_attendee');
+        } catch (_) {}
         alert('Booking confirmed successfully!');
         navigate('/events');
       };
@@ -1454,21 +1488,54 @@ const EventBookingPage = () => {
                     <span>Subtotal</span>
                     <span>₹ {subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="summary-row">
-                    <span>Platform Fee ({platformFeeRate}%)</span>
-                    <span>{platformFeeVal === 0 ? 'Free' : `₹ ${platformFeeVal.toFixed(2)}`}</span>
-                  </div>
-                  {platformFeeVal > 0 && (
-                    <>
-                      <div className="summary-row">
-                        <span>CGST ({(gstPercentage / 2).toFixed(1)}%)</span>
-                        <span>₹ {(gstAmount / 2).toFixed(2)}</span>
+                  {platformFeeVal > 0 ? (
+                    <div className="fee-taxes-container" style={{ margin: '0.75rem 0' }}>
+                      <div className="summary-row" style={{ marginBottom: '0.25rem' }}>
+                        <span>
+                          Platform Fee & Taxes{' '}
+                          <button
+                            type="button"
+                            onClick={() => setShowFeeBreakdown(prev => !prev)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              color: '#7C3AED',
+                              textDecoration: 'underline',
+                              cursor: 'pointer',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              fontFamily: 'inherit',
+                              marginLeft: '4px'
+                            }}
+                          >
+                            (read {showFeeBreakdown ? 'less' : 'more'})
+                          </button>
+                        </span>
+                        <span>₹ {(platformFeeVal + gstAmount).toFixed(2)}</span>
                       </div>
-                      <div className="summary-row">
-                        <span>SGST ({(gstPercentage / 2).toFixed(1)}%)</span>
-                        <span>₹ {(gstAmount / 2).toFixed(2)}</span>
-                      </div>
-                    </>
+                      {showFeeBreakdown && (
+                        <div className="fee-breakdown-details" style={{ paddingLeft: '0.75rem', borderLeft: '2px solid #E9D5FF', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          <div className="summary-row" style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: 0 }}>
+                            <span>Platform Fee ({platformFeeRate}%)</span>
+                            <span>₹ {platformFeeVal.toFixed(2)}</span>
+                          </div>
+                          <div className="summary-row" style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: 0 }}>
+                            <span>CGST ({(gstPercentage / 2).toFixed(1)}%)</span>
+                            <span>₹ {(gstAmount / 2).toFixed(2)}</span>
+                          </div>
+                          <div className="summary-row" style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: 0 }}>
+                            <span>SGST ({(gstPercentage / 2).toFixed(1)}%)</span>
+                            <span>₹ {(gstAmount / 2).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="summary-row" style={{ margin: '0.75rem 0' }}>
+                      <span>Platform Fee</span>
+                      <span style={{ color: '#10B981', fontWeight: 600 }}>Free</span>
+                    </div>
                   )}
                   {appliedCoupon && (
                     <div className="summary-row" style={{ color: '#10B981', fontWeight: 600 }}>
@@ -1490,14 +1557,14 @@ const EventBookingPage = () => {
             <div className="terms-checkbox" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
               <input type="checkbox" id="terms" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
               <label htmlFor="terms" style={{ fontSize: '0.85rem' }}>
-                I agree to Blithe's <Link to="/terms" target="_blank" style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600 }}>standard terms, event regulations and cancellation policies</Link>.
+                I agree to Blithe's <Link to="/terms" target="_blank" style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600 }}>terms and conditions</Link>
               </label>
-              {showErrors && !agreeTerms && (
-                <div className="validation-hint" style={{ marginTop: '0.5rem' }}>
-                  <Info size={16} /><span>Please accept the Terms & Conditions.</span>
-                </div>
-              )}
             </div>
+            {showErrors && !agreeTerms && (
+              <div className="validation-hint" style={{ marginTop: '-0.5rem', marginBottom: '1rem' }}>
+                <Info size={16} /><span>Please accept the Terms & Conditions.</span>
+              </div>
+            )}
 
             <Button
               variant="primary"

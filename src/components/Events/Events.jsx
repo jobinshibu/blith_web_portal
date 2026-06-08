@@ -287,6 +287,7 @@ const Events = () => {
               category: data.category || "Other",
               promoted: data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date(),
               hashtags: data.tags || [],
+              priceMessage: data.priceMessage || "",
               raw: data
             };
           });
@@ -788,7 +789,7 @@ const Events = () => {
 
                               <div className={`hero-actions ${index !== 0 ? 'disabled' : ''}`}>
                                 <Link to={`/events/${event.id}`} onClick={e => index !== 0 && e.preventDefault()} className="hero-cta-btn">
-                                  Book tickets
+                                  Book Now
                                 </Link>
                               </div>
                             </div>
@@ -1047,7 +1048,10 @@ const Events = () => {
                               </span>
                               <h3 className="portrait-card-title">{event.title}</h3>
                               <p className="portrait-card-location">{event.location}</p>
-                              <p className="portrait-card-price">{event.price}</p>
+                              <p className="portrait-card-price">
+                                {event.price}
+                                {event.priceMessage && <span className="price-message" style={{ fontSize: '0.8em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
+                              </p>
                             </div>
                           </Link>
                         </motion.div>
