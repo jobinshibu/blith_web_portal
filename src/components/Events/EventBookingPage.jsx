@@ -1110,8 +1110,7 @@ const EventBookingPage = () => {
         const keySecret = "6c2w1nZcqVdlusV8j1AGz55t";
 
         try {
-          // Set order amount to 1 Rupee for payment testing
-          const order = await createRazorpayOrder(1, bId, keyId, keySecret);
+          const order = await createRazorpayOrder(total, bId, keyId, keySecret);
           orderId = order.id;
         } catch (orderErr) {
           console.error("Razorpay Order API failed:", orderErr);
@@ -1133,7 +1132,7 @@ const EventBookingPage = () => {
 
         const options = {
           key: keyId,
-          amount: 100, // 100 paise = 1 Rupee for payment testing
+          amount: Math.round(total * 100),
           currency: "INR",
           name: "Blithe",
           description: `Booking for ${event.eventName || event.title}`,
