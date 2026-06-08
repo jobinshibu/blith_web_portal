@@ -12,7 +12,7 @@ import './styles/main.scss'
 
 function App() {
   const location = useLocation();
-  const isLinkTree = location.pathname === '/links';
+  const isLinkTree = location.pathname === '/blithelink';
 
   return (
     <div className="app-container">
@@ -24,7 +24,7 @@ function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetails />} />
           <Route path="/events/:id/book" element={<EventBookingPage />} />
-          <Route path="/links" element={<LinkTree />} />
+          <Route path="/blithelink" element={<LinkTree />} />
           <Route path="/terms" element={<Terms />} />
         </Routes>
       </main>
