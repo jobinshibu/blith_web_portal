@@ -100,7 +100,7 @@ const formatDateStr = (date) => {
 const createRazorpayOrder = async (amount, bookingId, keyId, keySecret) => {
   const auth = btoa(`${keyId}:${keySecret}`);
   const amountInPaise = Math.round(amount * 100);
-  const response = await fetch("https://api.razorpay.com/v1/orders", {
+  const response = await fetch("/razorpay-api/v1/orders", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -516,13 +516,48 @@ const EventBookingPage = () => {
     });
   };
 
+  // Helper to release ticket slots when checkout fails or is dismissed/cancelled
+  const releaseTicketSlots = async (uId, dateStr) => {
+    const availabilityRef = doc(db, "event", event.id, "availability", dateStr);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(availabilityRef);
+        if (!snapshot.exists()) return;
+
+        const data = snapshot.data();
+        const ticketsMap = { ...(data.tickets || {}) };
+        const blockedSlots = { ...(data.blocked_slots || {}) };
+
+        if (blockedSlots[uId]) {
+          const lockData = blockedSlots[uId];
+          const reservedItems = lockData.items || [];
+          reservedItems.forEach((item) => {
+            const tName = item.ticketName;
+            const qty = item.quantity;
+            ticketsMap[tName] = (ticketsMap[tName] || 0) + qty;
+          });
+          delete blockedSlots[uId];
+
+          transaction.set(availabilityRef, {
+            tickets: ticketsMap,
+            blocked_slots: blockedSlots,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
+      });
+      console.log(`[Slots] Successfully released blocked slots for user: ${uId}`);
+    } catch (err) {
+      console.error("[Slots] Failed to release blocked slots:", err);
+    }
+  };
+
   // Helper to create pending booking (paid events)
-  const createPendingBooking = async (orderId, uId, bookedTickets, priceDetails, finalBookingSearchList) => {
+  const createPendingBooking = async (orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList) => {
     const pendingBookingRef = doc(db, "pendingBookings", orderId);
     const selectedDateVal = selectedDate ? selectedDate : startDate;
 
     const bookingData = {
-      bookingId: "",
+      bookingId: bId,
       userId: uId,
       userName: attendee.name,
       userProfileImage: "",
@@ -555,9 +590,10 @@ const EventBookingPage = () => {
     };
 
     await setDoc(pendingBookingRef, {
-      bookingId: "",
+      bookingId: bId,
       razorpayOrderId: orderId,
       userId: uId,
+      userPhone: attendee.phone,
       eventId: event.id,
       eventName: event.eventName || event.title || "",
       totalPrice: total,
@@ -680,7 +716,7 @@ const EventBookingPage = () => {
       );
 
       // Transaction-based Booking Confirmation Logic
-      const performSaveBooking = async (paymentId, orderId, paymentStatusVal) => {
+      const performSaveBooking = async (paymentId, orderId, paymentStatusVal, existingBookingId) => {
         // Commit coupon reservation as early as possible (before the main transaction)
         // so the seat is permanently claimed even if the below transaction takes time.
         let couponCommitted = false;
@@ -697,7 +733,7 @@ const EventBookingPage = () => {
             // Non-fatal — the booking still goes through; the reservation will auto-expire
           }
         }
-        const bId = generateBookingId();
+        const bId = existingBookingId || generateBookingId();
 
         // Regenerate searchList including the generated booking ID
         const searchList = generateBookingSearchList(
@@ -1065,34 +1101,36 @@ const EventBookingPage = () => {
         await blockTicketSlots(uId, bookedTickets, dateStr, tickets, finalBookingSearchList);
         console.log("Slot block success! Creating Razorpay Order...");
 
-        let orderId = `order_mock_${Date.now()}`;
+        const bId = generateBookingId();
+        let orderId = "";
         const keyId = "rzp_live_SBgnzuGhztmYSZ";
         const keySecret = "6c2w1nZcqVdlusV8j1AGz55t";
 
-        if (keySecret) {
-          try {
-            const order = await createRazorpayOrder(total, generateBookingId(), keyId, keySecret);
-            orderId = order.id;
-          } catch (orderErr) {
-            console.warn("Razorpay Order API failed, using mock order ID:", orderErr);
-          }
+        try {
+          // Set order amount to 1 Rupee for payment testing
+          const order = await createRazorpayOrder(1, bId, keyId, keySecret);
+          orderId = order.id;
+        } catch (orderErr) {
+          console.error("Razorpay Order API failed:", orderErr);
+          await releaseTicketSlots(uId, dateStr);
+          alert("Failed to initiate payment. Please try again.");
+          return;
         }
 
         // Create pending booking
-        await createPendingBooking(orderId, uId, bookedTickets, priceDetails, finalBookingSearchList);
+        await createPendingBooking(orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList);
 
         // Open Razorpay Checkout
         const isScriptLoaded = await loadRazorpayScript();
         if (!isScriptLoaded || !window.Razorpay) {
-          console.warn("Razorpay SDK failed to load. Proceeding with mock payment for local development/testing.");
-          const mockPaymentId = `pay_mock_${Date.now()}`;
-          await performSaveBooking(mockPaymentId, orderId, "paid");
+          await releaseTicketSlots(uId, dateStr);
+          alert("Razorpay SDK failed to load. Please check your internet connection.");
           return;
         }
 
         const options = {
           key: keyId,
-          amount: Math.round(total * 100),
+          amount: 100, // 100 paise = 1 Rupee for payment testing
           currency: "INR",
           name: "Blithe",
           description: `Booking for ${event.eventName || event.title}`,
@@ -1105,13 +1143,18 @@ const EventBookingPage = () => {
             color: "#7C3AED",
           },
           handler: async function (response) {
-            const paymentId = response.razorpay_payment_id || `pay_mock_${Date.now()}`;
+            const paymentId = response.razorpay_payment_id;
+            if (!paymentId) {
+              alert("Payment verification failed. No payment ID returned.");
+              return;
+            }
             const actualOrderId = response.razorpay_order_id || orderId;
-            await performSaveBooking(paymentId, actualOrderId, "paid");
+            await performSaveBooking(paymentId, actualOrderId, "paid", bId);
           },
           modal: {
             ondismiss: async function () {
               setIsVerifyingUser(false);
+              await releaseTicketSlots(uId, dateStr);
               if (appliedCoupon && couponSession && uId) {
                 try {
                   await releaseCouponService({
@@ -1130,7 +1173,7 @@ const EventBookingPage = () => {
           }
         };
 
-        if (orderId && !orderId.startsWith("order_mock_")) {
+        if (orderId) {
           options.order_id = orderId;
         }
 

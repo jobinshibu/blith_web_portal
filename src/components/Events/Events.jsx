@@ -237,7 +237,7 @@ const Events = () => {
 
     const fetchEvents = async () => {
       try {
-        const eventsQuery = query(collection(db, "event"), where("deleted", "==", false));
+        const eventsQuery = query(collection(db, "event"), where("deleted", "==", true));
         const querySnapshot = await getDocs(eventsQuery);
 
         // Map and filter out blocked or expired events

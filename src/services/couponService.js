@@ -201,7 +201,7 @@ export const fetchFilteredCoupons = async (userId, eventId) => {
     const q = query(
       couponsRef(),
       where('isActive', '==', true),
-      where('deleted', '==', false),
+      where('deleted', '==', true),
       where('expiryDate', '>=', now)
     );
     const snapshot = await getDocs(q);
@@ -400,18 +400,6 @@ export const commitCoupon = async ({ couponId, userId, sessionId }) => {
         reservedCount: _increment(-1),
       });
       transaction.update(resRef, { status: 'committed' });
-
-      // Write usage record so the user can't reuse this coupon
-      const usageRef = doc(
-        collection(db, COUPONS_COLLECTION, couponId, 'usage'),
-        `${userId}_${sessionId}`
-      );
-      transaction.set(usageRef, {
-        userId,
-        couponId,
-        sessionId,
-        committedAt: Timestamp.now(),
-      });
 
       return commitSuccess();
     });
