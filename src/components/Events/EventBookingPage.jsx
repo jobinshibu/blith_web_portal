@@ -13,6 +13,7 @@ import {
 } from '../../services/couponService';
 import Button from '../Button/Button';
 import { toast } from 'react-hot-toast';
+import logo from '../../assets/logo.jpeg';
 import './EventBookingPage.scss';
 
 // Helper to parse Firestore timestamp to Date
@@ -183,6 +184,10 @@ const EventBookingPage = () => {
   const [settings, setSettings] = useState(null);
   const couponTimerRef = useRef(null);
 
+  // Daily Availability State
+  const [dailyAvailability, setDailyAvailability] = useState({});
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+
   // Fetch Settings
   useEffect(() => {
     const fetchSettings = async () => {
@@ -268,6 +273,32 @@ const EventBookingPage = () => {
     };
     load();
   }, [event, resolvedUserIdForCoupons]);
+
+  // Fetch Daily Availability
+  useEffect(() => {
+    if (!event || !selectedDate) {
+      setDailyAvailability({});
+      return;
+    }
+    const fetchAvailability = async () => {
+      setLoadingAvailability(true);
+      try {
+        const dateStr = formatDateStr(selectedDate);
+        const availabilityRef = doc(db, "event", event.id, "availability", dateStr);
+        const snap = await getDoc(availabilityRef);
+        if (snap.exists()) {
+          setDailyAvailability(snap.data().tickets || {});
+        } else {
+          setDailyAvailability({});
+        }
+      } catch (err) {
+        console.error("Error fetching daily availability:", err);
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+    fetchAvailability();
+  }, [event, selectedDate]);
 
   // ─── Countdown timer for active coupon reservation ─────────────────────────
   useEffect(() => {
@@ -365,7 +396,18 @@ const EventBookingPage = () => {
   }, [attendee.phone]);
 
   if (loading) {
-    return <div className="booking-page-loading">Loading booking details...</div>;
+    return (
+      <div className="booking-page-loading" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem' }}>
+        <motion.img
+          src={logo}
+          alt="Loading..."
+          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)' }}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading booking details...</h2>
+      </div>
+    );
   }
 
   if (!event) {
@@ -374,13 +416,24 @@ const EventBookingPage = () => {
 
   const tickets = event.tickets || [];
 
+  const getTicketRemainingSlots = (ticket) => {
+    if (!ticket) return 0;
+    const globalRemaining = ticket.remainingSlots || 0;
+    const dailyLimitDefault = ticket.totalSlots !== undefined ? ticket.totalSlots : globalRemaining;
+    const dailyRemaining = dailyAvailability[ticket.ticketName] !== undefined
+      ? dailyAvailability[ticket.ticketName]
+      : dailyLimitDefault;
+    return Math.max(0, Math.min(globalRemaining, dailyRemaining));
+  };
+
   const updateQuantity = (idx, delta) => {
     const ticket = tickets[idx];
-    if (!ticket || !ticket.status || ticket.remainingSlots <= 0) return;
+    const remainingSlots = getTicketRemainingSlots(ticket);
+    if (!ticket || !ticket.status || remainingSlots <= 0) return;
 
     setQuantities(prev => {
       const current = prev[idx] || 0;
-      const maxSlots = Math.min(10, ticket.remainingSlots);
+      const maxSlots = Math.min(10, remainingSlots);
       return {
         ...prev,
         [idx]: Math.max(0, Math.min(maxSlots, current + delta))
@@ -1248,16 +1301,15 @@ const EventBookingPage = () => {
                 today.setHours(0, 0, 0, 0);
                 if (ticketEndDate && ticketEndDate < today) return null;
 
-                const isUnavailable = !ticket.status || ticket.remainingSlots <= 0;
+                const remainingSlots = getTicketRemainingSlots(ticket);
+                const isUnavailable = !ticket.status || remainingSlots <= 0;
                 const qty = quantities[idx] || 0;
                 return (
                   <div key={idx} className={`ticket-tier-card ${qty > 0 ? 'selected-tier' : ''} ${isUnavailable ? 'unavailable' : ''}`}>
                     <div className="tier-top">
                       <h4>{ticket.ticketName}</h4>
-                      {isUnavailable ? (
+                      {isUnavailable && (
                         <p className="tier-desc error-text">Sold Out / Unavailable</p>
-                      ) : (
-                        <p className="tier-desc">Remaining slots: {ticket.remainingSlots}</p>
                       )}
                     </div>
                     <div className="tier-bottom">
@@ -1272,7 +1324,7 @@ const EventBookingPage = () => {
                       <div className="tier-selector">
                         <button type="button" className="qty-btn" disabled={qty <= 0} onClick={() => updateQuantity(idx, -1)}>-</button>
                         <span className="qty-val">{qty}</span>
-                        <button type="button" className="qty-btn" disabled={isUnavailable || qty >= Math.min(10, ticket.remainingSlots)} onClick={() => updateQuantity(idx, 1)}>+</button>
+                        <button type="button" className="qty-btn" disabled={isUnavailable || qty >= Math.min(10, remainingSlots)} onClick={() => updateQuantity(idx, 1)}>+</button>
                       </div>
                     </div>
                   </div>

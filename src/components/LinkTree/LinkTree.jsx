@@ -69,7 +69,16 @@ const LinkTree = () => {
 
       <div className="links-section">
         {loading ? (
-          <div className="loading-text">Loading events...</div>
+          <div className="loading-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '40vh', gap: '1.5rem', width: '100%' }}>
+            <motion.img
+              src={logo}
+              alt="Loading..."
+              style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)' }}
+              animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.1rem', margin: 0 }}>Loading events...</h2>
+          </div>
         ) : events.length > 0 ? (
           events.map((event, index) => (
             <motion.div
