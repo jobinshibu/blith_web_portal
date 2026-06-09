@@ -1256,8 +1256,20 @@ const EventBookingPage = () => {
               toast.error("Payment verification failed. No payment ID returned.");
               return;
             }
-            const actualOrderId = response.razorpay_order_id || orderId;
-            await performSaveBooking(paymentId, actualOrderId, "paid", bId);
+            // For paid events, the backend Cloud Function handles the booking creation,
+            // slot decrementing, notifications, and emails via Razorpay webhook.
+            // Client side only shows success and redirects.
+            setAppliedCoupon(null);
+            setCouponSession(null);
+            setCouponReservedUntil(null);
+            try {
+              sessionStorage.removeItem('blithe_checkout_attendee');
+            } catch (_) {}
+            
+            toast.success("Payment successful! Your booking is being processed.");
+            setTimeout(() => {
+              navigate('/events');
+            }, 1500);
           },
           modal: {
             ondismiss: async function () {
