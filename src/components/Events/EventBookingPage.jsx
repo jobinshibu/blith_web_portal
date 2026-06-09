@@ -847,7 +847,49 @@ const EventBookingPage = () => {
           totalTicketPrice: Number(priceDetails.totalTicketPrice)
         };
 
-        const myBookingData = {
+        const isFree = paymentId === "free";
+
+        const myBookingData = isFree ? {
+          bookingDate: serverTimestamp(),
+          bookingId: bId,
+          coupon: couponMap,
+          createdDate: serverTimestamp(),
+          eventDate: selectedDateVal,
+          eventId: event.id,
+          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
+          eventLat: Number(event.lat || event.latitude || 0.0),
+          eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
+          eventLong: Number(event.long || event.longitude || 0.0),
+          eventName: String(event.eventName || event.title || ""),
+          eventType: String(event.eventType || "Online"),
+          isRated: false,
+          isSkipped: false,
+          platform: "Android",
+          priceDetails: formattedPriceDetails,
+          searchList: searchList,
+          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
+          status: "confirmed",
+          tickets: bookedTickets.map((t) => ({
+            category: String(t.category || "generic"),
+            price: Number(t.price || 0),
+            quantity: Number(t.quantity || 0),
+            ticketName: String(t.ticketName || ""),
+            totalAttendedQuantity: 0,
+            totalPrice: Number(t.totalPrice || 0),
+            totalQuantity: Number(t.quantity || t.totalQuantity || 0),
+            userEmail: String(t.userEmail || attendee.email),
+            userId: String(t.userId || uId),
+            userName: String(t.userName || attendee.name),
+            userPhone: String(t.userPhone || attendee.phone || ""),
+            userProfileImage: String(t.userProfileImage || userProfileImage || "")
+          })),
+          totalPrice: Number(total),
+          totalQuantity: Number(totalTickets),
+          userEmail: String(attendee.email),
+          userId: String(uId),
+          userName: String(attendee.name),
+          userProfileImage: String(userProfileImage || "")
+        } : {
           bookingDate: serverTimestamp(),
           bookingId: bId,
           coupon: couponMap,
@@ -879,7 +921,47 @@ const EventBookingPage = () => {
           userProfileImage: String(userProfileImage || "")
         };
 
-        const eventBookingData = {
+        const eventBookingData = isFree ? {
+          bookingDate: serverTimestamp(),
+          bookingId: bId,
+          coupon: couponMap,
+          createdDate: serverTimestamp(),
+          eventDate: selectedDateVal,
+          eventId: event.id,
+          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
+          eventLat: Number(event.lat || event.latitude || 0.0),
+          eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
+          eventLong: Number(event.long || event.longitude || 0.0),
+          eventName: String(event.eventName || event.title || ""),
+          eventType: String(event.eventType || "Online"),
+          isRated: false,
+          isSkipped: false,
+          platform: "Android",
+          priceDetails: formattedPriceDetails,
+          searchList: searchList,
+          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
+          status: "confirmed",
+          tickets: bookedTickets.map((t) => ({
+            category: String(t.category || "generic"),
+            price: Number(t.price || 0),
+            quantity: Number(t.quantity || 0),
+            ticketName: String(t.ticketName || ""),
+            totalAttendedQuantity: 0,
+            totalPrice: Number(t.totalPrice || 0),
+            totalQuantity: Number(t.quantity || t.totalQuantity || 0),
+            userEmail: String(t.userEmail || attendee.email),
+            userId: String(t.userId || uId),
+            userName: String(t.userName || attendee.name),
+            userPhone: String(t.userPhone || attendee.phone || ""),
+            userProfileImage: String(t.userProfileImage || userProfileImage || "")
+          })),
+          totalPrice: Number(total),
+          totalQuantity: Number(totalTickets),
+          userEmail: String(attendee.email),
+          userId: String(uId),
+          userName: String(attendee.name),
+          userProfileImage: String(userProfileImage || "")
+        } : {
           bookingDate: serverTimestamp(),
           bookingId: bId,
           coupon: couponMap,
