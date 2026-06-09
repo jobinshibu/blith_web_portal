@@ -1278,7 +1278,7 @@ const EventBookingPage = () => {
         } catch (_) { }
         toast.success('Booking confirmed successfully!');
         setTimeout(() => {
-          navigate('/events');
+          navigate(`/booking-success?bookingId=${bId}&eventId=${event.id}&userId=${uId}`);
         }, 1500);
       };
 
@@ -1350,7 +1350,7 @@ const EventBookingPage = () => {
             
             toast.success("Payment successful! Your booking is being processed.");
             setTimeout(() => {
-              navigate('/events');
+              navigate(`/booking-success?bookingId=${bId}&eventId=${event.id}&userId=${uId}`);
             }, 1500);
           },
           modal: {

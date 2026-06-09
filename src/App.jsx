@@ -5,6 +5,7 @@ import Navbar from './components/Navbar/Navbar'
 import Events from './components/Events/Events'
 import EventDetails from './components/Events/EventDetails'
 import EventBookingPage from './components/Events/EventBookingPage'
+import BookingSuccess from './components/Events/BookingSuccess'
 import LinkTree from './components/LinkTree/LinkTree'
 import Terms from './components/Terms/Terms'
 import Footer from './components/Footer/Footer'
@@ -26,6 +27,7 @@ function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetails />} />
           <Route path="/events/:id/book" element={<EventBookingPage />} />
+          <Route path="/booking-success" element={<BookingSuccess />} />
           <Route path="/blithelink" element={<LinkTree />} />
           <Route path="/terms" element={<Terms />} />
         </Routes>

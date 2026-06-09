@@ -1,0 +1,475 @@
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { db } from '../../firebase';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { motion } from 'framer-motion';
+import { 
+  Check, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  Ticket, 
+  ArrowRight, 
+  Home, 
+  Copy, 
+  AlertCircle,
+  ChevronRight,
+  Sparkles
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import './BookingSuccess.scss';
+
+const BookingSuccess = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const bookingId = searchParams.get('bookingId');
+  const eventId = searchParams.get('eventId');
+  const userId = searchParams.get('userId');
+
+  const [booking, setBooking] = useState(null);
+  const [eventDetails, setEventDetails] = useState(null);
+  const [relatedEvents, setRelatedEvents] = useState([]);
+  
+  // Loading and Polling status
+  const [loading, setLoading] = useState(true);
+  const [pollCount, setPollCount] = useState(0);
+  const [copiedId, setCopiedId] = useState(false);
+
+  // Parse Firestore Timestamp to Date
+  const parseDate = (ts) => {
+    if (!ts) return new Date();
+    if (ts.toDate) return ts.toDate();
+    if (ts.seconds) return new Date(ts.seconds * 1000);
+    return new Date(ts);
+  };
+
+  // Helper to format date cleanly
+  const formatEventDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Helper to format time cleanly
+  const formatEventTime = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Copy booking ID
+  const handleCopyBookingId = () => {
+    if (bookingId) {
+      navigator.clipboard.writeText(bookingId);
+      setCopiedId(true);
+      toast.success("Booking ID copied to clipboard!");
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
+
+  // Fetch Event Details (immediately)
+  useEffect(() => {
+    if (!eventId) return;
+
+    const fetchEvent = async () => {
+      try {
+        const eventRef = doc(db, 'event', eventId);
+        const snap = await getDoc(eventRef);
+        if (snap.exists()) {
+          setEventDetails({ id: snap.id, ...snap.data() });
+        }
+      } catch (err) {
+        console.error("Error fetching event details:", err);
+      }
+    };
+
+    fetchEvent();
+  }, [eventId]);
+
+  // Poll Booking details
+  useEffect(() => {
+    if (!bookingId || !userId) {
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    let intervalId;
+
+    const fetchBooking = async () => {
+      try {
+        const bookingRef = doc(db, "users", userId, "myBookings", bookingId);
+        const bookingSnap = await getDoc(bookingRef);
+
+        if (bookingSnap.exists()) {
+          if (isMounted) {
+            setBooking(bookingSnap.data());
+            setLoading(false);
+            clearInterval(intervalId);
+          }
+        } else {
+          setPollCount(prev => {
+            // Poll for max 15 seconds (10 attempts * 1.5s)
+            if (prev >= 10) {
+              clearInterval(intervalId);
+              if (isMounted) {
+                setLoading(false);
+              }
+            }
+            return prev + 1;
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching booking details:", err);
+      }
+    };
+
+    fetchBooking();
+    intervalId = setInterval(fetchBooking, 1500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [bookingId, userId]);
+
+  // Fetch and score related events
+  useEffect(() => {
+    if (!eventDetails) return;
+
+    const fetchRelatedEvents = async () => {
+      try {
+        const now = new Date();
+        let allEvents = [];
+
+        // Attempt 1: Fetch active events (deleted === false)
+        const activeQuery = query(collection(db, "event"), where("deleted", "==", false));
+        let snap = await getDocs(activeQuery);
+        
+        // Fallback: If no results found, try deleted === true (used in local testing in Events.jsx)
+        if (snap.empty) {
+          const testQuery = query(collection(db, "event"), where("deleted", "==", true));
+          snap = await getDocs(testQuery);
+        }
+
+        allEvents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(e => {
+            const isNotCurrent = e.id !== eventDetails.id;
+            const isNotBlocked = e.block === false;
+            const endD = e.eventEndDate ? parseDate(e.eventEndDate) : null;
+            const isNotExpired = endD ? endD >= now : true;
+            return isNotCurrent && isNotBlocked && isNotExpired;
+          });
+
+        // Score related events based on location & category matches
+        const scored = allEvents.map(e => {
+          let score = 0;
+
+          // Category match
+          if (eventDetails.category && e.category && e.category.toLowerCase() === eventDetails.category.toLowerCase()) {
+            score += 10;
+          }
+
+          // Event type match (Online vs In-person)
+          if (eventDetails.eventType && e.eventType && e.eventType.toLowerCase() === eventDetails.eventType.toLowerCase()) {
+            score += 2;
+          }
+
+          // Location match
+          const loc1 = (eventDetails.location || eventDetails.venue || "").toLowerCase();
+          const loc2 = (e.location || e.venue || "").toLowerCase();
+
+          if (loc1 && loc2) {
+            if (loc1.includes("online") && loc2.includes("online")) {
+              score += 5;
+            } else {
+              const cities = ["bangalore", "bengaluru", "mumbai", "delhi", "noida", "gurgaon", "chennai", "hyderabad", "pune", "kolkata"];
+              const city1 = cities.find(c => loc1.includes(c));
+              const city2 = cities.find(c => loc2.includes(c));
+              
+              if (city1 && city2 && city1 === city2) {
+                score += 5;
+              } else if (loc1 === loc2) {
+                score += 8;
+              }
+            }
+          }
+
+          return { event: e, score };
+        });
+
+        // Filter and sort by highest similarity score
+        let finalRelated = scored
+          .filter(item => item.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .map(item => item.event);
+
+        // Fallback: If not enough related events, pad with general future events
+        if (finalRelated.length < 3) {
+          const ids = new Set(finalRelated.map(e => e.id));
+          const additions = allEvents.filter(e => !ids.has(e.id)).slice(0, 3 - finalRelated.length);
+          finalRelated = [...finalRelated, ...additions];
+        }
+
+        // Format to standard event card fields
+        const formatted = finalRelated.slice(0, 3).map(e => {
+          const startDateObj = e.eventStartDate ? parseDate(e.eventStartDate) : new Date();
+          const endDateObj = e.eventEndDate ? parseDate(e.eventEndDate) : null;
+
+          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          let formattedDate = formattedStartDate;
+
+          if (endDateObj) {
+            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            if (formattedStartDate !== formattedEndDate) {
+              formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
+            }
+          }
+
+          let displayPrice = "Free";
+          if (e.tickets && e.tickets.length > 0) {
+            const minPrice = Math.min(...e.tickets.map(t => t.actualPrice || 0));
+            displayPrice = minPrice > 0 ? `₹${minPrice}` : "Free";
+          } else if (e.price > 0) {
+            displayPrice = `₹${e.price}`;
+          }
+
+          let isPriceOnwards = false;
+          if (e.tickets && e.tickets.length > 0) {
+            const minPrice = Math.min(...e.tickets.map(t => t.actualPrice || 0));
+            isPriceOnwards = minPrice > 0;
+          }
+
+          const isFeatured = e.featured === true && e.featuredEndDate && parseDate(e.featuredEndDate) >= now;
+
+          return {
+            id: e.id,
+            title: e.eventName || "Untitled Event",
+            image: (e.image && e.image.length > 0) ? e.image[0] : "",
+            date: formattedDate,
+            location: e.location || e.venue || "TBA",
+            price: displayPrice,
+            category: e.category || "Other",
+            promoted: isFeatured,
+            isPriceOnwards: isPriceOnwards,
+            priceMessage: e.priceMessage || ""
+          };
+        });
+
+        setRelatedEvents(formatted);
+      } catch (err) {
+        console.error("Error setting related events:", err);
+      }
+    };
+
+    fetchRelatedEvents();
+  }, [eventDetails]);
+
+  // Framer Motion Entrance
+  const ticketVariant = {
+    hidden: { opacity: 0, y: 25 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  };
+
+  return (
+    <div className="booking-success-page">
+      {/* Decorative Glowing Orbs */}
+      <div className="glowing-orb orb-1"></div>
+      <div className="glowing-orb orb-2"></div>
+
+      <div className="container compact-container">
+        {/* Compact Animated Confirmation Banner */}
+        <div className="success-header-card compact">
+          <motion.div 
+            className="success-badge-outer"
+            initial={{ scale: 0, rotate: -45 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", damping: 14, stiffness: 180 }}
+          >
+            <div className="success-badge-inner">
+              <Check size={28} strokeWidth={3.5} className="checkmark-icon" />
+            </div>
+          </motion.div>
+          
+          <div className="header-text-group">
+            <h1 className="gradient-success-title">Booking Confirmed!</h1>
+            <p className="success-subtitle">
+              Your tickets are secured. Receipt has been emailed to you.
+            </p>
+          </div>
+        </div>
+
+        {/* LANDSCAPE TICKET DESIGN */}
+        <motion.div 
+          className="classic-landscape-ticket glass"
+          initial="hidden"
+          animate="visible"
+          variants={ticketVariant}
+        >
+          
+          {/* LEFT SECTION: Main Ticket Details */}
+          <div className="ticket-main-section">
+            
+            {/* Event Header row */}
+            <div className="ticket-header-row">
+              {eventDetails?.image && (
+                <div className="ticket-thumbnail">
+                  <img src={eventDetails.image && eventDetails.image.length > 0 ? eventDetails.image[0] : eventDetails.image} alt="Event Thumbnail" />
+                </div>
+              )}
+              <div className="ticket-event-meta">
+                <span className="category-tag">{eventDetails?.category || 'Event'}</span>
+                <h2 className="ticket-title">{eventDetails?.eventName || eventDetails?.title}</h2>
+              </div>
+            </div>
+
+            {/* Event Details Row */}
+            <div className="ticket-details-row">
+              <div className="meta-box">
+                <Calendar size={14} className="icon" />
+                <div>
+                  <span className="meta-lbl">Date</span>
+                  <span className="meta-val">{formatEventDate(eventDetails?.eventStartDate)}</span>
+                </div>
+              </div>
+              <div className="meta-box">
+                <Clock size={14} className="icon" />
+                <div>
+                  <span className="meta-lbl">Time</span>
+                  <span className="meta-val">{formatEventTime(eventDetails?.eventStartDate)}</span>
+                </div>
+              </div>
+              <div className="meta-box location">
+                <MapPin size={14} className="icon" />
+                <div>
+                  <span className="meta-lbl">Venue</span>
+                  <span className="meta-val">{eventDetails?.venue || eventDetails?.location || 'TBA'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendee Info Grid */}
+            <div className="ticket-attendee-grid">
+              <div className="att-row">
+                <span className="att-lbl">Name</span>
+                <span className="att-val">{booking?.userName || 'Attendee'}</span>
+              </div>
+              <div className="att-row">
+                <span className="att-lbl">Email</span>
+                <span className="att-val email">{booking?.userEmail || '—'}</span>
+              </div>
+              <div className="att-row">
+                <span className="att-lbl">Phone</span>
+                <span className="att-val">{booking?.userPhone || '—'}</span>
+              </div>
+            </div>
+
+            {/* Compact Booking Tickets list */}
+            {booking?.tickets && (
+              <div className="ticket-items-summary">
+                <span className="items-lbl">Tickets:</span>
+                <div className="items-pills-container">
+                  {booking.tickets.map((t, index) => (
+                    <span className="ticket-pill" key={index}>
+                      {t.ticketName} <span className="pill-qty">x{t.quantity || t.totalQuantity}</span>
+                    </span>
+                  ))}
+                  <span className="grand-total-pill">Paid: ₹{(booking?.totalPrice || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Polling loader if details are resolving */}
+            {loading && !booking && (
+              <div className="polling-loader-compact">
+                <div className="compact-spinner"></div>
+                <span>Syncing booking registry details...</span>
+              </div>
+            )}
+          </div>
+
+          {/* VERTICAL TEAR-OFF DIVIDER */}
+          <div className="ticket-tear-divider">
+            <div className="notch top"></div>
+            <div className="dashed-line"></div>
+            <div className="notch bottom"></div>
+          </div>
+
+          {/* RIGHT SECTION: Tear-off action stub */}
+          <div className="ticket-stub-section">
+            <div className="stub-header">
+              <span className="stub-status-badge">
+                <span className="pulse-dot"></span> Confirmed
+              </span>
+            </div>
+
+            {/* Booking ID Details */}
+            <div className="stub-booking-id-area">
+              <span className="stub-lbl">Booking ID</span>
+              <span className="stub-val booking-id" onClick={handleCopyBookingId}>
+                {booking?.bookingId || bookingId}
+                <Copy size={12} className="copy-icn" />
+              </span>
+            </div>
+
+            {/* Compact Action buttons */}
+            <div className="stub-nav-actions">
+              <Link to="/events" className="stub-action-btn primary">
+                Discover Events <ArrowRight size={14} />
+              </Link>
+              <Link to="/" className="stub-action-btn secondary">
+                <Home size={14} /> <span>Home</span>
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Related Events Section */}
+        {relatedEvents.length > 0 && (
+          <div className="related-events-section">
+            <div className="section-header">
+              <Sparkles size={22} style={{ color: '#7C3AED' }} />
+              <h2>You might also like</h2>
+            </div>
+            <div className="events-portrait-grid">
+              {relatedEvents.map(relatedEvent => (
+                <div key={relatedEvent.id} className="event-card-container">
+                  <Link to={`/events/${relatedEvent.id}`} className="portrait-event-card" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                    <div className="portrait-image-wrapper">
+                      <img src={relatedEvent.image} alt={relatedEvent.title} loading="lazy" />
+                      {relatedEvent.promoted && (
+                        <span className="featured-badge-small">Featured</span>
+                      )}
+                    </div>
+                    <div className="portrait-card-details">
+                      <span className="portrait-card-date">{relatedEvent.date}</span>
+                      <h3 className="portrait-card-title">{relatedEvent.title}</h3>
+                      <p className="portrait-card-location">{relatedEvent.location}</p>
+                      <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span>
+                          {relatedEvent.price}
+                          {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
+                        </span>
+                        {relatedEvent.priceMessage && <span className="price-message" style={{ fontSize: '1em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
+                      </p>
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default BookingSuccess;
