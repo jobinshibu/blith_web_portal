@@ -447,8 +447,41 @@ const EventDetails = () => {
               }
 
               let score = 0;
-              if (data.category === event.category) score += 3;
-              if (data.location && event.location && data.location.includes(event.location.split(',')[0])) score += 2;
+              if (data.category === event.category) score += 5;
+              
+              // Match hashtags/tags
+              const commonTags = (data.tags || []).filter(t => (event.tags || []).includes(t));
+              score += commonTags.length * 2;
+
+              // Match distance proximity (nearby, if location geopoint is available)
+              const getDistance = (lat1, lon1, lat2, lon2) => {
+                const R = 6371; // Earth's radius in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = 
+                  Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+              };
+
+              const lat1 = event.geopoint?.latitude || event.geopoint?._lat;
+              const lon1 = event.geopoint?.longitude || event.geopoint?._long;
+              const lat2 = data.position?.geopoint?.latitude || data.position?.geopoint?._lat;
+              const lon2 = data.position?.geopoint?.longitude || data.position?.geopoint?._long;
+
+              if (lat1 && lon1 && lat2 && lon2) {
+                const dist = getDistance(lat1, lon1, lat2, lon2);
+                if (dist <= 10) {
+                  score += 5;
+                } else if (dist <= 30) {
+                  score += 2;
+                }
+              } else if (data.location && event.location && data.location.includes(event.location.split(',')[0])) {
+                score += 2; // fallback to text location prefix match
+              }
+              
               if (formattedDate === event.date) score += 1;
 
               const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
@@ -530,7 +563,30 @@ const EventDetails = () => {
   const isEventExpired = event.eventEndDate
     ? event.eventEndDate.toDate() < today
     : (event.eventStartDate ? event.eventStartDate.toDate() < today : false);
-  const isSoldOut = event.soldOut === true;
+
+  const checkEventSoldOut = (evt) => {
+    if (evt.soldOut === true) return true;
+    if (evt.tickets && evt.tickets.length > 0) {
+      const hasAvailableTicket = evt.tickets.some(t => {
+        const isStatusActive = t.status !== false;
+        const hasSlots = t.remainingSlots > 0;
+
+        let isNotExpired = true;
+        if (t.endDate) {
+          const ticketEndDate = t.endDate.seconds ? t.endDate.toDate() : new Date(t.endDate);
+          const tDate = new Date(ticketEndDate);
+          tDate.setHours(0, 0, 0, 0);
+          if (tDate < today) {
+            isNotExpired = false;
+          }
+        }
+        return isStatusActive && hasSlots && isNotExpired;
+      });
+      return !hasAvailableTicket;
+    }
+    return false;
+  };
+  const isSoldOut = checkEventSoldOut(event);
 
   return (
     <div className="event-details-page">
@@ -545,7 +601,7 @@ const EventDetails = () => {
           {/* Left Column: Premium media carousel */}
           <div className="media-carousel-area">
             <div className="main-carousel-view glass">
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 <motion.img
                   key={activeMediaIndex}
                   src={mediaList[activeMediaIndex]}
@@ -635,7 +691,7 @@ const EventDetails = () => {
           <div className="event-info-sidebar">
             <div className="event-details-card glass">
               <div className="card-top-row" style={{ marginTop: '-0.5rem' }}>
-                <div className="tags-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="tags-column" style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: "90%" }}>
                   <span className="category-badge" style={{ alignSelf: 'flex-start' }}>{event.category}</span>
                   {event.tags && event.tags.length > 0 && (
                     <div className="event-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>

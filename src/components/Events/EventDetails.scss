@@ -148,9 +148,10 @@
     display: grid;
     grid-template-columns: 45% 1fr;
     gap: 2.5rem;
+    margin-top: 2rem;
     align-items: start;
 
-    @media (max-width: 800px) {
+    @media (max-width: 600px) {
       grid-template-columns: 1fr;
     }
   }
@@ -360,7 +361,7 @@
 
   .event-details-card {
     position: sticky;
-    top: 6rem;
+    top: 0rem;
 
     .card-top-row {
       display: flex;
@@ -419,6 +420,8 @@
       letter-spacing: 0.05em;
       margin-bottom: 0.5rem;
     }
+
+
 
     .event-title {
       font-size: 1.5rem;
@@ -763,7 +766,7 @@
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 600px) {
   .event-details-page {
     .content-grid {
       display: flex;
@@ -817,7 +820,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .event-details-page {
     padding-bottom: 6rem; // space for fixed bottom bar
 
@@ -883,6 +886,7 @@
       top: 0;
       z-index: 1;
       width: 100vw !important;
+      max-width: none !important;
       height: auto !important;
       aspect-ratio: 387 / 484 !important;
       max-height: none;
@@ -1070,7 +1074,7 @@
   }
 }
 
-@media (max-width: 800px),
+@media (max-width: 600px),
 (max-height: 600px) {
   .event-details-page {
     .desktop-booking-box {

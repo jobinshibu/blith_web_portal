@@ -606,68 +606,89 @@ const EventBookingPage = () => {
   };
 
   // Helper to create pending booking (paid events)
-  const createPendingBooking = async (orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList) => {
+  const createPendingBooking = async (orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList, userProfileImage) => {
     const pendingBookingRef = doc(db, "pendingBookings", orderId);
     const selectedDateVal = selectedDate ? selectedDate : startDate;
 
+    const couponMap = appliedCoupon ? {
+      code: String(appliedCoupon.code),
+      discount: Number(discountAmount),
+      discountValue: Number(appliedCoupon.discountValue),
+      id: String(appliedCoupon.id),
+      percentage: Boolean(appliedCoupon.percentage)
+    } : {};
+
+    const formattedPriceDetails = {
+      couponDiscountPrice: Number(priceDetails.couponDiscountPrice || 0),
+      gstAmount: Number(priceDetails.gstAmount || 0),
+      gstPercentage: Number(priceDetails.gstPercentage || 0),
+      platformFee: Number(priceDetails.platformFee || 0),
+      platformFeePercentage: Number(priceDetails.platformFeePercentage || 0),
+      totalDiscount: Number(priceDetails.totalDiscount || 0),
+      totalPrice: Number(priceDetails.totalPrice || 0),
+      totalTicketPrice: Number(priceDetails.totalTicketPrice || 0)
+    };
+
+    const preparedTickets = bookedTickets.map((t) => ({
+      category: String(t.category || "generic"),
+      price: Number(t.price || 0),
+      quantity: Number(t.quantity || 0),
+      ticketName: String(t.ticketName || ""),
+      totalPrice: Number(t.totalPrice || 0),
+      totalQuantity: Number(t.totalQuantity || 0)
+    }));
+
     const bookingData = {
+      bookingDate: serverTimestamp(),
       bookingId: bId,
-      userId: uId,
-      userName: attendee.name,
-      userProfileImage: "",
-      eventId: event.id,
-      eventName: event.eventName || event.title || "",
-      eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
-      eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
-      eventLat: event.lat || event.latitude || 0.0,
-      eventLong: event.long || event.longitude || 0.0,
-      bookingDate: new Date(),
+      coupon: couponMap,
+      createdDate: serverTimestamp(),
       eventDate: selectedDateVal,
-      createdDate: new Date(),
-      totalPrice: total,
-      totalQuantity: totalTickets,
-      status: "pending",
+      eventId: event.id,
+      eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
+      eventLat: Number(event.lat || event.latitude || 0.0),
+      eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
+      eventLong: Number(event.long || event.longitude || 0.0),
+      eventName: String(event.eventName || event.title || ""),
+      eventType: String(event.eventType || "Online"),
+      isRated: false,
+      isSkipped: false,
       platform: "Web",
-      userEmail: attendee.email,
-      eventType: event.eventType || "Online",
+      priceDetails: formattedPriceDetails,
       searchList: finalBookingSearchList,
-      tickets: bookedTickets,
-      coupon: appliedCoupon ? {
-        id: appliedCoupon.id,
-        code: appliedCoupon.code,
-        discountValue: appliedCoupon.discountValue,
-        percentage: !!appliedCoupon.percentage,
-        discount: discountAmount
-      } : {},
-      priceDetails: priceDetails,
-      serviceCode: event.serviceCode || settings?.serviceCode || ""
+      serviceCode: String(event.serviceCode || settings?.serviceCode || ""),
+      status: "pending",
+      tickets: preparedTickets,
+      totalAttendedQuantity: 0,
+      totalPrice: Number(total),
+      totalQuantity: Number(totalTickets),
+      userEmail: String(attendee.email),
+      userId: String(uId),
+      userName: String(attendee.name),
+      userPhone: String(attendee.phone),
+      userProfileImage: String(userProfileImage || "")
     };
 
     await setDoc(pendingBookingRef, {
-      bookingId: bId,
-      razorpayOrderId: orderId,
-      userId: uId,
-      userPhone: attendee.phone,
-      eventId: event.id,
-      eventName: event.eventName || event.title || "",
-      totalPrice: total,
-      status: "pending",
-      createdAt: serverTimestamp(),
+      availabilityDate: formatDateStr(selectedDateVal),
       bookingData: bookingData,
+      bookingId: bId,
+      coupon: couponMap,
+      createdAt: serverTimestamp(),
+      createdDate: serverTimestamp(),
+      eventId: event.id,
+      eventName: String(event.eventName || event.title || ""),
+      eventType: String(event.eventType || "Online"),
+      paymentId: "",
       paymentMode: "razorpay",
       platform: "Web",
-      availabilityDate: formatDateStr(selectedDateVal),
-      eventType: event.eventType || "Online",
-      searchList: finalBookingSearchList,
-      createdDate: new Date(),
-      coupon: appliedCoupon ? {
-        id: appliedCoupon.id,
-        code: appliedCoupon.code,
-        discountValue: appliedCoupon.discountValue,
-        percentage: !!appliedCoupon.percentage,
-        discount: discountAmount
-      } : {},
-      priceDetails: priceDetails
+      priceDetails: formattedPriceDetails,
+      razorpayOrderId: orderId,
+      tickets: preparedTickets,
+      status: "pending",
+      totalPrice: Number(total),
+      userId: uId,
+      userPhone: attendee.phone
     });
   };
 
@@ -797,65 +818,97 @@ const EventBookingPage = () => {
           event.id
         );
 
-        // Update booking ID and profile image in booked tickets
-        bookedTickets.forEach((t) => {
-          t.userId = uId;
-          t.userProfileImage = userProfileImage;
-        });
+        // Prepare booked tickets with matching properties
+        const preparedTickets = bookedTickets.map((t) => ({
+          category: String(t.category || "generic"),
+          price: Number(t.price || 0),
+          quantity: Number(t.quantity || 0),
+          ticketName: String(t.ticketName || ""),
+          totalPrice: Number(t.totalPrice || 0),
+          totalQuantity: Number(t.totalQuantity || 0)
+        }));
+
+        const couponMap = appliedCoupon ? {
+          code: String(appliedCoupon.code),
+          discount: Number(discountAmount),
+          discountValue: Number(appliedCoupon.discountValue),
+          id: String(appliedCoupon.id),
+          percentage: Boolean(appliedCoupon.percentage)
+        } : {};
+
+        const formattedPriceDetails = {
+          couponDiscountPrice: Number(priceDetails.couponDiscountPrice),
+          gstAmount: Number(priceDetails.gstAmount),
+          gstPercentage: Number(priceDetails.gstPercentage),
+          platformFee: Number(priceDetails.platformFee),
+          platformFeePercentage: Number(priceDetails.platformFeePercentage),
+          totalDiscount: Number(priceDetails.totalDiscount),
+          totalPrice: Number(priceDetails.totalPrice),
+          totalTicketPrice: Number(priceDetails.totalTicketPrice)
+        };
 
         const myBookingData = {
           bookingDate: serverTimestamp(),
           bookingId: bId,
+          coupon: couponMap,
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
           eventId: event.id,
-          eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
-          eventLat: event.lat || event.latitude || 0.0,
-          eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
-          eventLong: event.long || event.longitude || 0.0,
-          eventName: event.eventName || event.title || "",
-          eventType: event.eventType || "Online",
+          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
+          eventLat: Number(event.lat || event.latitude || 0.0),
+          eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
+          eventLong: Number(event.long || event.longitude || 0.0),
+          eventName: String(event.eventName || event.title || ""),
+          eventType: String(event.eventType || "Online"),
+          isRated: false,
+          isSkipped: false,
+          paymentId: String(paymentId),
+          paymentStatus: String(paymentStatusVal),
           platform: "Web",
+          priceDetails: formattedPriceDetails,
+          razorpayOrderId: String(orderId),
           searchList: searchList,
+          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
           status: "confirmed",
-          tickets: bookedTickets
+          tickets: preparedTickets,
+          updatedAt: serverTimestamp(),
+          userEmail: String(attendee.email),
+          userId: String(uId),
+          userName: String(attendee.name),
+          userPhone: String(attendee.phone),
+          userProfileImage: String(userProfileImage || "")
         };
 
         const eventBookingData = {
           bookingDate: serverTimestamp(),
           bookingId: bId,
-          coupon: appliedCoupon ? {
-            code: appliedCoupon.code,
-            discount: discountAmount,
-            discountValue: appliedCoupon.discountValue,
-            id: appliedCoupon.id,
-            percentage: !!appliedCoupon.percentage
-          } : {},
+          coupon: couponMap,
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
           eventId: event.id,
-          eventImage: (event.image && event.image.length > 0) ? event.image[0] : (event.image || ""),
-          eventLat: event.lat || event.latitude || 0.0,
-          eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
-          eventLong: event.long || event.longitude || 0.0,
-          eventName: event.eventName || event.title || "",
-          eventType: event.eventType || "Online",
+          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
+          eventLat: Number(event.lat || event.latitude || 0.0),
+          eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
+          eventLong: Number(event.long || event.longitude || 0.0),
+          eventName: String(event.eventName || event.title || ""),
+          eventType: String(event.eventType || "Online"),
           isRated: false,
           isSkipped: false,
-          paymentId: paymentId,
-          paymentStatus: paymentStatusVal,
+          paymentId: String(paymentId),
+          paymentStatus: String(paymentStatusVal),
           platform: "Web",
-          priceDetails: priceDetails,
-          razorpayOrderId: orderId,
+          priceDetails: formattedPriceDetails,
+          razorpayOrderId: String(orderId),
           searchList: searchList,
-          serviceCode: event.serviceCode || settings?.serviceCode || "999631",
+          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
           status: "confirmed",
-          tickets: bookedTickets,
+          tickets: preparedTickets,
           updatedAt: serverTimestamp(),
-          userEmail: attendee.email,
-          userId: uId,
-          userName: attendee.name,
-          userProfileImage: userProfileImage
+          userEmail: String(attendee.email),
+          userId: String(uId),
+          userName: String(attendee.name),
+          userPhone: String(attendee.phone),
+          userProfileImage: String(userProfileImage || "")
         };
 
         const eventRef = doc(db, "event", event.id);
@@ -1090,16 +1143,16 @@ const EventBookingPage = () => {
                   </tr>
                   ${platformFeeVal > 0 ? `
                   <tr>
-                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Platform Fee (${platformFeeRate.toFixed(2)}%)</td>
+                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Platform Fee</td>
                     <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${platformFeeVal.toFixed(2)}</td>
                   </tr>` : ''}
                   ${gstAmount > 0 ? `
                   <tr>
-                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">CGST (${(gstPercentage / 2).toFixed(2)}%)</td>
+                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">CGST</td>
                     <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
                   </tr>
                   <tr>
-                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">SGST (${(gstPercentage / 2).toFixed(2)}%)</td>
+                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">SGST</td>
                     <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
                   </tr>` : ''}
                   <tr>
@@ -1173,7 +1226,7 @@ const EventBookingPage = () => {
         }
 
         // Create pending booking
-        await createPendingBooking(orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList);
+        await createPendingBooking(orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList, userProfileImage);
 
         // Open Razorpay Checkout
         const isScriptLoaded = await loadRazorpayScript();
@@ -1614,15 +1667,15 @@ const EventBookingPage = () => {
                       {showFeeBreakdown && (
                         <div className="fee-breakdown-details" style={{ paddingLeft: '0.75rem', borderLeft: '2px solid #E9D5FF', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                           <div className="summary-row" style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: 0 }}>
-                            <span>Platform Fee ({platformFeeRate}%)</span>
+                            <span>Platform Fee</span>
                             <span>₹ {platformFeeVal.toFixed(2)}</span>
                           </div>
                           <div className="summary-row" style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: 0 }}>
-                            <span>CGST ({(gstPercentage / 2).toFixed(1)}%)</span>
+                            <span>CGST</span>
                             <span>₹ {(gstAmount / 2).toFixed(2)}</span>
                           </div>
                           <div className="summary-row" style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: 0 }}>
-                            <span>SGST ({(gstPercentage / 2).toFixed(1)}%)</span>
+                            <span>SGST</span>
                             <span>₹ {(gstAmount / 2).toFixed(2)}</span>
                           </div>
                         </div>

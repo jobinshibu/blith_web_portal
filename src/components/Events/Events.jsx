@@ -237,7 +237,7 @@ const Events = () => {
 
     const fetchEvents = async () => {
       try {
-        const eventsQuery = query(collection(db, "event"), where("deleted", "==", false));
+        const eventsQuery = query(collection(db, "event"), where("deleted", "==", true));
         const querySnapshot = await getDocs(eventsQuery);
 
         // Map and filter out blocked or expired events
@@ -276,6 +276,30 @@ const Events = () => {
               displayPrice = `₹${data.price}`;
             }
 
+            // Determine sold out status
+            const hasTickets = data.tickets && data.tickets.length > 0;
+            let isSoldOut = data.soldOut === true;
+            if (!isSoldOut && hasTickets) {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const hasAvailableTicket = data.tickets.some(t => {
+                const isStatusActive = t.status !== false;
+                const hasSlots = t.remainingSlots > 0;
+
+                let isNotExpired = true;
+                if (t.endDate) {
+                  const ticketEndDate = t.endDate.seconds ? t.endDate.toDate() : new Date(t.endDate);
+                  const tDate = new Date(ticketEndDate);
+                  tDate.setHours(0, 0, 0, 0);
+                  if (tDate < today) {
+                    isNotExpired = false;
+                  }
+                }
+                return isStatusActive && hasSlots && isNotExpired;
+              });
+              isSoldOut = !hasAvailableTicket;
+            }
+
             return {
               id: doc.id,
               title: data.eventName || "Untitled Event",
@@ -288,6 +312,7 @@ const Events = () => {
               promoted: data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date(),
               hashtags: data.tags || [],
               priceMessage: data.priceMessage || "",
+              isSoldOut: isSoldOut,
               raw: data
             };
           });
@@ -788,8 +813,8 @@ const Events = () => {
                               <p className="hero-price">{event.price}</p>
 
                               <div className={`hero-actions ${index !== 0 ? 'disabled' : ''}`}>
-                                <Link to={`/events/${event.id}`} onClick={e => index !== 0 && e.preventDefault()} className="hero-cta-btn">
-                                  Book Now
+                                <Link to={`/events/${event.id}`} onClick={e => index !== 0 && e.preventDefault()} className="hero-cta-btn" style={event.isSoldOut ? { backgroundColor: '#4B5563' } : {}}>
+                                  {event.isSoldOut ? 'Sold Out' : 'Book Now'}
                                 </Link>
                               </div>
                             </div>
@@ -1039,6 +1064,20 @@ const Events = () => {
                               <img src={event.image} alt={event.title} loading="lazy" />
                               {event.promoted && (
                                 <span className="featured-badge-small">Featured</span>
+                              )}
+                              {event.isSoldOut && (
+                                <span className="sold-out-badge" style={{
+                                  position: 'absolute',
+                                  top: '12px',
+                                  left: event.promoted ? '80px' : '12px',
+                                  backgroundColor: '#EF4444',
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'bold',
+                                  zIndex: 10
+                                }}>Sold Out</span>
                               )}
                             </div>
 
