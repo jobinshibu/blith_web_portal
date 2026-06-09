@@ -22,7 +22,7 @@ const ShareModal = ({ event, onClose }) => {
       setTimeout(() => setCopied(false), 2500);
     } catch {
       /* fallback – nothing critical */
-}
+    }
   };
 
   const socials = [
@@ -726,7 +726,7 @@ const EventDetails = () => {
                   </div>
                   {event.priceMessage && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', marginTop: '2px' }}>
-                      <span className="price-message" style={{ fontSize: '0.85rem', color: '#EF4444', fontWeight: 800 }}>{event.priceMessage}</span>
+                      <span className="price-message" style={{ fontSize: '0.9rem', color: '#EF4444', fontWeight: 800 }}>{event.priceMessage}</span>
                     </div>
                   )}
                 </div>

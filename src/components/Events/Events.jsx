@@ -1050,7 +1050,7 @@ const Events = () => {
                               <p className="portrait-card-location">{event.location}</p>
                               <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                 <span>{event.price}</span>
-                                {event.priceMessage && <span className="price-message" style={{ fontSize: '0.8em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
+                                {event.priceMessage && <span className="price-message" style={{ fontSize: '0.9rem', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
                               </p>
                             </div>
                           </Link>

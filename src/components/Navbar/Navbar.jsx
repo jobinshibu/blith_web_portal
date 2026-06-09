@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import logoText from '../../assets/logo-text.png';
 import './Navbar.scss';
 
-// Custom SVG Brand Icons (Lucide removed them in v1.0)
+// Custom SVG Brand Icons
 const FacebookIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
 );
@@ -59,19 +59,20 @@ const Navbar = () => {
   return (
     <>
       <nav className="navbar">
-        <div className="container nav-content">
-          <Link to="/" className="logo" onClick={closeMenu}>
-            <img src={logoText} alt="Blithe" className="nav-logo-text-img" />
-          </Link>
-          
-          <div className="nav-links desktop-only">
-            <Link to="/" className="nav-link">Our Events</Link>
-          </div>
-
-          <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
-            <Menu size={28} />
-          </button>
+        <Link to="/" className="logo" onClick={closeMenu}>
+          <img src={logoText} alt="Blithe" className="nav-logo-text-img" />
+        </Link>
+        
+        <div className="nav-links desktop-only">
+          <a href="https://blithe.social/#how-it-works" className="nav-link">How it Works</a>
+          <a href="https://blithe.social/#for-creators" className="nav-link">For Creators</a>
+          <a href="https://blithe.social/#discover" className="nav-link">Discover</a>
+          <Link to="/" className="nav-pill">Start Hosting Free &rarr;</Link>
         </div>
+
+        <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
+          <Menu size={28} />
+        </button>
       </nav>
 
       <AnimatePresence>
@@ -96,14 +97,21 @@ const Navbar = () => {
               <div className="mobile-nav-links">
                 <div className="links-center">
                   {[
-                    { name: 'Our Events', path: '/' }
+                    { name: 'How it Works', path: 'https://blithe.social/#how-it-works' },
+                    { name: 'For Creators', path: 'https://blithe.social/#for-creators' },
+                    { name: 'Discover', path: 'https://blithe.social/#discover', isDiscover: true }
                   ].map((link, i) => (
-                    <motion.div key={i} variants={itemVariants}>
-                      <Link to={link.path} className="mobile-nav-link" onClick={closeMenu}>
+                    <motion.div key={i} variants={itemVariants} className="mobile-nav-item">
+                      <a href={link.path} className={`mobile-nav-link ${link.isDiscover ? 'discover' : ''}`} onClick={closeMenu}>
                         {link.name}
-                      </Link>
+                      </a>
                     </motion.div>
                   ))}
+                  <motion.div variants={itemVariants} className="mobile-cta-wrapper">
+                    <Link to="/" className="mobile-nav-btn" onClick={closeMenu}>
+                      Start Hosting Free &mdash; &#8377;0 Upfront
+                    </Link>
+                  </motion.div>
                 </div>
               </div>
 

@@ -1140,7 +1140,7 @@ const EventBookingPage = () => {
         // Clear session storage details
         try {
           sessionStorage.removeItem('blithe_checkout_attendee');
-        } catch (_) {}
+        } catch (_) { }
         toast.success('Booking confirmed successfully!');
         setTimeout(() => {
           navigate('/events');
