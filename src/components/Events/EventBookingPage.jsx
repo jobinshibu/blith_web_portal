@@ -1486,7 +1486,7 @@ const EventBookingPage = () => {
           <div className="section-block attendee-details-block glass">
             <h3>{isMultiDay ? '3. Contact Information' : '2. Contact Information'}</h3>
             <div className="input-group">
-              <label htmlFor="name">Full Name</label>
+              <label htmlFor="name">Full Name <span className="required-star">*</span></label>
               <div className="input-wrapper">
                 <User size={18} className="input-icon" />
                 <input type="text" id="name" placeholder="e.g. Rahul Sharma" value={attendee.name} onChange={(e) => setAttendee(prev => ({ ...prev, name: e.target.value }))} />
@@ -1497,7 +1497,7 @@ const EventBookingPage = () => {
             </div>
 
             <div className="input-group">
-              <label htmlFor="email">Email Address</label>
+              <label htmlFor="email">Email Address <span className="required-star">*</span></label>
               <div className="input-wrapper">
                 <Mail size={18} className="input-icon" />
                 <input type="email" id="email" placeholder="e.g. rahul@example.com" value={attendee.email} onChange={(e) => setAttendee(prev => ({ ...prev, email: e.target.value }))} />
@@ -1508,7 +1508,7 @@ const EventBookingPage = () => {
             </div>
 
             <div className="input-group">
-              <label htmlFor="phone">Phone Number</label>
+              <label htmlFor="phone">Phone Number <span className="required-star">*</span></label>
               <div className="input-wrapper">
                 <Phone size={18} className="input-icon" />
                 <input type="tel" id="phone" placeholder="e.g. 9876543210" value={attendee.phone} onChange={(e) => setAttendee(prev => ({ ...prev, phone: e.target.value }))} />
