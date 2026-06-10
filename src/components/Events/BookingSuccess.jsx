@@ -17,6 +17,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import logoTransparent from '../../assets/logo-transparent.png';
 import './BookingSuccess.scss';
 
 const BookingSuccess = () => {
@@ -47,7 +48,7 @@ const BookingSuccess = () => {
   // Helper to format date cleanly
   const formatEventDate = (date) => {
     if (!date) return '';
-    const d = new Date(date);
+    const d = parseDate(date);
     return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -58,7 +59,7 @@ const BookingSuccess = () => {
   // Helper to format time cleanly
   const formatEventTime = (date) => {
     if (!date) return '';
-    const d = new Date(date);
+    const d = parseDate(date);
     return d.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit'
@@ -300,7 +301,7 @@ const BookingSuccess = () => {
           </motion.div>
           
           <div className="header-text-group">
-            <h1 className="gradient-success-title">Booking Confirmed!</h1>
+            <h1 className="gradient-success-title">Your Booking Confirmed</h1>
             <p className="success-subtitle">
               Your tickets are secured. Receipt has been emailed to you.
             </p>
@@ -337,14 +338,14 @@ const BookingSuccess = () => {
                 <Calendar size={14} className="icon" />
                 <div>
                   <span className="meta-lbl">Date</span>
-                  <span className="meta-val">{formatEventDate(eventDetails?.eventStartDate)}</span>
+                  <span className="meta-val">{formatEventDate(booking?.eventDate || eventDetails?.eventStartDate)}</span>
                 </div>
               </div>
               <div className="meta-box">
                 <Clock size={14} className="icon" />
                 <div>
                   <span className="meta-lbl">Time</span>
-                  <span className="meta-val">{formatEventTime(eventDetails?.eventStartDate)}</span>
+                  <span className="meta-val">{formatEventTime(booking?.eventDate || eventDetails?.eventStartDate)}</span>
                 </div>
               </div>
               <div className="meta-box location">
@@ -368,7 +369,9 @@ const BookingSuccess = () => {
               </div>
               <div className="att-row">
                 <span className="att-lbl">Phone</span>
-                <span className="att-val">{booking?.userPhone || '—'}</span>
+                <span className="att-val">
+                  {booking?.userPhone || (booking?.tickets && booking.tickets[0]?.userPhone) || '—'}
+                </span>
               </div>
             </div>
 
@@ -423,11 +426,49 @@ const BookingSuccess = () => {
             {/* Compact Action buttons */}
             <div className="stub-nav-actions">
               <Link to="/events" className="stub-action-btn primary">
-                Discover Events <ArrowRight size={14} />
+                Discover more Events <ArrowRight size={14} />
               </Link>
-              <Link to="/" className="stub-action-btn secondary">
-                <Home size={14} /> <span>Home</span>
-              </Link>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* App Download Banner */}
+        <motion.div 
+          className="app-download-banner glass"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.5 }}
+        >
+          <div className="app-banner-content">
+            <div className="app-info-left">
+              <div className="app-logo-container">
+                <img src={logoTransparent} alt="Blithe App" />
+              </div>
+              <div className="app-texts">
+                <h3 className="app-banner-title">Download the Blithe App</h3>
+                <p className="app-banner-desc">You can see your event and booking details in the Blithe app.</p>
+              </div>
+            </div>
+            
+            <div className="app-download-badges">
+              <a href="https://play.google.com/store" target="_blank" rel="noopener noreferrer" className="store-badge-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
+                </svg>
+                <div className="badge-text">
+                  <span className="badge-sub">Get it on</span>
+                  <span className="badge-main">Google Play</span>
+                </div>
+              </a>
+              <a href="https://apps.apple.com" target="_blank" rel="noopener noreferrer" className="store-badge-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                </svg>
+                <div className="badge-text">
+                  <span className="badge-sub">Download on the</span>
+                  <span className="badge-main">App Store</span>
+                </div>
+              </a>
             </div>
           </div>
         </motion.div>

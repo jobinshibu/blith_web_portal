@@ -446,59 +446,62 @@ const EventDetails = () => {
                 displayPrice = `₹${data.price}`;
               }
 
-              let score = 0;
-              if (data.category === event.category) score += 5;
-              
-              // Match hashtags/tags
+              const isCategoryMatch = data.category && event.category && data.category === event.category;
               const commonTags = (data.tags || []).filter(t => (event.tags || []).includes(t));
-              score += commonTags.length * 2;
 
-              // Match distance proximity (nearby, if location geopoint is available)
-              const getDistance = (lat1, lon1, lat2, lon2) => {
-                const R = 6371; // Earth's radius in km
-                const dLat = (lat2 - lat1) * Math.PI / 180;
-                const dLon = (lon2 - lon1) * Math.PI / 180;
-                const a = 
-                  Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                return R * c;
-              };
+              // Only recommend if there is a category match OR common tags
+              if (isCategoryMatch || commonTags.length > 0) {
+                let score = 0;
+                if (isCategoryMatch) score += 5;
+                score += commonTags.length * 2;
 
-              const lat1 = event.geopoint?.latitude || event.geopoint?._lat;
-              const lon1 = event.geopoint?.longitude || event.geopoint?._long;
-              const lat2 = data.position?.geopoint?.latitude || data.position?.geopoint?._lat;
-              const lon2 = data.position?.geopoint?.longitude || data.position?.geopoint?._long;
+                // Match distance proximity (nearby, if location geopoint is available)
+                const getDistance = (lat1, lon1, lat2, lon2) => {
+                  const R = 6371; // Earth's radius in km
+                  const dLat = (lat2 - lat1) * Math.PI / 180;
+                  const dLon = (lon2 - lon1) * Math.PI / 180;
+                  const a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                  return R * c;
+                };
 
-              if (lat1 && lon1 && lat2 && lon2) {
-                const dist = getDistance(lat1, lon1, lat2, lon2);
-                if (dist <= 10) {
-                  score += 5;
-                } else if (dist <= 30) {
-                  score += 2;
+                const lat1 = event.geopoint?.latitude || event.geopoint?._lat;
+                const lon1 = event.geopoint?.longitude || event.geopoint?._long;
+                const lat2 = data.position?.geopoint?.latitude || data.position?.geopoint?._lat;
+                const lon2 = data.position?.geopoint?.longitude || data.position?.geopoint?._long;
+
+                if (lat1 && lon1 && lat2 && lon2) {
+                  const dist = getDistance(lat1, lon1, lat2, lon2);
+                  if (dist <= 10) {
+                    score += 5;
+                  } else if (dist <= 30) {
+                    score += 2;
+                  }
+                } else if (data.location && event.location && data.location.includes(event.location.split(',')[0])) {
+                  score += 2; // fallback to text location prefix match
                 }
-              } else if (data.location && event.location && data.location.includes(event.location.split(',')[0])) {
-                score += 2; // fallback to text location prefix match
+                
+                if (formattedDate === event.date) score += 1;
+
+                const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
+
+                allActiveEvents.push({
+                  id: doc.id,
+                  promoted: isFeatured,
+                  title: data.eventName || "Untitled Event",
+                  image: (data.image && data.image.length > 0) ? data.image[0] : "",
+                  date: formattedDate,
+                  location: data.location || data.venue || "TBA",
+                  price: displayPrice,
+                  isPriceOnwards: isPriceOnwards,
+                  priceMessage: data.priceMessage || "",
+                  score,
+                  eventStartDate: data.eventStartDate || null
+                });
               }
-              
-              if (formattedDate === event.date) score += 1;
-
-              const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
-
-              allActiveEvents.push({
-                id: doc.id,
-                promoted: isFeatured,
-                title: data.eventName || "Untitled Event",
-                image: (data.image && data.image.length > 0) ? data.image[0] : "",
-                date: formattedDate,
-                location: data.location || data.venue || "TBA",
-                price: displayPrice,
-                isPriceOnwards: isPriceOnwards,
-                priceMessage: data.priceMessage || "",
-                score,
-                eventStartDate: data.eventStartDate || null
-              });
             }
           }
         });
@@ -690,21 +693,14 @@ const EventDetails = () => {
           {/* Right Column: Event Details & Action Box */}
           <div className="event-info-sidebar">
             <div className="event-details-card glass">
-              <div className="card-top-row" style={{ marginTop: '-0.5rem' }}>
-                <div className="tags-column" style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: "90%" }}>
-                  <span className="category-badge" style={{ alignSelf: 'flex-start' }}>{event.category}</span>
+              <div className="card-top-row">
+                <div className="tags-column">
+                  <span className="category-badge">{event.category}</span>
                   {event.tags && event.tags.length > 0 && (
-                    <div className="event-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <div className="event-tags">
                       {event.tags.map((tag, idx) => (
-                        <span key={idx} className="hashtag" style={{
-                          fontSize: '0.75rem',
-                          color: '#6B7280',
-                          background: 'rgba(0,0,0,0.04)',
-                          padding: '0.2rem 0.6rem',
-                          borderRadius: '1rem',
-                          fontWeight: '600'
-                        }}>
-                          {tag}
+                        <span key={idx} className="hashtag">
+                          {tag.startsWith('#') ? tag : `#${tag}`}
                         </span>
                       ))}
                     </div>

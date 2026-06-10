@@ -888,6 +888,7 @@ const EventBookingPage = () => {
           userEmail: String(attendee.email),
           userId: String(uId),
           userName: String(attendee.name),
+          userPhone: String(attendee.phone),
           userProfileImage: String(userProfileImage || "")
         } : {
           bookingDate: serverTimestamp(),
@@ -960,6 +961,7 @@ const EventBookingPage = () => {
           userEmail: String(attendee.email),
           userId: String(uId),
           userName: String(attendee.name),
+          userPhone: String(attendee.phone),
           userProfileImage: String(userProfileImage || "")
         } : {
           bookingDate: serverTimestamp(),
@@ -1272,10 +1274,7 @@ const EventBookingPage = () => {
         setAppliedCoupon(null);
         setCouponSession(null);
         setCouponReservedUntil(null);
-        // Clear session storage details
-        try {
-          sessionStorage.removeItem('blithe_checkout_attendee');
-        } catch (_) { }
+        // Keep session storage details to preserve form state if user navigates back
         toast.success('Booking confirmed successfully!');
         setTimeout(() => {
           navigate(`/booking-success?bookingId=${bId}&eventId=${event.id}&userId=${uId}`);
@@ -1344,9 +1343,7 @@ const EventBookingPage = () => {
             setAppliedCoupon(null);
             setCouponSession(null);
             setCouponReservedUntil(null);
-            try {
-              sessionStorage.removeItem('blithe_checkout_attendee');
-            } catch (_) {}
+            // Keep session storage details to preserve form state if user navigates back
             
             toast.success("Payment successful! Your booking is being processed.");
             setTimeout(() => {
