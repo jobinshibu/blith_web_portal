@@ -358,6 +358,7 @@
   .event-info-sidebar {
     align-self: stretch;
     margin-top: 0;
+    overflow: hidden;
   }
 
   .event-details-card {
@@ -382,33 +383,39 @@
 
       .event-tags {
         display: flex;
-        flex-wrap: nowrap;
-        gap: 0.6rem;
+        flex-wrap: nowrap;          // single row — scroll instead of wrap
+        gap: 0.5rem;
+        width: 100%;
         overflow-x: auto;
-        max-width: 270px; // limit width to show ~3 tags and scroll for more
-        padding: 0.35rem 0.25rem;
-        margin: -0.25rem -0.25rem 0.25rem; // allow shadow glow without clipping
-        scrollbar-width: none; // Firefox
-        -ms-overflow-style: none; // IE/Edge
-        -webkit-overflow-scrolling: touch; // smooth momentum scrolling for iOS
+        overflow-y: hidden;
+        padding: 0.25rem 0 0.35rem;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
 
-        &::-webkit-scrollbar {
-          display: none; // Safari and Chrome
-        }
+        // Right-edge fade — clean scroll hint, scoped only to this row
+        mask-image: linear-gradient(
+          to right,
+          black 0%,
+          black calc(100% - 40px),
+          transparent 100%
+        );
+        -webkit-mask-image: linear-gradient(
+          to right,
+          black 0%,
+          black calc(100% - 40px),
+          transparent 100%
+        );
 
-        // Subtle gradient fade at the right edge to indicate horizontal scrolling
-        mask-image: linear-gradient(to right, #000 80%, transparent 100%);
-        -webkit-mask-image: linear-gradient(to right, #000 80%, transparent 100%);
-
-        @media (max-width: 768px) {
-          max-width: 220px; // adjust to show 3 tags on mobile viewport
-        }
+        // Hide scrollbar (scroll still works)
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        &::-webkit-scrollbar { display: none; }
       }
 
       .hashtag {
         display: inline-flex;
         align-items: center;
-        flex-shrink: 0; // prevent shrinking in the horizontal row
+        flex-shrink: 0;       // don't shrink inside the scroll row
         white-space: nowrap;
         font-size: 0.72rem;
         font-weight: 700;
@@ -421,6 +428,7 @@
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 0 1px 2px rgba($lavender-600, 0.04);
         user-select: none;
+        scroll-snap-align: start;
 
         &:hover {
           color: $white;
