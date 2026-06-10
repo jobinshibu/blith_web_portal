@@ -25,7 +25,10 @@ const LinkTree = () => {
             const isNotBlocked = data.block === false;
             // Only show events that are not expired
             const isNotExpired = data.eventEndDate ? data.eventEndDate.toDate() >= new Date() : true;
-            return isNotBlocked && isNotExpired;
+            // Only show events that are hosted on Blithe (paymentUrl/paymentURl/paymentURL is empty)
+            const paymentUrlVal = data.paymentUrl || data.paymentURl || data.paymentURL || "";
+            const isBlitheEvent = !paymentUrlVal || paymentUrlVal.trim() === "";
+            return isNotBlocked && isNotExpired && isBlitheEvent;
           })
           .sort((a, b) => {
             const dateA = a.eventStartDate ? a.eventStartDate.toDate() : new Date();

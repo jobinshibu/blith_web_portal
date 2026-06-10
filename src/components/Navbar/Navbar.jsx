@@ -59,15 +59,15 @@ const Navbar = () => {
   return (
     <>
       <nav className="navbar">
-        <Link to="/" className="logo" onClick={closeMenu}>
+        <a href="https://blithe.social" className="logo" onClick={closeMenu}>
           <img src={logoText} alt="Blithe" className="nav-logo-text-img" />
-        </Link>
+        </a>
 
         <div className="nav-links desktop-only">
           <a href="https://blithe.social/#how-it-works" className="nav-link">How it Works</a>
           <a href="https://blithe.social/#for-creators" className="nav-link">For Creators</a>
           <a href="https://blithe.social/#discover" className="nav-link">Discover</a>
-          <Link to="/" className="nav-pill">Explore Events</Link>
+          {/* <Link to="/" className="nav-pill">Explore Events</Link> */}
         </div>
 
         <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
@@ -86,9 +86,9 @@ const Navbar = () => {
           >
             <div className="menu-inner">
               <div className="menu-header">
-                <Link to="/" className="menu-logo" onClick={closeMenu}>
+                <a href="https://blithe.social" className="menu-logo" onClick={closeMenu}>
                   <img src={logoText} alt="Blithe" className="nav-logo-text-img" />
-                </Link>
+                </a>
                 <button className="mobile-menu-close" onClick={closeMenu} aria-label="Close Menu">
                   <X size={28} />
                 </button>
