@@ -5,6 +5,11 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
+
+  @media (min-width: 481px) {
+    align-items: center;
+    padding: 3rem 1.5rem;
+  }
 }
 
 .linktree-container {
@@ -24,6 +29,15 @@
   box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
   border-left: 1px solid rgba(255, 255, 255, 0.04);
   border-right: 1px solid rgba(255, 255, 255, 0.04);
+
+  @media (min-width: 481px) {
+    min-height: auto;
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 
+      0 30px 65px rgba(0, 0, 0, 0.8),
+      0 0 50px rgba(124, 58, 237, 0.15); // soft lavender ambient glow to feel like it pops out
+  }
 
   /* Ambient glowing orbs in the background */
   &::before, &::after {
