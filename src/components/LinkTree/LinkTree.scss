@@ -1,4 +1,15 @@
+.linktree-page-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #080614; // dark container background for desktop spacing
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
 .linktree-container {
+  width: 100%;
+  max-width: 480px; // mobile display size constraint on desktop views
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -10,6 +21,9 @@
   font-family: var(--font-body);
   position: relative;
   overflow: hidden;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
 
   /* Ambient glowing orbs in the background */
   &::before, &::after {
