@@ -335,24 +335,22 @@ const Events = () => {
     fetchEvents();
   }, []);
 
-  // Silently fetch user location on mount ONLY if permission is already granted
+  // Request location on mount — triggers browser permission popup if not yet granted
   useEffect(() => {
-    if (navigator.geolocation && navigator.permissions) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        if (result.state === 'granted') {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              setUserLocation({ lat: latitude, lng: longitude });
-            },
-            () => {
-              // Fail silently
-            },
-            { maximumAge: 60000, timeout: 5000, enableHighAccuracy: false }
-          );
-        }
-      });
-    }
+    if (!navigator.geolocation) return;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        setIsLocating(false);
+      },
+      () => {
+        // User denied or error — fail silently, nearby filter will handle it
+        setIsLocating(false);
+      },
+      { maximumAge: 60000, timeout: 10000, enableHighAccuracy: false }
+    );
   }, []);
 
   // Close calendar dropdown when clicking outside

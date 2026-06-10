@@ -556,7 +556,7 @@ const EventDetails = () => {
     return (
       <div className="error-page container">
         <h2>Event not found</h2>
-        <Link to="/events" className="back-link">Back to Events</Link>
+        <button onClick={() => navigate(-1)} className="back-link">Back to Events</button>
       </div>
     );
   }
@@ -594,9 +594,9 @@ const EventDetails = () => {
   return (
     <div className="event-details-page">
       <div className="details-header-bar container">
-        <Link to="/events" className="back-link-btn">
+        <button onClick={() => navigate(-1)} className="back-link-btn">
           <ArrowLeft size={20} /> <span className="text">Back to Events</span>
-        </Link>
+        </button>
       </div>
 
       <div className="container main-content">
