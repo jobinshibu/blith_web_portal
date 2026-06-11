@@ -67,7 +67,7 @@ const Navbar = () => {
           <a href="https://blithe.social/#how-it-works" className="nav-link">How it Works</a>
           <a href="https://blithe.social/#for-creators" className="nav-link">For Creators</a>
           <a href="https://blithe.social/#discover" className="nav-link">Discover</a>
-          {/* <Link to="/" className="nav-pill">Explore Events</Link> */}
+          <Link to="/" className="nav-pill">Explore Events</Link>
         </div>
 
         <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
@@ -109,7 +109,7 @@ const Navbar = () => {
                   ))}
                   <motion.div variants={itemVariants} className="mobile-cta-wrapper">
                     <Link to="/" className="mobile-nav-btn" onClick={closeMenu}>
-                      Start Hosting Free &mdash; &#8377;0 Upfront
+                      Explore Events
                     </Link>
                   </motion.div>
                 </div>

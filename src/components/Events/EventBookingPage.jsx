@@ -1395,7 +1395,7 @@ const EventBookingPage = () => {
     <div className="event-booking-page" ref={scrollRef}>
       <div className="booking-header-bar">
         <div className="container">
-          <button onClick={() => navigate(-1)} className="back-link-btn">
+          <button onClick={() => navigate(`/events/${id}`)} className="back-link-btn">
             <ArrowLeft size={20} /> <span className="text">Back to Event</span>
           </button>
           <h1 className="page-title">Secure Checkout</h1>
