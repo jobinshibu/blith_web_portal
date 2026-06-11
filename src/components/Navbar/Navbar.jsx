@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logoText from '../../assets/logo-text.png';
@@ -18,6 +18,9 @@ const InstagramIcon = () => (
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+
+  const isEventsPage = location.pathname === '/' || location.pathname === '/events' || location.pathname === '/events/';
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -67,7 +70,7 @@ const Navbar = () => {
           <a href="https://blithe.social/#how-it-works" className="nav-link">How it Works</a>
           <a href="https://blithe.social/#for-creators" className="nav-link">For Creators</a>
           <a href="https://blithe.social/#discover" className="nav-link">Discover</a>
-          <Link to="/" className="nav-pill">Explore Events</Link>
+          {!isEventsPage && <Link to="/" className="nav-pill">Explore Events</Link>}
         </div>
 
         <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
@@ -107,11 +110,13 @@ const Navbar = () => {
                       </a>
                     </motion.div>
                   ))}
-                  <motion.div variants={itemVariants} className="mobile-cta-wrapper">
-                    <Link to="/" className="mobile-nav-btn" onClick={closeMenu}>
-                      Explore Events
-                    </Link>
-                  </motion.div>
+                  {!isEventsPage && (
+                    <motion.div variants={itemVariants} className="mobile-cta-wrapper">
+                      <Link to="/" className="mobile-nav-btn" onClick={closeMenu}>
+                        Explore Events
+                      </Link>
+                    </motion.div>
+                  )}
                 </div>
               </div>
 

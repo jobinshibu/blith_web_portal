@@ -15,6 +15,7 @@
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--rule);
   height: 64px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -38,6 +39,8 @@
     &:hover {
       transform: scale(1.05);
     }
+
+
   }
 
   .nav-links {
@@ -123,7 +126,7 @@
     .menu-logo {
       display: flex;
       align-items: center;
-      
+
       .nav-logo-text-img {
         height: 40px;
         width: auto;
