@@ -385,6 +385,19 @@
         min-width: 0; // crucial for horizontal scrolling container parent
       }
 
+      .event-tags-wrapper {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        background: rgba($lavender-100, 0.45);
+        border: 1px solid rgba($lavender-300, 0.5);
+        padding: 0.35rem 0.8rem;
+        border-radius: 2rem;
+        box-shadow: 0 1px 2px rgba($lavender-600, 0.04);
+        min-width: 0;
+        overflow: hidden;
+      }
+
       .event-tags {
         display: flex;
         flex-wrap: nowrap;          // single row — scroll instead of wrap
@@ -392,7 +405,6 @@
         width: 100%;
         overflow-x: auto;
         overflow-y: hidden;
-        padding: 0.25rem 0 0.35rem;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
 
@@ -400,13 +412,13 @@
         mask-image: linear-gradient(
           to right,
           black 0%,
-          black calc(100% - 40px),
+          black calc(100% - 24px),
           transparent 100%
         );
         -webkit-mask-image: linear-gradient(
           to right,
           black 0%,
-          black calc(100% - 40px),
+          black calc(100% - 24px),
           transparent 100%
         );
 
@@ -424,27 +436,18 @@
         font-size: 0.72rem;
         font-weight: 700;
         color: $lavender-600;
-        background: rgba($lavender-100, 0.45);
-        border: 1px solid rgba($lavender-300, 0.5);
-        padding: 0.35rem 0.8rem;
-        border-radius: 2rem;
         cursor: pointer;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 1px 2px rgba($lavender-600, 0.04);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         user-select: none;
         scroll-snap-align: start;
 
         &:hover {
-          color: $white;
-          background: linear-gradient(135deg, $lavender-600, $lavender-500);
-          border-color: $lavender-500;
-          transform: translateY(-2.5px) scale(1.02);
-          box-shadow: 0 5px 12px rgba($lavender-600, 0.25);
+          color: darken(#7C3AED, 15%);
+          transform: scale(1.04);
         }
 
         &:active {
-          transform: translateY(-0.5px) scale(0.98);
-          box-shadow: 0 2px 6px rgba($lavender-600, 0.15);
+          transform: scale(0.96);
         }
       }
 

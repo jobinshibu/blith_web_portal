@@ -697,12 +697,14 @@ const EventDetails = () => {
                 <div className="tags-column">
                   <span className="category-badge">{event.category}</span>
                   {event.tags && event.tags.length > 0 && (
-                    <div className="event-tags">
-                      {event.tags.map((tag, idx) => (
-                        <span key={idx} className="hashtag">
-                          {tag.startsWith('#') ? tag : `#${tag}`}
-                        </span>
-                      ))}
+                    <div className="event-tags-wrapper">
+                      <div className="event-tags">
+                        {event.tags.map((tag, idx) => (
+                          <span key={idx} className="hashtag">
+                            {tag.startsWith('#') ? tag : `#${tag}`}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
