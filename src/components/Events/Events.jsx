@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from '../../firebase';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice';
 import logo from '../../assets/logo.jpeg';
 import './Events.scss';
 
@@ -190,150 +190,166 @@ const Events = () => {
     }
   }, [searchQuery]);
 
+  const dispatch = useDispatch();
+  const { events: rawEvents, categories: rawCategories, loading: reduxLoading, error: reduxError } = useSelector(state => state.events);
+
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const catQuery = query(collection(db, "eventCategories"), where("deleted", "==", false));
-        const querySnapshot = await getDocs(catQuery);
-        const fetchedCats = querySnapshot.docs.map((doc, index) => {
-          const data = doc.data();
-          const name = data.categoryName || data.name || data.title || "Category";
-          const nameLower = name.toLowerCase();
+    dispatch(fetchEventsThunk());
+    dispatch(fetchCategoriesThunk());
+  }, [dispatch]);
 
-          let styleMatch;
-          if (nameLower.includes("music") || nameLower.includes("gig") || nameLower.includes("concert")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Music");
-          else if (nameLower.includes("party") || nameLower.includes("night") || nameLower.includes("club")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Nightlife");
-          else if (nameLower.includes("comedy") || nameLower.includes("standup")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Comedy");
-          else if (nameLower.includes("sport") || nameLower.includes("game") || nameLower.includes("match")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Sports");
-          else if (nameLower.includes("food") || nameLower.includes("beverage") || nameLower.includes("drink")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Food & Drinks");
-          else if (nameLower.includes("tech") || nameLower.includes("business") || nameLower.includes("workshop") || nameLower.includes("exhibition")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Conferences");
-          else if (nameLower.includes("movie") || nameLower.includes("film") || nameLower.includes("screen") || nameLower.includes("theatre")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Screenings");
-          else if (nameLower.includes("fitness") || nameLower.includes("health") || nameLower.includes("wellness")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Fitness");
-          else if (nameLower.includes("art") || nameLower.includes("craft") || nameLower.includes("paint")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Social Mixers");
-          else if (nameLower.includes("dance") || nameLower.includes("perform")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Performances");
-          else if (nameLower.includes("travel") || nameLower.includes("adventure") || nameLower.includes("farm") || nameLower.includes("camp")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Fests & Fairs");
-          else styleMatch = CATEGORY_STYLES.find(s => nameLower.includes(s.label.toLowerCase()) || s.label.toLowerCase().includes(nameLower));
+  useEffect(() => {
+    setLoading(reduxLoading);
+  }, [reduxLoading]);
 
-          const style = styleMatch || CATEGORY_STYLES[index % CATEGORY_STYLES.length];
+  useEffect(() => {
+    if (reduxError) {
+      setError(reduxError);
+    }
+  }, [reduxError]);
+
+  useEffect(() => {
+    if (!rawCategories || rawCategories.length === 0) return;
+
+    const fetchedCats = rawCategories.map((cat, index) => {
+      const name = cat.categoryName || cat.name || cat.title || "Category";
+      const nameLower = name.toLowerCase();
+
+      let styleMatch;
+      if (nameLower.includes("music") || nameLower.includes("gig") || nameLower.includes("concert")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Music");
+      else if (nameLower.includes("party") || nameLower.includes("night") || nameLower.includes("club")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Nightlife");
+      else if (nameLower.includes("comedy") || nameLower.includes("standup")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Comedy");
+      else if (nameLower.includes("sport") || nameLower.includes("game") || nameLower.includes("match")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Sports");
+      else if (nameLower.includes("food") || nameLower.includes("beverage") || nameLower.includes("drink")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Food & Drinks");
+      else if (nameLower.includes("tech") || nameLower.includes("business") || nameLower.includes("workshop") || nameLower.includes("exhibition")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Conferences");
+      else if (nameLower.includes("movie") || nameLower.includes("film") || nameLower.includes("screen") || nameLower.includes("theatre")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Screenings");
+      else if (nameLower.includes("fitness") || nameLower.includes("health") || nameLower.includes("wellness")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Fitness");
+      else if (nameLower.includes("art") || nameLower.includes("craft") || nameLower.includes("paint")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Social Mixers");
+      else if (nameLower.includes("dance") || nameLower.includes("perform")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Performances");
+      else if (nameLower.includes("travel") || nameLower.includes("adventure") || nameLower.includes("farm") || nameLower.includes("camp")) styleMatch = CATEGORY_STYLES.find(s => s.label === "Fests & Fairs");
+      else styleMatch = CATEGORY_STYLES.find(s => nameLower.includes(s.label.toLowerCase()) || s.label.toLowerCase().includes(nameLower));
+
+      const style = styleMatch || CATEGORY_STYLES[index % CATEGORY_STYLES.length];
+
+      return {
+        id: cat.id,
+        name: name,
+        label: name,
+        icon: style.icon,
+        color: style.color,
+        bg: style.bg,
+        border: style.border,
+        selectedBg: style.selectedBg,
+        glow: style.glow
+      };
+    });
+    setExploreCategories(fetchedCats);
+  }, [rawCategories]);
+
+  useEffect(() => {
+    if (!rawEvents || rawEvents.length === 0) {
+      if (!reduxLoading && rawEvents.length === 0) {
+        setEvents([]);
+      }
+      return;
+    }
+
+    try {
+      const toDateObj = (ts) => {
+        if (!ts) return null;
+        if (typeof ts.toDate === 'function') return ts.toDate();
+        return new Date(ts);
+      };
+
+      const eventsData = rawEvents
+        .filter(data => {
+          const isNotBlocked = data.block === false;
+          const endD = toDateObj(data.eventEndDate);
+          const isNotExpired = endD ? endD >= new Date() : true;
+          const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
+          return isNotBlocked && isNotExpired && hasNoPaymentUrl;
+        })
+        .map(data => {
+          // Format date and time
+          const startDateObj = data.eventStartDate ? toDateObj(data.eventStartDate) : new Date();
+          const endDateObj = data.eventEndDate ? toDateObj(data.eventEndDate) : null;
+
+          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          let formattedDate = formattedStartDate;
+          const formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+          if (endDateObj) {
+            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            if (formattedStartDate !== formattedEndDate) {
+              formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
+            }
+          }
+
+          // Determine price
+          let displayPrice = "Free";
+          if (data.tickets && data.tickets.length > 0) {
+            const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
+            displayPrice = minPrice > 0 ? `₹${minPrice} onwards` : "Free";
+          } else if (data.price > 0) {
+            displayPrice = `₹${data.price}`;
+          }
+
+          // Determine sold out status
+          const hasTickets = data.tickets && data.tickets.length > 0;
+          let isSoldOut = data.soldOut === true;
+          if (!isSoldOut && hasTickets) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const hasAvailableTicket = data.tickets.some(t => {
+              const isStatusActive = t.status !== false;
+              const hasSlots = t.remainingSlots > 0;
+
+              let isNotExpired = true;
+              if (t.endDate) {
+                const ticketEndDate = t.endDate.seconds ? toDateObj(t.endDate) : new Date(t.endDate);
+                const tDate = new Date(ticketEndDate);
+                tDate.setHours(0, 0, 0, 0);
+                if (tDate < today) {
+                  isNotExpired = false;
+                }
+              }
+              return isStatusActive && hasSlots && isNotExpired;
+            });
+            isSoldOut = !hasAvailableTicket;
+          }
+
+          const featuredEndD = toDateObj(data.featuredEndDate);
+          const isPromoted = data.featured === true && featuredEndD && featuredEndD >= new Date();
 
           return {
-            id: doc.id,
-            name: name,
-            label: name,
-            icon: style.icon,
-            color: style.color,
-            bg: style.bg,
-            border: style.border,
-            selectedBg: style.selectedBg,
-            glow: style.glow
+            id: data.id,
+            title: data.eventName || "Untitled Event",
+            image: (data.image && data.image.length > 0) ? data.image[0] : "",
+            date: formattedDate,
+            time: formattedTime,
+            location: data.location || data.venue || "TBA",
+            price: displayPrice,
+            category: data.category || "Other",
+            promoted: isPromoted,
+            hashtags: data.tags || [],
+            priceMessage: data.priceMessage || "",
+            isSoldOut: isSoldOut,
+            raw: data
           };
         });
-        setExploreCategories(fetchedCats);
-      } catch (error) {
-        console.error("Error fetching categories: ", error);
-      }
-    };
-    fetchCategories();
 
-    const fetchEvents = async () => {
-      try {
-        const eventsQuery = query(collection(db, "event"), where("deleted", "==", false));
-        const querySnapshot = await getDocs(eventsQuery);
+      // Sort events chronologically (ascending: earlier date first)
+      eventsData.sort((a, b) => {
+        const dateA = a.raw.eventStartDate ? (typeof a.raw.eventStartDate.toDate === 'function' ? a.raw.eventStartDate.toDate() : new Date(a.raw.eventStartDate)) : new Date(0);
+        const dateB = b.raw.eventStartDate ? (typeof b.raw.eventStartDate.toDate === 'function' ? b.raw.eventStartDate.toDate() : new Date(b.raw.eventStartDate)) : new Date(0);
+        return dateA - dateB;
+      });
 
-        // Map and filter out blocked or expired events
-        const eventsData = querySnapshot.docs
-          .filter(doc => {
-            const data = doc.data();
-            const isNotBlocked = data.block === false;
-            const isNotExpired = data.eventEndDate ? data.eventEndDate.toDate() >= new Date() : true;
-            const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
-            return isNotBlocked && isNotExpired && hasNoPaymentUrl;
-          })
-          .map(doc => {
-            const data = doc.data();
-
-            // Format date and time
-            const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
-            const endDateObj = data.eventEndDate ? data.eventEndDate.toDate() : null;
-
-            const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-            let formattedDate = formattedStartDate;
-            const formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-            if (endDateObj) {
-              const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-              if (formattedStartDate !== formattedEndDate) {
-                formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
-              }
-            }
-
-            // Determine price
-            let displayPrice = "Free";
-            if (data.tickets && data.tickets.length > 0) {
-              const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
-              displayPrice = minPrice > 0 ? `₹${minPrice} onwards` : "Free";
-            } else if (data.price > 0) {
-              displayPrice = `₹${data.price}`;
-            }
-
-            // Determine sold out status
-            const hasTickets = data.tickets && data.tickets.length > 0;
-            let isSoldOut = data.soldOut === true;
-            if (!isSoldOut && hasTickets) {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const hasAvailableTicket = data.tickets.some(t => {
-                const isStatusActive = t.status !== false;
-                const hasSlots = t.remainingSlots > 0;
-
-                let isNotExpired = true;
-                if (t.endDate) {
-                  const ticketEndDate = t.endDate.seconds ? t.endDate.toDate() : new Date(t.endDate);
-                  const tDate = new Date(ticketEndDate);
-                  tDate.setHours(0, 0, 0, 0);
-                  if (tDate < today) {
-                    isNotExpired = false;
-                  }
-                }
-                return isStatusActive && hasSlots && isNotExpired;
-              });
-              isSoldOut = !hasAvailableTicket;
-            }
-
-            return {
-              id: doc.id,
-              title: data.eventName || "Untitled Event",
-              image: (data.image && data.image.length > 0) ? data.image[0] : "",
-              date: formattedDate,
-              time: formattedTime,
-              location: data.location || data.venue || "TBA",
-              price: displayPrice,
-              category: data.category || "Other",
-              promoted: data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date(),
-              hashtags: data.tags || [],
-              priceMessage: data.priceMessage || "",
-              isSoldOut: isSoldOut,
-              raw: data
-            };
-          });
-
-        // Sort events chronologically (ascending: earlier date first)
-        eventsData.sort((a, b) => {
-          const dateA = a.raw.eventStartDate ? (typeof a.raw.eventStartDate.toDate === 'function' ? a.raw.eventStartDate.toDate() : new Date(a.raw.eventStartDate)) : new Date(0);
-          const dateB = b.raw.eventStartDate ? (typeof b.raw.eventStartDate.toDate === 'function' ? b.raw.eventStartDate.toDate() : new Date(b.raw.eventStartDate)) : new Date(0);
-          return dateA - dateB;
-        });
-
-        setEvents(eventsData);
-      } catch (error) {
-        console.error("Error fetching events: ", error);
-        setError(error.message || "An unknown error occurred while fetching events.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
-  }, []);
+      setEvents(eventsData);
+    } catch (err) {
+      console.error("Error processing events in Redux cache: ", err);
+    }
+  }, [rawEvents, reduxLoading]);
 
   // Request location on mount — triggers browser permission popup if not yet granted
   useEffect(() => {

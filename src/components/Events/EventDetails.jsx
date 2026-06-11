@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from '../../firebase';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchEventsThunk } from '../../store/eventsSlice';
 import Button from '../Button/Button';
 import logo from '../../assets/logo.jpeg';
 import logoTransparent from '../../assets/logo-transparent.png';
@@ -307,6 +309,13 @@ const EventDetails = () => {
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
 
+  const dispatch = useDispatch();
+  const { events: rawEvents } = useSelector(state => state.events);
+
+  useEffect(() => {
+    dispatch(fetchEventsThunk());
+  }, [dispatch, id]);
+
   const handleShareClick = () => {
     setShowShareModal(true);
   };
@@ -418,22 +427,26 @@ const EventDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    const fetchRelatedEvents = async () => {
-      if (!event || !event.raw) return;
+    const fetchRelatedEvents = () => {
+      if (!event || !event.raw || !rawEvents || rawEvents.length === 0) return;
       try {
-        const eventsQuery = query(collection(db, "event"), where("deleted", "==", false));
-        const querySnapshot = await getDocs(eventsQuery);
+        const toDateObj = (ts) => {
+          if (!ts) return null;
+          if (typeof ts.toDate === 'function') return ts.toDate();
+          return new Date(ts);
+        };
+        const now = new Date();
 
         let allActiveEvents = [];
-        querySnapshot.forEach(doc => {
-          if (doc.id !== event.id) {
-            const data = doc.data();
+        rawEvents.forEach(data => {
+          if (data.id !== event.id) {
             const isNotBlocked = data.block === false;
-            const isNotExpired = data.eventEndDate ? data.eventEndDate.toDate() >= new Date() : true;
+            const endD = toDateObj(data.eventEndDate);
+            const isNotExpired = endD ? endD >= now : true;
             const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
 
             if (isNotBlocked && isNotExpired && hasNoPaymentUrl) {
-              const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
+              const startDateObj = data.eventStartDate ? toDateObj(data.eventStartDate) : new Date();
               const formattedDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
               let displayPrice = "Free";
@@ -486,10 +499,11 @@ const EventDetails = () => {
                 
                 if (formattedDate === event.date) score += 1;
 
-                const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
+                const featuredEndD = toDateObj(data.featuredEndDate);
+                const isFeatured = data.featured === true && featuredEndD && featuredEndD >= now;
 
                 allActiveEvents.push({
-                  id: doc.id,
+                  id: data.id,
                   promoted: isFeatured,
                   title: data.eventName || "Untitled Event",
                   image: (data.image && data.image.length > 0) ? data.image[0] : "",
@@ -517,14 +531,14 @@ const EventDetails = () => {
 
         setRelatedEvents(topRelated);
       } catch (err) {
-        console.error("Error fetching related events", err);
+        console.error("Error fetching related events from Redux", err);
       }
     };
 
     if (event) {
       fetchRelatedEvents();
     }
-  }, [event]);
+  }, [event, rawEvents]);
 
   const mediaList = event ? [event.image, ...(event.extraImages || [])].filter(Boolean) : [];
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchEventsThunk } from '../../store/eventsSlice';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import logo from '../../assets/logo.jpeg';
@@ -12,44 +12,58 @@ const LinkTree = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const dispatch = useDispatch();
+  const { events: rawEvents, loading: eventsLoading } = useSelector(state => state.events);
+
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        // Fetch active events
-        const eventsQuery = query(collection(db, "event"), where("deleted", "==", false));
-        const querySnapshot = await getDocs(eventsQuery);
+    dispatch(fetchEventsThunk());
+  }, [dispatch]);
 
-        const eventsData = querySnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(data => {
-            const isNotBlocked = data.block === false;
-            // Only show events that are not expired
-            const isNotExpired = data.eventEndDate ? data.eventEndDate.toDate() >= new Date() : true;
-            // Only show events that are hosted on Blithe (paymentUrl/paymentURl/paymentURL is empty)
-            const paymentUrlVal = data.paymentUrl || data.paymentURl || data.paymentURL || "";
-            const isBlitheEvent = !paymentUrlVal || paymentUrlVal.trim() === "";
-            return isNotBlocked && isNotExpired && isBlitheEvent;
-          })
-          .sort((a, b) => {
-            const dateA = a.eventStartDate ? a.eventStartDate.toDate() : new Date();
-            const dateB = b.eventStartDate ? b.eventStartDate.toDate() : new Date();
-            return dateA - dateB; // Sort by closest date first
-          });
+  useEffect(() => {
+    setLoading(eventsLoading);
+  }, [eventsLoading]);
 
-        setEvents(eventsData);
-      } catch (error) {
-        console.error("Error fetching events for LinkTree: ", error);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    if (!rawEvents || rawEvents.length === 0) {
+      if (!eventsLoading && rawEvents.length === 0) {
+        setEvents([]);
       }
-    };
+      return;
+    }
 
-    fetchEvents();
-  }, []);
+    try {
+      const toDateObj = (ts) => {
+        if (!ts) return null;
+        if (typeof ts.toDate === 'function') return ts.toDate();
+        return new Date(ts);
+      };
+
+      const eventsData = rawEvents
+        .filter(data => {
+          const isNotBlocked = data.block === false;
+          // Only show events that are not expired
+          const endD = toDateObj(data.eventEndDate);
+          const isNotExpired = endD ? endD >= new Date() : true;
+          // Only show events that are hosted on Blithe (paymentUrl/paymentURl/paymentURL is empty)
+          const paymentUrlVal = data.paymentUrl || data.paymentURl || data.paymentURL || "";
+          const isBlitheEvent = !paymentUrlVal || paymentUrlVal.trim() === "";
+          return isNotBlocked && isNotExpired && isBlitheEvent;
+        })
+        .sort((a, b) => {
+          const dateA = a.eventStartDate ? toDateObj(a.eventStartDate) : new Date();
+          const dateB = b.eventStartDate ? toDateObj(b.eventStartDate) : new Date();
+          return dateA - dateB; // Sort by closest date first
+        });
+
+      setEvents(eventsData);
+    } catch (error) {
+      console.error("Error setting LinkTree events: ", error);
+    }
+  }, [rawEvents, eventsLoading]);
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Date TBD';
-    const date = timestamp.toDate();
+    const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString('en-GB', { 
       day: 'numeric', month: 'short', year: 'numeric' 
     });

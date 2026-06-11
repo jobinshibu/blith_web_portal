@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchEventsThunk } from '../../store/eventsSlice';
 import { motion } from 'framer-motion';
 import { 
   Check, 
@@ -32,6 +34,13 @@ const BookingSuccess = () => {
   const [eventDetails, setEventDetails] = useState(null);
   const [relatedEvents, setRelatedEvents] = useState([]);
   
+  const dispatch = useDispatch();
+  const { events: rawEvents } = useSelector(state => state.events);
+
+  useEffect(() => {
+    dispatch(fetchEventsThunk());
+  }, [dispatch]);
+
   // Loading and Polling status
   const [loading, setLoading] = useState(true);
   const [pollCount, setPollCount] = useState(0);
@@ -144,24 +153,14 @@ const BookingSuccess = () => {
 
   // Fetch and score related events
   useEffect(() => {
-    if (!eventDetails) return;
+    if (!eventDetails || !rawEvents || rawEvents.length === 0) return;
 
-    const fetchRelatedEvents = async () => {
+    const fetchRelatedEvents = () => {
       try {
         const now = new Date();
         let allEvents = [];
 
-        // Attempt 1: Fetch active events (deleted === false)
-        const activeQuery = query(collection(db, "event"), where("deleted", "==", false));
-        let snap = await getDocs(activeQuery);
-        
-        // Fallback: If no results found, try deleted === true (used in local testing in Events.jsx)
-        if (snap.empty) {
-          const testQuery = query(collection(db, "event"), where("deleted", "==", true));
-          snap = await getDocs(testQuery);
-        }
-
-        allEvents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        allEvents = rawEvents
           .filter(e => {
             const isNotCurrent = e.id !== eventDetails.id;
             const isNotBlocked = e.block === false;
@@ -272,7 +271,7 @@ const BookingSuccess = () => {
     };
 
     fetchRelatedEvents();
-  }, [eventDetails]);
+  }, [eventDetails, rawEvents]);
 
   // Framer Motion Entrance
   const ticketVariant = {
