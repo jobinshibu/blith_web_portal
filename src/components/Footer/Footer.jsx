@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Send, Mail, MapPin, Phone } from 'lucide-react';
+import logoText from '../../assets/fifablith.png';
 import './Footer.scss';
 
 // Custom SVG Brand Icons since they were removed from Lucide v1.0+
@@ -23,7 +24,9 @@ const Footer = () => {
       <div className="container">
         <div className="footer-grid">
           <div className="footer-brand">
-            <Link to="/" className="footer-logo">Blithe</Link>
+            <Link to="/" className="footer-logo">
+              <img src={logoText} alt="Blithe" className="footer-logo-img" />
+            </Link>
             <p>The risk-free platform for creators to host events and seekers to find experiences based on their mood.</p>
             <div className="social-links">
               <a href="#" aria-label="Facebook"><FacebookIcon /></a>

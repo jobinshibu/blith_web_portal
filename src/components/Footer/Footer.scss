@@ -15,13 +15,17 @@
 
 .footer-brand {
   .footer-logo {
-    font-family: $font-heading;
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: $lavender-600;
-    text-decoration: none;
-    margin-bottom: 1.5rem;
     display: block;
+    margin-bottom: 2.5rem; // Increased margin to make room for the scaled image
+
+    .footer-logo-img {
+      height: 13px; 
+      width: auto;
+      object-fit: contain;
+      transform: scale(8.0);
+      transform-origin: left center;
+      mix-blend-mode: multiply; // Removes the white background from the image
+    }
   }
 
   p {

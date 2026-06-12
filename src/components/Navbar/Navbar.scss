@@ -34,6 +34,7 @@
       object-fit: contain;
       transform: scale(4.0);
       transform-origin: left center;
+      mix-blend-mode: multiply;
 
       @media (max-width: 768px) {
         transform: scale(2.2);
@@ -169,6 +170,7 @@
         height: 40px;
         width: auto;
         object-fit: contain;
+        mix-blend-mode: multiply;
       }
     }
 
