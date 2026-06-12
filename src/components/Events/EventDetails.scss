@@ -153,7 +153,7 @@
     display: grid;
     grid-template-columns: 45% 1fr;
     gap: 2.5rem;
-    margin-top: 2rem;
+    margin-top: 0rem;
     align-items: start;
 
     @media (max-width: 768px) {
@@ -395,7 +395,7 @@
 
       .event-tags {
         display: flex;
-        flex-wrap: nowrap;          // single row — scroll instead of wrap
+        flex-wrap: nowrap; // single row — scroll instead of wrap
         gap: 0.5rem;
         width: 100%;
         overflow-x: auto;
@@ -404,29 +404,28 @@
         scroll-snap-type: x mandatory;
 
         // Right-edge fade — clean scroll hint, scoped only to this row
-        mask-image: linear-gradient(
-          to right,
-          black 0%,
-          black calc(100% - 24px),
-          transparent 100%
-        );
-        -webkit-mask-image: linear-gradient(
-          to right,
-          black 0%,
-          black calc(100% - 24px),
-          transparent 100%
-        );
+        mask-image: linear-gradient(to right,
+            black 0%,
+            black calc(100% - 24px),
+            transparent 100%);
+        -webkit-mask-image: linear-gradient(to right,
+            black 0%,
+            black calc(100% - 24px),
+            transparent 100%);
 
         // Hide scrollbar (scroll still works)
         scrollbar-width: none;
         -ms-overflow-style: none;
-        &::-webkit-scrollbar { display: none; }
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
       }
 
       .hashtag {
         display: inline-flex;
         align-items: center;
-        flex-shrink: 0;       // don't shrink inside the scroll row
+        flex-shrink: 0; // don't shrink inside the scroll row
         white-space: nowrap;
         font-size: 0.72rem;
         font-weight: 700;
@@ -788,17 +787,39 @@
         flex-direction: column;
         flex: 1;
 
-        .portrait-card-date {
-          font-size: 0.85rem;
-          font-weight: 700;
-          color: #E05A47;
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
+        .portrait-card-date-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
           margin-bottom: 0.4rem;
 
           @media (max-width: 480px) {
-            font-size: 0.72rem;
             margin-bottom: 0.2rem;
+          }
+
+          .portrait-card-date {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #E05A47;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 0;
+
+            @media (max-width: 480px) {
+              font-size: 0.72rem;
+            }
+          }
+
+          .location-distance {
+            flex-shrink: 0;
+            color: $lavender-600;
+            font-weight: 700;
+            font-size: 0.82rem;
+
+            @media (max-width: 480px) {
+              font-size: 0.7rem;
+            }
           }
         }
 

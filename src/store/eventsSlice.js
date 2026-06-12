@@ -43,7 +43,7 @@ export const fetchEventsThunk = createAsyncThunk(
         // Fallback query without range condition (will retrieve all deleted/non-blocked events)
         eventsQuery = query(
           collection(db, "event"),
-          where("deleted", "==", true),
+          where("deleted", "==", false),
           where("block", "==", false)
         );
         querySnapshot = await getDocs(eventsQuery);

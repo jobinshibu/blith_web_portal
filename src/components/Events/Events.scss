@@ -1200,17 +1200,39 @@
       flex-direction: column;
       flex: 1;
 
-      .portrait-card-date {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #E05A47; // Premium orange-red
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
+      .portrait-card-date-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
         margin-bottom: 0.4rem;
 
         @media (max-width: 480px) {
-          font-size: 0.72rem;
           margin-bottom: 0.2rem;
+        }
+
+        .portrait-card-date {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: #E05A47; // Premium orange-red
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          margin-bottom: 0;
+
+          @media (max-width: 480px) {
+            font-size: 0.72rem;
+          }
+        }
+
+        .location-distance {
+          flex-shrink: 0;
+          color: $lavender-600;
+          font-weight: 700;
+          font-size: 0.82rem;
+
+          @media (max-width: 480px) {
+            font-size: 0.7rem;
+          }
         }
       }
 

@@ -177,6 +177,7 @@ const Events = () => {
 
   const calendarRef = useRef(null);
   const searchSectionRef = useRef(null);
+  const sentinelRef = useRef(null);
 
   // Scroll search bar to top when user starts typing
   useEffect(() => {
@@ -321,6 +322,13 @@ const Events = () => {
           const featuredEndD = toDateObj(data.featuredEndDate);
           const isPromoted = data.featured === true && featuredEndD && featuredEndD >= new Date();
 
+          const eLat = parseFloat(data.lat || data.latitude);
+          const eLng = parseFloat(data.long || data.lng || data.longitude);
+          let distance = null;
+          if (userLocation && !isNaN(eLat) && !isNaN(eLng)) {
+            distance = calculateDistance(userLocation.lat, userLocation.lng, eLat, eLng);
+          }
+
           return {
             id: data.id,
             title: data.eventName || "Untitled Event",
@@ -334,6 +342,7 @@ const Events = () => {
             hashtags: data.tags || [],
             priceMessage: data.priceMessage || "",
             isSoldOut: isSoldOut,
+            distance: distance,
             raw: data
           };
         });
@@ -349,7 +358,7 @@ const Events = () => {
     } catch (err) {
       console.error("Error processing events in Redux cache: ", err);
     }
-  }, [rawEvents, reduxLoading]);
+  }, [rawEvents, reduxLoading, userLocation]);
 
   // Request location on mount — triggers browser permission popup if not yet granted
   useEffect(() => {
@@ -606,17 +615,41 @@ const Events = () => {
     setVisibleCount(12);
   }, [searchQuery, startDate, endDate, isNearbyFilterActive]);
 
-  // Infinite scroll listener
+  // Infinite scroll listener using IntersectionObserver with scroll fallback
   useEffect(() => {
-    const handleScroll = () => {
-      // If user scrolls within 500px of the bottom of the page
-      if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 500) {
-        setVisibleCount(prev => prev + 12);
-      }
+    if (typeof IntersectionObserver === 'undefined') {
+      const handleScroll = () => {
+        const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+        const windowHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+        const documentHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+
+        // If user scrolls within 500px of the bottom of the page
+        if (windowHeight + scrollTop >= documentHeight - 500) {
+          setVisibleCount(prev => prev + 12);
+        }
+      };
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+
+    const currentSentinel = sentinelRef.current;
+    if (!currentSentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => prev + 12);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(currentSentinel);
+
+    return () => {
+      observer.unobserve(currentSentinel);
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [visibleCount, filteredEvents.length]);
 
   const handleNearbyClick = () => {
     if (isNearbyFilterActive) {
@@ -1061,56 +1094,70 @@ const Events = () => {
               <div className="events-main">
 
                 {filteredEvents.length > 0 ? (
-                  <motion.div layout className="events-portrait-grid">
-                    <AnimatePresence>
-                      {filteredEvents.slice(0, visibleCount).map((event, index) => (
-                        <motion.div
-                          key={event.id}
-                          layout
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{ duration: 0.3, delay: index * 0.03 }}
-                          className="event-card-container"
-                        >
-                          <Link to={`/events/${event.id}`} className="portrait-event-card">
-                            <div className="portrait-image-wrapper">
-                              <img src={event.image} alt={event.title} loading="lazy" />
-                              {event.promoted && (
-                                <span className="featured-badge-small">Featured</span>
-                              )}
-                              {event.isSoldOut && (
-                                <span className="sold-out-badge" style={{
-                                  position: 'absolute',
-                                  top: '12px',
-                                  left: event.promoted ? '80px' : '12px',
-                                  backgroundColor: '#EF4444',
-                                  color: '#fff',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 'bold',
-                                  zIndex: 10
-                                }}>Sold Out</span>
-                              )}
-                            </div>
+                  <>
+                    <motion.div layout className="events-portrait-grid">
+                      <AnimatePresence>
+                        {filteredEvents.slice(0, visibleCount).map((event, index) => (
+                          <motion.div
+                            key={event.id}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ duration: 0.3, delay: index * 0.03 }}
+                            className="event-card-container"
+                          >
+                            <Link to={`/events/${event.id}`} className="portrait-event-card">
+                              <div className="portrait-image-wrapper">
+                                <img src={event.image} alt={event.title} loading="lazy" />
+                                {event.promoted && (
+                                  <span className="featured-badge-small">Featured</span>
+                                )}
+                                {event.isSoldOut && (
+                                  <span className="sold-out-badge" style={{
+                                    position: 'absolute',
+                                    top: '12px',
+                                    left: event.promoted ? '80px' : '12px',
+                                    backgroundColor: '#EF4444',
+                                    color: '#fff',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 'bold',
+                                    zIndex: 10
+                                  }}>Sold Out</span>
+                                )}
+                              </div>
 
-                            <div className="portrait-card-details">
-                              <span className="portrait-card-date">
-                                {event.date}
-                              </span>
-                              <h3 className="portrait-card-title">{event.title}</h3>
-                              <p className="portrait-card-location">{event.location}</p>
-                              <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                <span>{event.price}</span>
-                                {event.priceMessage && <span className="price-message" style={{ fontSize: '0.9rem', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
-                              </p>
-                            </div>
-                          </Link>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </motion.div>
+                              <div className="portrait-card-details">
+                                <div className="portrait-card-date-row">
+                                  <span className="portrait-card-date">
+                                    {event.date}
+                                  </span>
+                                  {event.distance !== null && event.distance !== undefined && (
+                                    <span className="location-distance">
+                                      {event.distance < 1
+                                        ? `${Math.round(event.distance * 1000)}m away`
+                                        : `${event.distance.toFixed(1)} km away`}
+                                    </span>
+                                  )}
+                                </div>
+                                <h3 className="portrait-card-title">{event.title}</h3>
+                                <p className="portrait-card-location">{event.location}</p>
+                                <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                  <span>{event.price}</span>
+                                  {event.priceMessage && <span className="price-message" style={{ fontSize: '0.9rem', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
+                                </p>
+                              </div>
+                            </Link>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </motion.div>
+                    {filteredEvents.length > visibleCount && (
+                      <div ref={sentinelRef} style={{ height: '10px', width: '100%', margin: '20px 0' }} />
+                    )}
+                  </>
                 ) : (
                   <div className="no-events-container glass">
                     <h3>No events match your criteria</h3>

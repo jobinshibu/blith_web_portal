@@ -11,6 +11,20 @@ import logo from '../../assets/logo.jpeg';
 import logoTransparent from '../../assets/logo-transparent.png';
 import './EventDetails.scss';
 
+// Helper to calculate distance in km
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 // ─── Share Modal ─────────────────────────────────────────────────────────────
 const ShareModal = ({ event, onClose }) => {
   const [copied, setCopied] = useState(false);
@@ -299,6 +313,20 @@ const EventDetails = () => {
   const [showTermsDesktopBtn, setShowTermsDesktopBtn] = useState(false);
   const [showTermsMobileBtn, setShowTermsMobileBtn] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+
+  // Fetch user location
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+      },
+      () => {},
+      { maximumAge: 60000, timeout: 10000, enableHighAccuracy: false }
+    );
+  }, []);
 
   const aboutRef = useRef(null);
   const termsDesktopRef = useRef(null);
@@ -502,6 +530,11 @@ const EventDetails = () => {
                 const featuredEndD = toDateObj(data.featuredEndDate);
                 const isFeatured = data.featured === true && featuredEndD && featuredEndD >= now;
 
+                let relatedDistance = null;
+                if (userLocation && lat2 && lon2) {
+                  relatedDistance = calculateDistance(userLocation.lat, userLocation.lng, lat2, lon2);
+                }
+
                 allActiveEvents.push({
                   id: data.id,
                   promoted: isFeatured,
@@ -513,6 +546,7 @@ const EventDetails = () => {
                   isPriceOnwards: isPriceOnwards,
                   priceMessage: data.priceMessage || "",
                   score,
+                  distance: relatedDistance,
                   eventStartDate: data.eventStartDate || null
                 });
               }
@@ -538,9 +572,15 @@ const EventDetails = () => {
     if (event) {
       fetchRelatedEvents();
     }
-  }, [event, rawEvents]);
+  }, [event, rawEvents, userLocation]);
 
   const mediaList = event ? [event.image, ...(event.extraImages || [])].filter(Boolean) : [];
+
+  const eventLat = event?.geopoint?.latitude || event?.geopoint?._lat;
+  const eventLng = event?.geopoint?.longitude || event?.geopoint?._long;
+  const distance = (userLocation && eventLat && eventLng)
+    ? calculateDistance(userLocation.lat, userLocation.lng, eventLat, eventLng)
+    : null;
 
   // Auto-scroll for the carousel
   useEffect(() => {
@@ -751,7 +791,14 @@ const EventDetails = () => {
                   <div className="info-item">
                     <div className="icon-box"><MapPin size={20} className="icon" /></div>
                     <div className="text-content">
-                      <p className="val">{event.venue}</p>
+                      <p className="val">
+                        {event.venue}
+                        {distance !== null && (
+                          <span className="venue-distance" style={{ marginLeft: '8px', color: '#7C3AED', fontWeight: 700, fontSize: '0.85rem' }}>
+                            ({distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)} km`} away)
+                          </span>
+                        )}
+                      </p>
                       <p className="sub">{event.location}</p>
                     </div>
                     <button
@@ -860,7 +907,16 @@ const EventDetails = () => {
                       )}
                     </div>
                     <div className="portrait-card-details">
-                      <span className="portrait-card-date">{relatedEvent.date}</span>
+                      <div className="portrait-card-date-row">
+                        <span className="portrait-card-date">{relatedEvent.date}</span>
+                        {relatedEvent.distance !== null && relatedEvent.distance !== undefined && (
+                          <span className="location-distance">
+                            {relatedEvent.distance < 1
+                              ? `${Math.round(relatedEvent.distance * 1000)}m away`
+                              : `${relatedEvent.distance.toFixed(1)} km away`}
+                          </span>
+                        )}
+                      </div>
                       <h3 className="portrait-card-title">{relatedEvent.title}</h3>
                       <p className="portrait-card-location">{relatedEvent.location}</p>
                       <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>

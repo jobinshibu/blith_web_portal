@@ -73,9 +73,16 @@ const Navbar = () => {
           {!isEventsPage && <Link to="/events" className="nav-pill">Explore Events</Link>}
         </div>
 
-        <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
-          <Menu size={28} />
-        </button>
+        <div className="mobile-actions-group">
+          {!isEventsPage && (
+            <Link to="/events" className="nav-pill mobile-explore-btn" onClick={closeMenu}>
+              Explore Events
+            </Link>
+          )}
+          <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
+            <Menu size={28} />
+          </button>
+        </div>
       </nav>
 
       <AnimatePresence>
@@ -110,13 +117,7 @@ const Navbar = () => {
                       </a>
                     </motion.div>
                   ))}
-                  {!isEventsPage && (
-                    <motion.div variants={itemVariants} className="mobile-cta-wrapper">
-                      <Link to="/events" className="mobile-nav-btn" onClick={closeMenu}>
-                        Explore Events
-                      </Link>
-                    </motion.div>
-                  )}
+
                 </div>
               </div>
 

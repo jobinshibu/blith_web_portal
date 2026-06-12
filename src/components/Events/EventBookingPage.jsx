@@ -496,7 +496,7 @@ const EventBookingPage = () => {
 
     // 1. Search locally first
     let foundCoupon = filteredCoupons.find(
-      c => c.code && c.code.trim().toUpperCase() === codeToSearch
+      c => c.code && c.code.trim().toUpperCase() === codeToSearch && c.isPrivate === true
     );
 
     // 2. If not found locally, query Firestore
@@ -512,13 +512,17 @@ const EventBookingPage = () => {
         const snap = await getDocs(q);
         if (!snap.empty) {
           const docSnap = snap.docs[0];
-          foundCoupon = { id: docSnap.id, ...docSnap.data() };
+          const data = docSnap.data();
           
-          // Add to local filteredCoupons state so standard UI functions work on it
-          setFilteredCoupons(prev => {
-            if (prev.some(c => c.id === foundCoupon.id)) return prev;
-            return [...prev, foundCoupon];
-          });
+          if (data.isPrivate === true) {
+            foundCoupon = { id: docSnap.id, ...data };
+            
+            // Add to local filteredCoupons state so standard UI functions work on it
+            setFilteredCoupons(prev => {
+              if (prev.some(c => c.id === foundCoupon.id)) return prev;
+              return [...prev, foundCoupon];
+            });
+          }
         }
       } catch (err) {
         console.error('Error searching coupon in DB:', err);
@@ -1506,6 +1510,25 @@ const EventBookingPage = () => {
               toast.error("Payment verification failed. No payment ID returned.");
               return;
             }
+
+            // Commit the coupon reservation so usedCount is incremented and
+            // reservedCount is decremented on the coupon document.
+            if (appliedCoupon && couponSession && uId) {
+              try {
+                const commitResult = await commitCouponService({
+                  couponId: appliedCoupon.id,
+                  userId: uId,
+                  sessionId: couponSession,
+                });
+                if (!commitResult.success) {
+                  console.warn('[Coupon] commitCoupon failed after payment:', commitResult.error);
+                  // Non-fatal — booking still proceeds; reservation will auto-expire.
+                }
+              } catch (err) {
+                console.warn('[Coupon] commitCouponService threw after payment:', err);
+              }
+            }
+
             // For paid events, the backend Cloud Function handles the booking creation,
             // slot decrementing, notifications, and emails via Razorpay webhook.
             // Client side only shows success and redirects.
@@ -1513,7 +1536,7 @@ const EventBookingPage = () => {
             setCouponSession(null);
             setCouponReservedUntil(null);
             // Keep session storage details to preserve form state if user navigates back
-            
+
             toast.success("Payment successful! Your booking is being processed.");
             setTimeout(() => {
               navigate(`/booking-success?bookingId=${bId}&eventId=${event.id}&userId=${uId}`);

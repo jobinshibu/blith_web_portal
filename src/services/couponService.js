@@ -397,7 +397,7 @@ export const commitCoupon = async ({ couponId, userId, sessionId }) => {
       // Atomically update counts and mark reservation committed
       transaction.update(couponDocRef(couponId), {
         usedCount: _increment(1),
-        reservedCount: _increment(-1),
+        reservedCount: _increment(1),
       });
       transaction.update(resRef, { status: 'committed' });
 
