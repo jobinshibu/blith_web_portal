@@ -1,7 +1,19 @@
-RewriteEngine On
-RewriteBase /events/
-RewriteRule ^index\.html$ - [L]
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Since your Vite app is hosted in the /events/ directory (based on vite.config.js),
+  # the RewriteBase must reflect that subdirectory.
+  RewriteBase /events/
 
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /events/index.html [L]
+  # 1. Intercept WhatsApp/Bot requests for individual event links (e.g. /events/BLEV-123)
+  # We ONLY do this if the URL doesn't have ?ssr=false (to prevent redirect loops)
+  # Since we are already inside the /events/ folder, the URL path matched is just the ID.
+  RewriteCond %{QUERY_STRING} !(^|&)ssr=false(&|$)
+  RewriteRule ^([a-zA-Z0-9_-]+)/?$ event.php?id=$1 [L,QSA]
+
+  # 2. Standard SPA fallback for React Router
+  # If the file or directory doesn't physically exist, serve index.html
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /events/index.html [L]
+</IfModule>

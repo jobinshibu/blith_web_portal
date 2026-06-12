@@ -442,27 +442,6 @@ const EventDetails = () => {
             soldOut: data.soldOut || false,
             raw: data
           });
-
-          // Dynamically set Open Graph meta tags for PC link sharing
-          const setMetaTag = (property, content) => {
-            let element = document.querySelector(`meta[property="${property}"]`);
-            if (!element) {
-              element = document.createElement('meta');
-              element.setAttribute('property', property);
-              document.head.appendChild(element);
-            }
-            element.setAttribute('content', content);
-          };
-
-          document.title = `${data.eventName || "Event"} | Blithe`;
-          setMetaTag('og:title', data.eventName || "Event");
-          setMetaTag('og:description', data.description ? data.description.substring(0, 150) + "..." : "Check out this event on Blithe!");
-          if (data.image && data.image.length > 0) {
-            setMetaTag('og:image', data.image[0]);
-            setMetaTag('og:image:secure_url', data.image[0]);
-          }
-          setMetaTag('og:url', window.location.href);
-          setMetaTag('og:type', 'website');
         } else {
           console.log("No such event found with ID:", id);
         }
