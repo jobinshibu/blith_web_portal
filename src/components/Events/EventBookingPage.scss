@@ -1105,11 +1105,25 @@
       }
     }
 
-    .coupon-min-spend {
+    .coupon-min-spend,
+    .coupon-max-discount {
       margin: 0;
       font-size: 0.8rem;
       color: $text-500;
       font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+
+      svg {
+        color: $text-400;
+        flex-shrink: 0;
+      }
+
+      strong {
+        color: $text-800;
+        font-weight: 600;
+      }
 
       @media (max-width: 767px) {
         font-size: 0.75rem;

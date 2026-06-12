@@ -498,7 +498,7 @@ const BookingSuccess = () => {
                           {relatedEvent.price}
                           {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
                         </span>
-                        {relatedEvent.priceMessage && <span className="price-message" style={{ fontSize: '1em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
+                        {relatedEvent.priceMessage && <span className="price-message" style={{ color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
                       </p>
                     </div>
                   </Link>

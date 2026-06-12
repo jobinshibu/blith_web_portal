@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { createDefaultUserObject, generateUID } from '../../services/userService';
@@ -10,6 +10,7 @@ import {
   applyCoupon as applyCouponService,
   commitCoupon as commitCouponService,
   releaseCoupon as releaseCouponService,
+  checkHasBookings,
 } from '../../services/couponService';
 import Button from '../Button/Button';
 import { toast } from 'react-hot-toast';
@@ -455,6 +456,7 @@ const EventBookingPage = () => {
       couponId: coupon.id,
       userId: uId,
       orderAmount: subtotal,
+      eventId: event.id,
     });
 
     setCouponApplyingId(null);
@@ -496,7 +498,7 @@ const EventBookingPage = () => {
 
     // 1. Search locally first
     let foundCoupon = filteredCoupons.find(
-      c => c.code && c.code.trim().toUpperCase() === codeToSearch && c.isPrivate === true
+      c => c.code && c.code.trim().toUpperCase() === codeToSearch
     );
 
     // 2. If not found locally, query Firestore
@@ -513,16 +515,7 @@ const EventBookingPage = () => {
         if (!snap.empty) {
           const docSnap = snap.docs[0];
           const data = docSnap.data();
-          
-          if (data.isPrivate === true) {
-            foundCoupon = { id: docSnap.id, ...data };
-            
-            // Add to local filteredCoupons state so standard UI functions work on it
-            setFilteredCoupons(prev => {
-              if (prev.some(c => c.id === foundCoupon.id)) return prev;
-              return [...prev, foundCoupon];
-            });
-          }
+          foundCoupon = { id: docSnap.id, ...data };
         }
       } catch (err) {
         console.error('Error searching coupon in DB:', err);
@@ -532,8 +525,71 @@ const EventBookingPage = () => {
     }
 
     if (foundCoupon) {
-      // Check if the user has already used this coupon
       const uId = resolvedUserIdForCoupons || resolvedUserId;
+      const type = (foundCoupon.type || '').toLowerCase();
+
+      // Check Expiration
+      let expiryDate = null;
+      if (foundCoupon.expiryDate) {
+        if (foundCoupon.expiryDate.toDate) {
+          expiryDate = foundCoupon.expiryDate.toDate();
+        } else if (foundCoupon.expiryDate.seconds) {
+          expiryDate = new Date(foundCoupon.expiryDate.seconds * 1000);
+        } else {
+          expiryDate = new Date(foundCoupon.expiryDate);
+        }
+      }
+      if (expiryDate && expiryDate < new Date()) {
+        toast.error('This coupon has expired.');
+        return;
+      }
+
+      // Check Event specific eligibility
+      if (type === 'event') {
+        if (foundCoupon.eventId !== event.id) {
+          toast.error('This coupon is not valid for this event.');
+          return;
+        }
+      }
+
+      // Check User specific eligibility
+      if (type === 'user') {
+        if (!uId) {
+          toast.error('Please enter your phone number first so we can verify eligibility.');
+          return;
+        }
+        const targets = foundCoupon.targetUserIds || [];
+        if (!targets.includes(uId)) {
+          toast.error('This coupon is not valid for your account.');
+          return;
+        }
+      }
+
+      // Check Welcome coupon eligibility
+      if (type === 'welcome') {
+        if (!uId) {
+          toast.error('Please enter your phone number first so we can verify eligibility.');
+          return;
+        }
+        const hasBookings = await checkHasBookings(uId);
+        if (hasBookings) {
+          toast.error('Welcome coupons are only for first-time bookings.');
+          return;
+        }
+      }
+
+      // Check usage limit
+      if (foundCoupon.usageLimit > 0) {
+        const usedCount = foundCoupon.usedCount || 0;
+        const reservedCount = foundCoupon.reservedCount || 0;
+        const effectiveUsed = usedCount + reservedCount;
+        if (effectiveUsed >= foundCoupon.usageLimit) {
+          toast.error('Coupon usage limit reached.');
+          return;
+        }
+      }
+
+      // Check if the user has already used this coupon
       if (uId) {
         const usageRef = collection(db, 'coupons', foundCoupon.id, 'usage');
         const usageQuery = query(usageRef, where('userId', '==', uId));
@@ -547,6 +603,12 @@ const EventBookingPage = () => {
           console.warn('Failed to verify coupon usage on search:', err);
         }
       }
+
+      // Add to local filteredCoupons state so standard UI functions work on it
+      setFilteredCoupons(prev => {
+        if (prev.some(c => c.id === foundCoupon.id)) return prev;
+        return [...prev, foundCoupon];
+      });
 
       // Add to revealed list
       setRevealedCouponCodes(prev => {
@@ -1442,6 +1504,65 @@ const EventBookingPage = () => {
           }
         }
 
+        // Send notification email to the organizer if allowed
+        if (event.orgBookingEmailAllow && event.organiserMail && event.organiserMail.trim()) {
+          try {
+            const ticketRowsOrg = bookedTickets
+              .map((t) => `<tr>
+                  <td style="padding:8px;border:1px solid #ddd;">${t.ticketName}</td>
+                  <td style="padding:8px;border:1px solid #ddd;text-align:center;">${t.quantity}</td>
+                </tr>`)
+              .join('');
+
+            const eventDateStr = selectedDateVal.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+
+            const orgEmailHtml = `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
+              <div style="background:#4CAF50;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
+                <h1 style="color:#fff;margin:0;">New Booking Alert</h1>
+              </div>
+              <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
+                <p style="font-size:16px;">Hi Organizer,</p>
+                <p>You have received a new booking for your event: <strong>${event.eventName || event.title || ""}</strong>.</p>
+                
+                <h3 style="border-bottom:2px solid #4CAF50;padding-bottom:5px;margin-top:25px;font-size:18px;">Attendee Details</h3>
+                <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
+                  <table style="width:100%;">
+                    <tr><td style="color:#888;width:120px;padding:3px 0;">Name</td><td><strong>${attendee.name}</strong></td></tr>
+                    <tr><td style="color:#888;padding:3px 0;">Email</td><td><strong>${attendee.email}</strong></td></tr>
+                    <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? attendee.phone : 'N/A'}</strong></td></tr>
+                    <tr><td style="color:#888;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
+                    <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
+                  </table>
+                </div>
+
+                <h3 style="border-bottom:2px solid #4CAF50;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
+                <table style="width:100%;border-collapse:collapse;margin:10px 0;">
+                  <tr style="background:#f5f5f5;">
+                    <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket Type</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:center;">Quantity</th>
+                  </tr>
+                  \${ticketRowsOrg}
+                </table>
+
+                <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+                <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
+                  Thank you for hosting with <strong>Blithe</strong>!
+                </p>
+              </div>
+            </div>`;
+
+            await setDoc(doc(collection(db, "sendMail")), {
+              date: serverTimestamp(),
+              emailList: [event.organiserMail],
+              html: orgEmailHtml,
+              status: `New Booking Alert - \${event.eventName || event.title || ""}`
+            });
+          } catch (orgMailErr) {
+            console.error("Organizer email sending failure:", orgMailErr);
+          }
+        }
+
         console.log('Successfully created booking records!');
         // Clear coupon state now that it's committed and booking is done
         setAppliedCoupon(null);
@@ -1804,8 +1925,18 @@ const EventBookingPage = () => {
                             {coupon.title || 'Special Discount'}
                           </h4>
 
-                          {coupon.minOrderAmount > 0 && !isSelected && (
-                            <p className="coupon-min-spend">Min. order: ₹{coupon.minOrderAmount}</p>
+                          {coupon.minOrderAmount > 0 && (
+                            <p className="coupon-min-spend">
+                              <Info size={12} className="info-icon" />
+                              Min. order: <strong>₹{coupon.minOrderAmount}</strong>
+                            </p>
+                          )}
+
+                          {coupon.percentage && Number(coupon.maxDiscount) > 0 && (
+                            <p className="coupon-max-discount">
+                              <Percent size={12} className="percent-icon" />
+                              Max discount: <strong>₹{coupon.maxDiscount}</strong>
+                            </p>
                           )}
 
                           {!isApplicable && neededAmount > 0 && (

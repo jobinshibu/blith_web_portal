@@ -157,7 +157,7 @@ const getUsedCouponIds = async (userId) => {
  * @param {string} userId
  * @returns {Promise<boolean>}
  */
-const checkHasBookings = async (userId) => {
+export const checkHasBookings = async (userId) => {
   try {
     const bookingsRef = collection(db, USERS_COLLECTION, userId, MY_BOOKINGS_SUBCOLLECTION);
     const q = query(
@@ -267,7 +267,7 @@ export const fetchFilteredCoupons = async (userId, eventId) => {
  * @param {{ couponId: string, userId: string, orderAmount: number }} params
  * @returns {Promise<CouponApplyResult>}
  */
-export const applyCoupon = async ({ couponId, userId, orderAmount }) => {
+export const applyCoupon = async ({ couponId, userId, orderAmount, eventId }) => {
   try {
     await cleanupExpiredReservations(couponId);
 
@@ -291,6 +291,12 @@ export const applyCoupon = async ({ couponId, userId, orderAmount }) => {
       if (type === 'user') {
         const targets = coupon.targetUserIds || [];
         if (!targets.includes(userId)) return applyFailure('This coupon is not for you');
+      }
+
+      if (type === 'event') {
+        if (coupon.eventId !== eventId) {
+          return applyFailure('This coupon is not valid for this event');
+        }
       }
 
       const usedCount = coupon.usedCount || 0;

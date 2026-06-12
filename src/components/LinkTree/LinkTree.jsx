@@ -5,7 +5,7 @@ import { fetchEventsThunk } from '../../store/eventsSlice';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import logo from '../../assets/logo.jpeg';
-import logoText from '../../assets/logo-text.png';
+import logoText from '../../assets/fifablith.png';
 import './LinkTree.scss';
 
 const LinkTree = () => {
@@ -64,15 +64,15 @@ const LinkTree = () => {
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Date TBD';
     const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-GB', { 
-      day: 'numeric', month: 'short', year: 'numeric' 
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric'
     });
   };
 
   return (
     <div className="linktree-page-wrapper">
       <div className="linktree-container">
-        <motion.div 
+        <motion.div
           className="profile-section"
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -81,8 +81,10 @@ const LinkTree = () => {
           <div className="avatar">
             <img src={logo} alt="Go Blithe" />
           </div>
-          <h1>Go Blithe</h1>
-          <p>Discover and book the best exclusive events near you.</p>
+          <div className="profile-info">
+            <h1>Go Blithe</h1>
+            <p>Discover and book the exclusive events near you.</p>
+          </div>
         </motion.div>
 
         <div className="links-section">
@@ -106,10 +108,10 @@ const LinkTree = () => {
                 transition={{ duration: 0.5, delay: 0.2 + (index * 0.1), ease: "easeOut" }}
               >
                 <Link to={`/events/${event.id}`} className="link-button">
-                  <img 
-                    src={event.image && event.image.length > 0 ? event.image[0] : '/assets/placeholder.jpg'} 
-                    alt={event.eventName} 
-                    className="event-thumbnail" 
+                  <img
+                    src={event.image && event.image.length > 0 ? event.image[0] : '/assets/placeholder.jpg'}
+                    alt={event.eventName}
+                    className="event-thumbnail"
                   />
                   <div className="event-info">
                     <h3>{event.eventName || 'Untitled Event'}</h3>
@@ -135,7 +137,7 @@ const LinkTree = () => {
           )}
         </div>
 
-        <motion.div 
+        <motion.div
           className="footer-logo"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

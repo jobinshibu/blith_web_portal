@@ -890,9 +890,17 @@
           font-weight: 600;
           margin-bottom: 0.5rem;
 
+          .price-message {
+            font-size: 0.9rem;
+          }
+
           @media (max-width: 480px) {
             font-size: 0.75rem;
             margin-bottom: 0.35rem;
+
+            .price-message {
+              font-size: 0.62rem;
+            }
           }
         }
       }

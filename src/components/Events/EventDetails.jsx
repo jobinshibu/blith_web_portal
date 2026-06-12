@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
@@ -23,6 +23,28 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+};
+
+// Helper to process and split hashtags from string/array formats
+const processTags = (tagsInput) => {
+  if (!tagsInput) return [];
+  let tagsArray = [];
+  if (typeof tagsInput === 'string') {
+    // Split by space, hash, or comma
+    tagsArray = tagsInput.split(/[\s#,]+/);
+  } else if (Array.isArray(tagsInput)) {
+    // If it's an array, split each string item by space, hash, or comma
+    tagsInput.forEach(tag => {
+      if (typeof tag === 'string') {
+        tagsArray.push(...tag.split(/[\s#,]+/));
+      } else {
+        tagsArray.push(tag);
+      }
+    });
+  }
+  return tagsArray
+    .map(t => t.trim())
+    .filter(t => t !== "");
 };
 
 // ─── Share Modal ─────────────────────────────────────────────────────────────
@@ -310,8 +332,8 @@ const EventDetails = () => {
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [isTermsExpanded, setIsTermsExpanded] = useState(false);
   const [showAboutBtn, setShowAboutBtn] = useState(false);
-  const [showTermsDesktopBtn, setShowTermsDesktopBtn] = useState(false);
-  const [showTermsMobileBtn, setShowTermsMobileBtn] = useState(false);
+  const [showTermsBtn, setShowTermsBtn] = useState(false);
+  const [organiser, setOrganiser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
 
@@ -329,13 +351,44 @@ const EventDetails = () => {
   }, []);
 
   const aboutRef = useRef(null);
-  const termsDesktopRef = useRef(null);
-  const termsMobileRef = useRef(null);
-
+  const termsRef = useRef(null);
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
+
+  const tagsRef = useRef(null);
+  const [showTagsScrollBtn, setShowTagsScrollBtn] = useState(false);
+  const [isTagsScrollAtEnd, setIsTagsScrollAtEnd] = useState(false);
+
+  const checkTagsOverflow = () => {
+    if (tagsRef.current) {
+      const { scrollWidth, clientWidth, scrollLeft } = tagsRef.current;
+      setShowTagsScrollBtn(scrollWidth > clientWidth);
+      setIsTagsScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
+    }
+  };
+
+  const handleTagsScroll = () => {
+    if (tagsRef.current) {
+      if (isTagsScrollAtEnd) {
+        tagsRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        tagsRef.current.scrollBy({ left: 150, behavior: 'smooth' });
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkTagsOverflow();
+    // Use a small timeout to let rendering finish
+    const timer = setTimeout(checkTagsOverflow, 100);
+    window.addEventListener('resize', checkTagsOverflow);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkTagsOverflow);
+    };
+  }, [event?.tags]);
 
   const dispatch = useDispatch();
   const { events: rawEvents } = useSelector(state => state.events);
@@ -353,11 +406,8 @@ const EventDetails = () => {
       if (aboutRef.current && !isAboutExpanded) {
         setShowAboutBtn(aboutRef.current.scrollHeight > aboutRef.current.clientHeight);
       }
-      if (termsDesktopRef.current && !isTermsExpanded) {
-        setShowTermsDesktopBtn(termsDesktopRef.current.scrollHeight > termsDesktopRef.current.clientHeight);
-      }
-      if (termsMobileRef.current && !isTermsExpanded) {
-        setShowTermsMobileBtn(termsMobileRef.current.scrollHeight > termsMobileRef.current.clientHeight);
+      if (termsRef.current && !isTermsExpanded) {
+        setShowTermsBtn(termsRef.current.scrollHeight > termsRef.current.clientHeight);
       }
     };
 
@@ -412,6 +462,29 @@ const EventDetails = () => {
             displayPrice = `₹${data.price}`;
           }
 
+          const organizerId = data.oId || data.oid || "";
+          if (organizerId) {
+            try {
+              const organiserRef = doc(db, "organisers", organizerId);
+              const organiserSnap = await getDoc(organiserRef);
+              if (organiserSnap.exists()) {
+                const orgData = organiserSnap.data();
+                setOrganiser({
+                  id: organiserSnap.id,
+                  name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
+                  image: orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || ""
+                });
+              } else {
+                setOrganiser(null);
+              }
+            } catch (err) {
+              console.error("Error fetching organiser: ", err);
+              setOrganiser(null);
+            }
+          } else {
+            setOrganiser(null);
+          }
+
           const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
 
           setEvent({
@@ -435,7 +508,7 @@ const EventDetails = () => {
             description: data.description || "No description provided.",
             termsAndConditions: data.termsAndConditions || "No terms specified.",
             tickets: data.tickets || [],
-            tags: data.tags || [],
+            tags: processTags(data.tags),
             platformFee: data.platformFee || 0,
             eventStartDate: data.eventStartDate || null,
             eventEndDate: data.eventEndDate || null,
@@ -488,7 +561,7 @@ const EventDetails = () => {
               }
 
               const isCategoryMatch = data.category && event.category && data.category === event.category;
-              const commonTags = (data.tags || []).filter(t => (event.tags || []).includes(t));
+              const commonTags = processTags(data.tags).filter(t => (event.tags || []).includes(t));
 
               // Only recommend if there is a category match OR common tags
               if (isCategoryMatch || commonTags.length > 0) {
@@ -556,10 +629,37 @@ const EventDetails = () => {
 
         allActiveEvents.sort((a, b) => b.score - a.score);
         const topRelated = allActiveEvents.slice(0, 4);
-        // Sort top related events chronologically (ascending: earlier date first)
+        // Sort top related events chronologically (earlier calendar date first), then by proximity (distance)
         topRelated.sort((a, b) => {
           const dateA = a.eventStartDate ? (typeof a.eventStartDate.toDate === 'function' ? a.eventStartDate.toDate() : new Date(a.eventStartDate)) : new Date(0);
           const dateB = b.eventStartDate ? (typeof b.eventStartDate.toDate === 'function' ? b.eventStartDate.toDate() : new Date(b.eventStartDate)) : new Date(0);
+          
+          const dayA = dateA instanceof Date && !isNaN(dateA)
+            ? new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate()).getTime()
+            : 0;
+          const dayB = dateB instanceof Date && !isNaN(dateB)
+            ? new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate()).getTime()
+            : 0;
+            
+          if (dayA !== dayB) {
+            return dayA - dayB;
+          }
+          
+          // Same calendar day: sort by distance ascending
+          const distA = a.distance;
+          const distB = b.distance;
+          
+          if (distA !== null && distA !== undefined && distB !== null && distB !== undefined) {
+            if (distA !== distB) {
+              return distA - distB;
+            }
+          } else if (distA !== null && distA !== undefined) {
+            return -1; // a has distance, b does not, so a comes first
+          } else if (distB !== null && distB !== undefined) {
+            return 1;  // b has distance, a does not, so b comes first
+          }
+          
+          // Fallback/Tie-breaker: chronological order of the time
           return dateA - dateB;
         });
 
@@ -719,49 +819,40 @@ const EventDetails = () => {
               )}
             </div>
 
-
-            {/* Terms & Conditions card (Left Column) */}
-            <div className="terms-details-card glass desktop-terms">
-              <div className="section-header">
-                <Info size={22} />
-                <h2>Terms & Conditions</h2>
+            {/* Organiser card */}
+            {organiser && (
+              <div className="organiser-details-card glass">
+                <div className="section-header">
+                  <User size={22} style={{ color: '#7C3AED' }} />
+                  <h2>Hosted By</h2>
+                </div>
+                <div className="organiser-profile">
+                  <div className="organiser-avatar">
+                    {organiser.image ? (
+                      <img src={organiser.image} alt={organiser.name} />
+                    ) : (
+                      <div className="avatar-placeholder">
+                        {organiser.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="organiser-meta">
+                    <h3 className="organiser-name">{organiser.name}</h3>
+                    <span className="organiser-badge">
+                      <Check size={12} strokeWidth={3} className="check-icon" />
+                      Verified Organiser
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsDesktopRef}>
-                <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
-                  {event.termsAndConditions}
-                </p>
-              </div>
-              {showTermsDesktopBtn && (
-                <button
-                  className="read-more-btn"
-                  onClick={() => setIsTermsExpanded(!isTermsExpanded)}
-                  aria-expanded={isTermsExpanded}
-                >
-                  {isTermsExpanded ? 'Read Less' : 'Read More'}
-                  <ChevronDown size={18} className={`chevron-icon ${isTermsExpanded ? 'expanded' : ''}`} />
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Right Column: Event Details & Action Box */}
           <div className="event-info-sidebar">
             <div className="event-details-card glass">
               <div className="card-top-row">
-                <div className="tags-column">
-                  <span className="category-badge">{event.category}</span>
-                  {event.tags && event.tags.length > 0 && (
-                    <div className="event-tags-wrapper">
-                      <div className="event-tags">
-                        {event.tags.map((tag, idx) => (
-                          <span key={idx} className="hashtag">
-                            {tag.startsWith('#') ? tag : `#${tag}`}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <span className="category-badge">{event.category}</span>
                 <button
                   className="share-btn"
                   aria-label="Share Event"
@@ -770,6 +861,29 @@ const EventDetails = () => {
                   <Share2 size={18} />
                 </button>
               </div>
+
+              {event.tags && event.tags.length > 0 && (
+                <div className="hashtags-row">
+                  <div className="event-tags-wrapper">
+                    <div className="event-tags" ref={tagsRef} onScroll={checkTagsOverflow}>
+                      {event.tags.map((tag, idx) => (
+                        <span key={idx} className="hashtag">
+                          {tag.startsWith('#') ? tag : `#${tag}`}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {showTagsScrollBtn && (
+                    <button
+                      className="tags-scroll-btn"
+                      aria-label={isTagsScrollAtEnd ? "Scroll Hashtags Left" : "Scroll Hashtags Right"}
+                      onClick={handleTagsScroll}
+                    >
+                      {isTagsScrollAtEnd ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+                    </button>
+                  )}
+                </div>
+              )}
               <h1 className="event-title">{event.title}</h1>
               <p className="mobile-date-highlight">{event.date}, {event.time}</p>
 
@@ -795,7 +909,7 @@ const EventDetails = () => {
                         {event.venue}
                         {distance !== null && (
                           <span className="venue-distance" style={{ marginLeft: '8px', color: '#7C3AED', fontWeight: 700, fontSize: '0.85rem' }}>
-                            ({distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)} km`} away)
+                            ({distance < 1 ? `${Math.round(distance * 1000)}m` : `${Math.round(distance)} km`} away)
                           </span>
                         )}
                       </p>
@@ -861,19 +975,18 @@ const EventDetails = () => {
             </div>
 
 
-
-            {/* Terms & Conditions card (Mobile Bottom) */}
-            <div className="terms-details-card glass mobile-terms">
+            {/* Terms & Conditions card */}
+            <div className="terms-details-card glass">
               <div className="section-header">
                 <Info size={22} />
                 <h2>Terms & Conditions</h2>
               </div>
-              <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsMobileRef}>
+              <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsRef}>
                 <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
                   {event.termsAndConditions}
                 </p>
               </div>
-              {showTermsMobileBtn && (
+              {showTermsBtn && (
                 <button
                   className="read-more-btn"
                   onClick={() => setIsTermsExpanded(!isTermsExpanded)}
@@ -909,22 +1022,25 @@ const EventDetails = () => {
                     <div className="portrait-card-details">
                       <div className="portrait-card-date-row">
                         <span className="portrait-card-date">{relatedEvent.date}</span>
+                      </div>
+                      <h3 className="portrait-card-title">{relatedEvent.title}</h3>
+                      <div className="portrait-card-location-row">
+                        <p className="portrait-card-location">{relatedEvent.location}</p>
                         {relatedEvent.distance !== null && relatedEvent.distance !== undefined && (
-                          <span className="location-distance">
+                          <span className="location-distance-tag">
+                            <MapPin size={12} className="distance-icon" />
                             {relatedEvent.distance < 1
-                              ? `${Math.round(relatedEvent.distance * 1000)}m away`
-                              : `${relatedEvent.distance.toFixed(1)} km away`}
+                              ? `${Math.round(relatedEvent.distance * 1000)}m`
+                              : `${Math.round(relatedEvent.distance)} km`}
                           </span>
                         )}
                       </div>
-                      <h3 className="portrait-card-title">{relatedEvent.title}</h3>
-                      <p className="portrait-card-location">{relatedEvent.location}</p>
                       <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                         <span>
                           {relatedEvent.price}
                           {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
                         </span>
-                        {relatedEvent.priceMessage && <span className="price-message" style={{ fontSize: '1em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
+                        {relatedEvent.priceMessage && <span className="price-message" style={{ color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
                       </p>
                     </div>
                   </Link>

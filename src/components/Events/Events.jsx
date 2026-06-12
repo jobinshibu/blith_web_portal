@@ -7,6 +7,28 @@ import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice'
 import logo from '../../assets/logo.jpeg';
 import './Events.scss';
 
+// Helper to process and split hashtags from string/array formats
+const processTags = (tagsInput) => {
+  if (!tagsInput) return [];
+  let tagsArray = [];
+  if (typeof tagsInput === 'string') {
+    // Split by space, hash, or comma
+    tagsArray = tagsInput.split(/[\s#,]+/);
+  } else if (Array.isArray(tagsInput)) {
+    // If it's an array, split each string item by space, hash, or comma
+    tagsInput.forEach(tag => {
+      if (typeof tag === 'string') {
+        tagsArray.push(...tag.split(/[\s#,]+/));
+      } else {
+        tagsArray.push(tag);
+      }
+    });
+  }
+  return tagsArray
+    .map(t => t.trim())
+    .filter(t => t !== "");
+};
+
 const CATEGORY_STYLES = [
   { name: "Music Shows", label: "Music", icon: Music, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
   { name: "Nightlife", label: "Nightlife", icon: Sparkles, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
@@ -339,7 +361,7 @@ const Events = () => {
             price: displayPrice,
             category: data.category || "Other",
             promoted: isPromoted,
-            hashtags: data.tags || [],
+            hashtags: processTags(data.tags),
             priceMessage: data.priceMessage || "",
             isSoldOut: isSoldOut,
             distance: distance,
@@ -347,10 +369,37 @@ const Events = () => {
           };
         });
 
-      // Sort events chronologically (ascending: earlier date first)
+      // Sort events chronologically (earlier calendar date first), then by proximity (distance)
       eventsData.sort((a, b) => {
         const dateA = a.raw.eventStartDate ? (typeof a.raw.eventStartDate.toDate === 'function' ? a.raw.eventStartDate.toDate() : new Date(a.raw.eventStartDate)) : new Date(0);
         const dateB = b.raw.eventStartDate ? (typeof b.raw.eventStartDate.toDate === 'function' ? b.raw.eventStartDate.toDate() : new Date(b.raw.eventStartDate)) : new Date(0);
+        
+        const dayA = dateA instanceof Date && !isNaN(dateA)
+          ? new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate()).getTime()
+          : 0;
+        const dayB = dateB instanceof Date && !isNaN(dateB)
+          ? new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate()).getTime()
+          : 0;
+          
+        if (dayA !== dayB) {
+          return dayA - dayB;
+        }
+        
+        // Same calendar day: sort by distance ascending
+        const distA = a.distance;
+        const distB = b.distance;
+        
+        if (distA !== null && distA !== undefined && distB !== null && distB !== undefined) {
+          if (distA !== distB) {
+            return distA - distB;
+          }
+        } else if (distA !== null && distA !== undefined) {
+          return -1; // a has distance, b does not, so a comes first
+        } else if (distB !== null && distB !== undefined) {
+          return 1;  // b has distance, a does not, so b comes first
+        }
+        
+        // Fallback/Tie-breaker: chronological order of the time
         return dateA - dateB;
       });
 
@@ -1134,19 +1183,22 @@ const Events = () => {
                                   <span className="portrait-card-date">
                                     {event.date}
                                   </span>
+                                </div>
+                                <h3 className="portrait-card-title">{event.title}</h3>
+                                <div className="portrait-card-location-row">
+                                  <p className="portrait-card-location">{event.location}</p>
                                   {event.distance !== null && event.distance !== undefined && (
-                                    <span className="location-distance">
+                                    <span className="location-distance-tag">
+                                      <MapPin size={12} className="distance-icon" />
                                       {event.distance < 1
-                                        ? `${Math.round(event.distance * 1000)}m away`
-                                        : `${event.distance.toFixed(1)} km away`}
+                                        ? `${Math.round(event.distance * 1000)}m`
+                                        : `${Math.round(event.distance)} km`}
                                     </span>
                                   )}
                                 </div>
-                                <h3 className="portrait-card-title">{event.title}</h3>
-                                <p className="portrait-card-location">{event.location}</p>
                                 <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                   <span>{event.price}</span>
-                                  {event.priceMessage && <span className="price-message" style={{ fontSize: '0.9rem', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
+                                  {event.priceMessage && <span className="price-message" style={{ color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
                                 </p>
                               </div>
                             </Link>
