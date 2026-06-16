@@ -338,51 +338,64 @@ const EventBookingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedCoupon, couponSession]);
 
-  // ─── Fetch user info by phone number & save to localStorage ─────────────────
+  // ─── Fetch user info by email or phone fallback ────────────────────────────
   useEffect(() => {
+    let active = true;
     const fetchExistingUser = async () => {
+      const trimmedEmail = attendee.email.trim().toLowerCase();
       const trimmedPhone = attendee.phone.trim();
-      if (/^\d{10}$/.test(trimmedPhone)) {
-        console.log(`[Phone Fetch] 10-digit phone entered: ${trimmedPhone}`);
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const isEmailValid = emailRegex.test(trimmedEmail);
+      const isPhoneValid = /^\d{10}$/.test(trimmedPhone);
+
+      if (isEmailValid) {
+        console.log(`[User Fetch] Querying Firestore for email == ${trimmedEmail}`);
         try {
-          const cacheKey = `blithe_user_${trimmedPhone}`;
-          const cachedUser = localStorage.getItem(cacheKey);
-          if (cachedUser) {
-            console.log(`[Phone Fetch] Found cached user in localStorage:`, cachedUser);
-            const userData = JSON.parse(cachedUser);
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("email", "==", trimmedEmail));
+          const querySnapshot = await getDocs(q);
+
+          if (!active) return;
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            const userData = { uid: userDoc.id, ...userDoc.data() };
+            console.log(`[User Fetch] Found user by email in Firestore:`, userData);
+
             setAttendee(prev => ({
               ...prev,
               name: userData.name || prev.name,
-              email: userData.email || prev.email
+              phone: userData.phoneNo || userData.phone || prev.phone
             }));
             setResolvedUserId(userData.uid);
             setResolvedUserIdForCoupons(userData.uid);
-            return;
+            return; // Done
+          } else {
+            console.log(`[User Fetch] No user found with email == ${trimmedEmail}`);
           }
+        } catch (err) {
+          console.error("Error fetching existing user by email:", err);
+        }
+      }
 
-          console.log(`[Phone Fetch] Querying Firestore for phoneNo == ${trimmedPhone}`);
+      // If email doesn't exist/isn't found, check phone/mobile
+      if (isPhoneValid) {
+        console.log(`[User Fetch] Email not found or invalid. Querying Firestore for phoneNo == ${trimmedPhone}`);
+        try {
           const usersRef = collection(db, "users");
           const q = query(usersRef, where("phoneNo", "==", trimmedPhone));
           const querySnapshot = await getDocs(q);
 
+          if (!active) return;
           if (!querySnapshot.empty) {
             const userDoc = querySnapshot.docs[0];
             const userData = { uid: userDoc.id, ...userDoc.data() };
-            console.log(`[Phone Fetch] Found user in Firestore:`, userData);
+            console.log(`[User Fetch] User exists by phone: true. Found UID: ${userData.uid}`);
 
-            // Save user information to localStorage
-            localStorage.setItem(cacheKey, JSON.stringify(userData));
-            console.log(`[Phone Fetch] Saved user to localStorage key: ${cacheKey}`);
-
-            setAttendee(prev => ({
-              ...prev,
-              name: userData.name || prev.name,
-              email: userData.email || prev.email
-            }));
+            // Resolve the ID so we associate with the existing user (avoid duplicate)
             setResolvedUserId(userData.uid);
             setResolvedUserIdForCoupons(userData.uid);
           } else {
-            console.log(`[Phone Fetch] No user found with phoneNo == ${trimmedPhone}`);
+            console.log(`[User Fetch] User exists by phone: false for phoneNo == ${trimmedPhone}`);
             setResolvedUserId(null);
             setResolvedUserIdForCoupons(null);
           }
@@ -390,36 +403,60 @@ const EventBookingPage = () => {
           console.error("Error fetching existing user by phone:", err);
         }
       } else {
-        setResolvedUserId(null);
-        setResolvedUserIdForCoupons(null);
+        if (active) {
+          setResolvedUserId(null);
+          setResolvedUserIdForCoupons(null);
+        }
       }
     };
 
     fetchExistingUser();
-  }, [attendee.phone]);
+    return () => {
+      active = false;
+    };
+  }, [attendee.email, attendee.phone]);
 
   // Apply coupon handler
   const handleApplyCoupon = async (coupon) => {
     const isApplicable = subtotal >= (coupon.minOrderAmount || 0);
     if (!isApplicable || couponApplyingId === coupon.id) return;
 
-    // Resolve userId first if not yet done (phone might not be entered)
+    // Resolve userId first if not yet done (phone or email might not be entered)
     let uId = resolvedUserIdForCoupons;
-    if (!uId && attendee.phone && /^\d{10}$/.test(attendee.phone.trim())) {
-      try {
-        const uRef = collection(db, 'users');
-        const uQ = query(uRef, where('countryCode', '==', '91'), where('phoneNo', '==', attendee.phone));
-        const uSnap = await getDocs(uQ);
-        if (!uSnap.empty) {
-          uId = uSnap.docs[0].id;
-          setResolvedUserIdForCoupons(uId);
-        }
-      } catch (_) { }
+    if (!uId) {
+      const trimmedPhone = attendee.phone.trim();
+      const trimmedEmail = attendee.email.trim().toLowerCase();
+      const isPhoneValid = /^\d{10}$/.test(trimmedPhone);
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const isEmailValid = emailRegex.test(trimmedEmail);
+
+      if (isEmailValid) {
+        try {
+          const uRef = collection(db, 'users');
+          const uQ = query(uRef, where('email', '==', trimmedEmail));
+          const uSnap = await getDocs(uQ);
+          if (!uSnap.empty) {
+            uId = uSnap.docs[0].id;
+            setResolvedUserIdForCoupons(uId);
+          }
+        } catch (_) { }
+      }
+      if (!uId && isPhoneValid) {
+        try {
+          const uRef = collection(db, 'users');
+          const uQ = query(uRef, where('phoneNo', '==', trimmedPhone));
+          const uSnap = await getDocs(uQ);
+          if (!uSnap.empty) {
+            uId = uSnap.docs[0].id;
+            setResolvedUserIdForCoupons(uId);
+          }
+        } catch (_) { }
+      }
     }
 
     if (!uId) {
-      setCouponErrors(prev => ({ ...prev, [coupon.id]: 'Please enter your phone number first so we can verify eligibility.' }));
-      toast.error('Please enter your phone number first so we can verify eligibility.');
+      setCouponErrors(prev => ({ ...prev, [coupon.id]: 'Please enter your phone number or email first so we can verify eligibility.' }));
+      toast.error('Please enter your phone number or email first so we can verify eligibility.');
       return;
     }
 
@@ -947,18 +984,44 @@ const EventBookingPage = () => {
     try {
       // 1. Resolve User
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("countryCode", "==", "91"), where("phoneNo", "==", attendee.phone));
-      const querySnapshot = await getDocs(q);
-
       let uId = null;
       let userProfileImage = "";
+      let userFound = false;
 
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        uId = userDoc.id;
-        userProfileImage = userDoc.data().profilePic || "";
-        console.log(`User already exists with UID: ${uId}`);
-      } else {
+      // Try email lookup first
+      if (attendee.email) {
+        const trimmedEmail = attendee.email.trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailRegex.test(trimmedEmail)) {
+          const q = query(usersRef, where("email", "==", trimmedEmail));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            uId = userDoc.id;
+            userProfileImage = userDoc.data().profilePic || "";
+            userFound = true;
+            console.log(`User already exists with UID (found by email): ${uId}`);
+          }
+        }
+      }
+
+      // Try phone lookup if not found by email
+      if (!userFound) {
+        const trimmedPhone = attendee.phone.trim();
+        if (/^\d{10}$/.test(trimmedPhone)) {
+          const q = query(usersRef, where("phoneNo", "==", trimmedPhone));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            uId = userDoc.id;
+            userProfileImage = userDoc.data().profilePic || "";
+            userFound = true;
+            console.log(`User already exists with UID (found by phone): ${uId}`);
+          }
+        }
+      }
+
+      if (!userFound) {
         uId = generateUID();
         const newDocRef = doc(usersRef, uId);
         console.log(`User does not exist. Creating new record with UID: ${uId}`);
@@ -1027,18 +1090,13 @@ const EventBookingPage = () => {
 
       // Transaction-based Booking Confirmation Logic
       const performSaveBooking = async (paymentId, orderId, paymentStatusVal, existingBookingId) => {
-        // Commit coupon reservation as early as possible (before the main transaction)
-        // so the seat is permanently claimed even if the below transaction takes time.
-        let couponCommitted = false;
         if (appliedCoupon && couponSession && uId) {
           const commitResult = await commitCouponService({
             couponId: appliedCoupon.id,
             userId: uId,
             sessionId: couponSession,
           });
-          if (commitResult.success) {
-            couponCommitted = true;
-          } else {
+          if (!commitResult.success) {
             console.warn('[Coupon] commitCoupon failed:', commitResult.error);
             // Non-fatal — the booking still goes through; the reservation will auto-expire
           }
@@ -1099,7 +1157,7 @@ const EventBookingPage = () => {
           eventType: String(event.eventType || "Online"),
           isRated: false,
           isSkipped: false,
-          platform: "Android",
+          platform: "Web",
           priceDetails: formattedPriceDetails,
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
@@ -1172,7 +1230,7 @@ const EventBookingPage = () => {
           eventType: String(event.eventType || "Online"),
           isRated: false,
           isSkipped: false,
-          platform: "Android",
+          platform: "Web",
           priceDetails: formattedPriceDetails,
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
@@ -1542,7 +1600,7 @@ const EventBookingPage = () => {
                     <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket Type</th>
                     <th style="padding:10px;border:1px solid #ddd;text-align:center;">Quantity</th>
                   </tr>
-                  \${ticketRowsOrg}
+                  ${ticketRowsOrg}
                 </table>
 
                 <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
@@ -1556,7 +1614,7 @@ const EventBookingPage = () => {
               date: serverTimestamp(),
               emailList: [event.organiserMail],
               html: orgEmailHtml,
-              status: `New Booking Alert - \${event.eventName || event.title || ""}`
+              status: `New Booking Alert - ${event.eventName || event.title || ""}`
             });
           } catch (orgMailErr) {
             console.error("Organizer email sending failure:", orgMailErr);
@@ -1813,7 +1871,27 @@ const EventBookingPage = () => {
               <label htmlFor="email">Email Address <span className="required-star">*</span></label>
               <div className="input-wrapper">
                 <Mail size={18} className="input-icon" />
-                <input type="email" id="email" placeholder="e.g. rahul@example.com" value={attendee.email} onChange={(e) => setAttendee(prev => ({ ...prev, email: e.target.value }))} />
+                <input
+                  type="email"
+                  id="email"
+                  placeholder="e.g. rahul@example.com"
+                  value={attendee.email}
+                  onChange={(e) => {
+                    const newEmail = e.target.value;
+                    setAttendee(prev => {
+                      if (resolvedUserId) {
+                        setResolvedUserId(null);
+                        setResolvedUserIdForCoupons(null);
+                        return {
+                          name: '',
+                          phone: '',
+                          email: newEmail
+                        };
+                      }
+                      return { ...prev, email: newEmail };
+                    });
+                  }}
+                />
               </div>
               {showErrors && !attendee.email.trim() && (
                 <div className="validation-hint"><Info size={16} /><span>Please provide a valid email address.</span></div>
@@ -1824,7 +1902,27 @@ const EventBookingPage = () => {
               <label htmlFor="phone">Phone Number <span className="required-star">*</span></label>
               <div className="input-wrapper">
                 <Phone size={18} className="input-icon" />
-                <input type="tel" id="phone" placeholder="e.g. 9876543210" value={attendee.phone} onChange={(e) => setAttendee(prev => ({ ...prev, phone: e.target.value }))} />
+                <input
+                  type="tel"
+                  id="phone"
+                  placeholder="e.g. 9876543210"
+                  value={attendee.phone}
+                  onChange={(e) => {
+                    const newPhone = e.target.value;
+                    setAttendee(prev => {
+                      if (resolvedUserId) {
+                        setResolvedUserId(null);
+                        setResolvedUserIdForCoupons(null);
+                        return {
+                          name: '',
+                          email: '',
+                          phone: newPhone
+                        };
+                      }
+                      return { ...prev, phone: newPhone };
+                    });
+                  }}
+                />
               </div>
               {showErrors && !isPhoneValid && (
                 <div className="validation-hint"><Info size={16} /><span>Please provide a valid 10-digit phone number.</span></div>

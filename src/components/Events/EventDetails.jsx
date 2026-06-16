@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
@@ -37,29 +37,65 @@ const processTags = (tagsInput) => {
     tagsInput.forEach(tag => {
       if (typeof tag === 'string') {
         tagsArray.push(...tag.split(/[\s#,]+/));
-      } else {
-        tagsArray.push(tag);
+      } else if (tag !== null && tag !== undefined) {
+        tagsArray.push(String(tag));
       }
     });
   }
   return tagsArray
-    .map(t => t.trim())
+    .map(t => typeof t === 'string' ? t.trim() : String(t).trim())
     .filter(t => t !== "");
 };
 
 // ─── Share Modal ─────────────────────────────────────────────────────────────
 const ShareModal = ({ event, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [copiedSocial, setCopiedSocial] = useState(null);
   const shareUrl = window.location.href;
   const shareText = `Check out "${event.title}" on Blithe!`;
 
   const handleCopy = async () => {
+    let success = false;
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        success = true;
+      } else {
+        throw new Error('Clipboard API not available');
+      }
+    } catch {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = shareUrl;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        success = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (err) {
+        console.error("Fallback copy failed: ", err);
+      }
+    }
+
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch {
-      /* fallback – nothing critical */
+    }
+    return success;
+  };
+
+  const handleSocialClick = async (e, s) => {
+    if (s.id === 'instagram') {
+      e.preventDefault();
+      const success = await handleCopy();
+      if (success) {
+        setCopiedSocial('instagram');
+        setTimeout(() => setCopiedSocial(null), 2000);
+      }
+      window.open(s.url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -215,9 +251,12 @@ const ShareModal = ({ event, onClose }) => {
                 className="share-social-btn"
                 style={{ '--social-color': s.color }}
                 aria-label={`Share on ${s.label}`}
+                onClick={(e) => handleSocialClick(e, s)}
               >
                 <span className="share-social-icon">{s.icon}</span>
-                <span className="share-social-label">{s.label}</span>
+                <span className="share-social-label">
+                  {copiedSocial === s.id ? 'Copied!' : s.label}
+                </span>
               </a>
             ))}
           </div>
@@ -279,6 +318,89 @@ const ShareModal = ({ event, onClose }) => {
   );
 };
 
+// ─── Attendees Modal ────────────────────────────────────────────────────────
+const AttendeesModal = ({ onClose }) => {
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="attendees-modal-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      >
+        <motion.div
+          className="attendees-modal"
+          initial={{ opacity: 0, y: 60, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 60, scale: 0.95 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Close */}
+          <button className="attendees-modal-close" onClick={onClose} aria-label="Close">
+            <X size={20} />
+          </button>
+
+          <div className="attendees-modal-content">
+            <div className="icon-pulse-wrapper">
+              <Sparkles size={32} style={{ color: '#7C3AED' }} />
+            </div>
+            <h2>Attendees Near You</h2>
+            <p className="modal-message">Download the app to see the attendees near you</p>
+            
+            {/* App badges */}
+            <div className="share-app-section" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1.25rem', marginTop: '1.25rem', width: '100%' }}>
+              <div className="share-app-info">
+                <img src={logoTransparent} alt="Blithe App" className="share-app-logo" />
+                <div style={{ textAlign: 'left' }}>
+                  <p className="share-app-name" style={{ color: '#fff', margin: 0 }}>Blithe</p>
+                  <p className="share-app-tagline" style={{ color: 'rgba(255, 255, 255, 0.55)', margin: 0 }}>Discover events on the go</p>
+                </div>
+              </div>
+              <div className="share-app-badges" style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <a
+                  href="https://play.google.com/store"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="share-badge-btn"
+                  aria-label="Get it on Google Play"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '0.6rem', padding: '0.45rem 0.75rem', textDecoration: 'none', color: '#fff' }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
+                  </svg>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span className="badge-sub" style={{ fontSize: '0.55rem', color: 'rgba(255, 255, 255, 0.6)' }}>Get it on</span>
+                    <span className="badge-main" style={{ fontSize: '0.72rem', fontWeight: 700 }}>Google Play</span>
+                  </div>
+                </a>
+                <a
+                  href="https://apps.apple.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="share-badge-btn"
+                  aria-label="Download on the App Store"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '0.6rem', padding: '0.45rem 0.75rem', textDecoration: 'none', color: '#fff' }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                  </svg>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span className="badge-sub" style={{ fontSize: '0.55rem', color: 'rgba(255, 255, 255, 0.6)' }}>Download on the</span>
+                    <span className="badge-main" style={{ fontSize: '0.72rem', fontWeight: 700 }}>App Store</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 // Category-specific extra media images to build a premium gallery/carousel
 const getEventMedia = (event) => {
   const baseImage = event.image;
@@ -328,7 +450,10 @@ const getEventMedia = (event) => {
 
 const EventDetails = () => {
   const navigate = useNavigate();
-  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const { id } = useParams();
+  const [currentIndex, setCurrentIndex] = useState(1);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const lastClickTime = useRef(0);
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [isTermsExpanded, setIsTermsExpanded] = useState(false);
   const [showAboutBtn, setShowAboutBtn] = useState(false);
@@ -336,6 +461,9 @@ const EventDetails = () => {
   const [organiser, setOrganiser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [attendeesList, setAttendeesList] = useState([]);
+  const [attendeesCount, setAttendeesCount] = useState(0);
+  const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
 
   // Fetch user location
   useEffect(() => {
@@ -350,12 +478,85 @@ const EventDetails = () => {
     );
   }, []);
 
+  // Fetch attendees for the event
+  useEffect(() => {
+    const fetchAttendees = async () => {
+      if (!id) return;
+      try {
+        let bookings = [];
+
+        // 1. Try querying collectionGroup "myBookings"
+        try {
+          const bookingsQuery = query(
+            collectionGroup(db, 'myBookings'),
+            where('eventId', '==', id),
+            where('status', '==', 'confirmed')
+          );
+          const bookingsSnapshot = await getDocs(bookingsQuery);
+          bookingsSnapshot.forEach(docSnap => {
+            bookings.push(docSnap.data());
+          });
+        } catch (cgErr) {
+          console.warn("[Attendees] collectionGroup 'myBookings' failed, trying 'mybooking':", cgErr);
+          // 2. Try collectionGroup "mybooking" if "myBookings" fails (e.g. index issue or collection naming)
+          try {
+            const bookingsQuery = query(
+              collectionGroup(db, 'mybooking'),
+              where('eventId', '==', id),
+              where('status', '==', 'confirmed')
+            );
+            const bookingsSnapshot = await getDocs(bookingsQuery);
+            bookingsSnapshot.forEach(docSnap => {
+              bookings.push(docSnap.data());
+            });
+          } catch (cgErr2) {
+            console.warn("[Attendees] collectionGroup 'mybooking' failed:", cgErr2);
+          }
+        }
+
+        // 3. Fallback to eventBookings subcollection under the event document
+        if (bookings.length === 0) {
+          try {
+            const eventBookingsRef = collection(db, "event", id, "eventBookings");
+            const q = query(eventBookingsRef, where('status', '==', 'confirmed'));
+            const snap = await getDocs(q);
+            snap.forEach(docSnap => {
+              bookings.push(docSnap.data());
+            });
+          } catch (fallbackErr) {
+            console.error("[Attendees] Fallback fetch from eventBookings failed:", fallbackErr);
+          }
+        }
+
+        // Process bookings to filter unique attendees and extract names and profile images
+        const uniqueUsers = new Map();
+        bookings.forEach(b => {
+          const userId = b.userId || b.bookingId;
+          if (userId && !uniqueUsers.has(userId)) {
+            uniqueUsers.set(userId, {
+              userId,
+              userName: b.userName || 'Attendee',
+              userProfileImage: b.userProfileImage || b.profilePic || ''
+            });
+          }
+        });
+
+        const list = Array.from(uniqueUsers.values());
+        setAttendeesList(list);
+        setAttendeesCount(list.length);
+      } catch (err) {
+        console.error("[Attendees] Error fetching attendees:", err);
+      }
+    };
+
+    fetchAttendees();
+  }, [id]);
+
   const aboutRef = useRef(null);
   const termsRef = useRef(null);
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { id } = useParams();
 
   const tagsRef = useRef(null);
   const [showTagsScrollBtn, setShowTagsScrollBtn] = useState(false);
@@ -674,7 +875,35 @@ const EventDetails = () => {
     }
   }, [event, rawEvents, userLocation]);
 
-  const mediaList = event ? [event.image, ...(event.extraImages || [])].filter(Boolean) : [];
+  // Reset currentIndex to 1 when event ID changes
+  useEffect(() => {
+    setCurrentIndex(1);
+    setIsTransitioning(false);
+  }, [id]);
+
+  const mediaList = event
+    ? (event.extraImages && event.extraImages.length > 0
+        ? [event.image, ...event.extraImages]
+        : getEventMedia(event)
+      ).filter(Boolean)
+    : [];
+
+  const paddedMediaList = mediaList.length > 0
+    ? [mediaList[mediaList.length - 1], ...mediaList, mediaList[0]]
+    : [];
+
+  // Reset currentIndex if it somehow goes out of bounds of the current media list
+  useEffect(() => {
+    if (mediaList.length === 0) {
+      if (currentIndex !== 1) {
+        setCurrentIndex(1);
+        setIsTransitioning(false);
+      }
+    } else if (currentIndex > mediaList.length + 1 || currentIndex < 0) {
+      setCurrentIndex(1);
+      setIsTransitioning(false);
+    }
+  }, [mediaList.length, currentIndex]);
 
   const eventLat = event?.geopoint?.latitude || event?.geopoint?._lat;
   const eventLng = event?.geopoint?.longitude || event?.geopoint?._long;
@@ -682,14 +911,42 @@ const EventDetails = () => {
     ? calculateDistance(userLocation.lat, userLocation.lng, eventLat, eventLng)
     : null;
 
+  const handlePrev = () => {
+    const now = Date.now();
+    if (now - lastClickTime.current < 500) return;
+    lastClickTime.current = now;
+    if (mediaList.length <= 1) return;
+    setIsTransitioning(true);
+    setCurrentIndex(prev => prev - 1);
+  };
+
+  const handleNext = () => {
+    const now = Date.now();
+    if (now - lastClickTime.current < 500) return;
+    lastClickTime.current = now;
+    if (mediaList.length <= 1) return;
+    setIsTransitioning(true);
+    setCurrentIndex(prev => prev + 1);
+  };
+
+  const handleAnimationComplete = () => {
+    if (currentIndex === 0) {
+      setIsTransitioning(false);
+      setCurrentIndex(mediaList.length);
+    } else if (currentIndex === mediaList.length + 1) {
+      setIsTransitioning(false);
+      setCurrentIndex(1);
+    }
+  };
+
   // Auto-scroll for the carousel
   useEffect(() => {
     if (mediaList.length <= 1) return;
     const interval = setInterval(() => {
-      setActiveMediaIndex(prev => (prev + 1) % mediaList.length);
+      handleNext();
     }, 4000);
     return () => clearInterval(interval);
-  }, [mediaList.length]);
+  }, [mediaList.length, currentIndex]);
 
   if (loading) {
     return (
@@ -757,19 +1014,34 @@ const EventDetails = () => {
         <div className="content-grid">
           {/* Left Column: Premium media carousel */}
           <div className="media-carousel-area">
-            <div className="main-carousel-view glass">
-              <AnimatePresence>
-                <motion.img
-                  key={activeMediaIndex}
-                  src={mediaList[activeMediaIndex]}
-                  alt={`${event.title} - view ${activeMediaIndex + 1}`}
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.02 }}
-                  transition={{ duration: 0.3 }}
-                  className="carousel-main-image"
-                />
-              </AnimatePresence>
+            <div className="main-carousel-view">
+              <div className="carousel-track-container">
+                {paddedMediaList.length > 0 ? (
+                  <motion.div
+                    className="carousel-track"
+                    animate={{ x: `-${currentIndex * 100}%` }}
+                    transition={isTransitioning ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}
+                    onAnimationComplete={handleAnimationComplete}
+                  >
+                    {paddedMediaList.map((mediaUrl, idx) => (
+                      <img
+                        key={idx}
+                        src={mediaUrl}
+                        alt={`${event.title} - view ${idx}`}
+                        className="carousel-slide-image"
+                        loading="eager"
+                      />
+                    ))}
+                  </motion.div>
+                ) : (
+                  <img
+                    src={logo}
+                    alt={event.title}
+                    className="carousel-slide-image"
+                    loading="eager"
+                  />
+                )}
+              </div>
 
               {event.promoted && (
                 <span className="featured-badge-small" style={{ zIndex: 20 }}>Featured</span>
@@ -781,7 +1053,7 @@ const EventDetails = () => {
                   <button
                     type="button"
                     className="slide-arrow-btn prev"
-                    onClick={() => setActiveMediaIndex(prev => (prev - 1 + mediaList.length) % mediaList.length)}
+                    onClick={handlePrev}
                     aria-label="Previous image"
                   >
                     <ChevronLeft size={24} />
@@ -789,7 +1061,7 @@ const EventDetails = () => {
                   <button
                     type="button"
                     className="slide-arrow-btn next"
-                    onClick={() => setActiveMediaIndex(prev => (prev + 1) % mediaList.length)}
+                    onClick={handleNext}
                     aria-label="Next image"
                   >
                     <ChevronRight size={24} />
@@ -819,6 +1091,8 @@ const EventDetails = () => {
               )}
             </div>
 
+
+
             {/* Organiser card */}
             {organiser && (
               <div className="organiser-details-card glass">
@@ -832,7 +1106,7 @@ const EventDetails = () => {
                       <img src={organiser.image} alt={organiser.name} />
                     ) : (
                       <div className="avatar-placeholder">
-                        {organiser.name.charAt(0).toUpperCase()}
+                        {(organiser.name && typeof organiser.name === 'string' && organiser.name.length > 0) ? organiser.name.charAt(0).toUpperCase() : "O"}
                       </div>
                     )}
                   </div>
@@ -886,6 +1160,58 @@ const EventDetails = () => {
               )}
               <h1 className="event-title">{event.title}</h1>
               <p className="mobile-date-highlight">{event.date}, {event.time}</p>
+
+              {/* Attendees section */}
+              <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
+                <div className="attendee-avatars">
+                  {attendeesCount >= 4 ? (
+                    <>
+                      {attendeesList.slice(0, 3).map((att, idx) => (
+                        <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
+                          {att.userProfileImage ? (
+                            <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
+                          ) : (
+                            <div className="attendee-avatar-placeholder">
+                              {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 1 }}>
+                        <span>+{attendeesCount - 3}</span>
+                      </div>
+                    </>
+                  ) : (
+                    attendeesList.map((att, idx) => (
+                      <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
+                        {att.userProfileImage ? (
+                          <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
+                        ) : (
+                          <div className="attendee-avatar-placeholder">
+                            {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                  {attendeesList.length === 0 && (
+                    <div className="attendee-avatar-wrapper">
+                      <div className="attendee-avatar-placeholder">
+                        <User size={14} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <span className="attendees-count-text">
+                  {attendeesCount > 0 ? (
+                    <>
+                      <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
+                    </>
+                  ) : (
+                    "Be the first to secure a spot!"
+                  )}
+                </span>
+              </div>
 
               <div className="info-list">
                 <div className="info-item desktop-date-time">
@@ -1073,6 +1399,13 @@ const EventDetails = () => {
       <AnimatePresence>
         {showShareModal && event && (
           <ShareModal event={event} onClose={() => setShowShareModal(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Attendees Modal */}
+      <AnimatePresence>
+        {showAttendeesPopup && (
+          <AttendeesModal onClose={() => setShowAttendeesPopup(false)} />
         )}
       </AnimatePresence>
 

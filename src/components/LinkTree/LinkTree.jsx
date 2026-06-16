@@ -5,7 +5,7 @@ import { fetchEventsThunk } from '../../store/eventsSlice';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import logo from '../../assets/logo.jpeg';
-import logoText from '../../assets/fifablith.png';
+import logoText from '../../assets/fifablithe.png';
 import './LinkTree.scss';
 
 const LinkTree = () => {

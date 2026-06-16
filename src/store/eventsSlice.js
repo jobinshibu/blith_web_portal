@@ -24,7 +24,7 @@ export const fetchEventsThunk = createAsyncThunk(
         // Try optimized query with date filter to retrieve events ending from today onwards
         eventsQuery = query(
           collection(db, "event"),
-          where("deleted", "==", false),
+          where("deleted", "==", true),
           where("block", "==", false),
           where("eventEndDate", ">=", today)
         );
