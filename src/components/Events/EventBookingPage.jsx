@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { createDefaultUserObject, generateUID } from '../../services/userService';
+import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
 import {
   fetchFilteredCoupons,
   applyCoupon as applyCouponService,
@@ -1622,6 +1622,10 @@ const EventBookingPage = () => {
         }
 
         console.log('Successfully created booking records!');
+        // Update user interests with category score (score = 5 for booking events)
+        const categoryIdentifier = event.categoryId || event.category_id || event.category || "Other";
+        updateUserInterests(uId, categoryIdentifier, 5);
+
         // Clear coupon state now that it's committed and booking is done
         setAppliedCoupon(null);
         setCouponSession(null);
@@ -1711,6 +1715,10 @@ const EventBookingPage = () => {
             // For paid events, the backend Cloud Function handles the booking creation,
             // slot decrementing, notifications, and emails via Razorpay webhook.
             // Client side only shows success and redirects.
+            // Update user interests with category score (score = 5 for booking events)
+            const categoryIdentifier = event.categoryId || event.category_id || event.category || "Other";
+            updateUserInterests(uId, categoryIdentifier, 5);
+
             setAppliedCoupon(null);
             setCouponSession(null);
             setCouponReservedUntil(null);

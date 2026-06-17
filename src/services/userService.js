@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase'; // Adjust this path if your firebase.js is located elsewhere
 
 /**
@@ -187,5 +187,69 @@ export const registerNewUser = async (userData) => {
   } catch (error) {
     console.error("Error creating new user:", error);
     throw new Error("Failed to register new user.");
+  }
+};
+
+/**
+ * Updates user interests when a payment/booking succeeds.
+ * Adds score to the user's category interests mapping, using the category ID.
+ * @param {string} uid - User ID
+ * @param {string} categoryNameOrId - Category name or ID
+ * @param {number} score - Interest score to add (e.g. 5)
+ */
+export const updateUserInterests = async (uid, categoryNameOrId, score) => {
+  try {
+    if (!uid || !categoryNameOrId) return;
+
+    let categoryId = categoryNameOrId;
+
+    try {
+      const categoriesRef = collection(db, 'eventCategories');
+      const q = query(categoriesRef, where('deleted', '==', false));
+      const querySnapshot = await getDocs(q);
+
+      let foundIdByDocId = null;
+      let foundIdByName = null;
+
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const docId = docSnap.id;
+        const name = data.categoryName || data.name || data.title || "";
+
+        if (docId.toLowerCase() === categoryNameOrId.toLowerCase()) {
+          foundIdByDocId = docId;
+        }
+        if (name.toLowerCase() === categoryNameOrId.toLowerCase()) {
+          foundIdByName = docId;
+        }
+      });
+
+      // Prefer matching by docId, then by name, fallback to categoryNameOrId
+      categoryId = foundIdByDocId || foundIdByName || categoryNameOrId;
+    } catch (catErr) {
+      console.warn("[Interests] Failed to resolve category ID from name/ID:", catErr);
+    }
+
+    const userDocRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userDocRef);
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      const currentInterests = userData.interests || {};
+      const newScore = (currentInterests[categoryId] || 0) + score;
+
+      const updatedInterests = {
+        ...currentInterests,
+        [categoryId]: newScore
+      };
+
+      await setDoc(userDocRef, {
+        interests: updatedInterests
+      }, { merge: true });
+      console.log(`[Interests] Updated user ${uid} interests for category ID '${categoryId}':`, updatedInterests);
+    } else {
+      console.warn(`[Interests] User document not found for uid: ${uid}`);
+    }
+  } catch (err) {
+    console.error("[Interests] Failed to update user interests:", err);
   }
 };

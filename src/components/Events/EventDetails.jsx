@@ -319,7 +319,19 @@ const ShareModal = ({ event, onClose }) => {
 };
 
 // ─── Attendees Modal ────────────────────────────────────────────────────────
-const AttendeesModal = ({ onClose }) => {
+const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => {
+  const currentUserId = currentUser?.uid;
+  const currentUserName = currentUser?.name;
+
+  const otherAttendees = attendeesList.filter(att => {
+    if (!currentUser) return true;
+    if (att.userId && currentUserId && att.userId === currentUserId) return false;
+    if (att.userName && currentUserName && att.userName.toLowerCase() === currentUserName.toLowerCase()) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <AnimatePresence>
       <motion.div
@@ -346,9 +358,72 @@ const AttendeesModal = ({ onClose }) => {
             <div className="icon-pulse-wrapper">
               <Sparkles size={32} style={{ color: '#7C3AED' }} />
             </div>
-            <h2>Attendees Near You</h2>
-            <p className="modal-message">Download the app to see the attendees near you</p>
-            
+            <h2>Event Attendees</h2>
+
+            {/* Current User Profile */}
+            {currentUser && (
+              <div className="current-user-profile-section">
+                <p className="section-subtitle">Your Profile</p>
+                <div className="current-user-profile-card">
+                  <div className="user-avatar-circle">
+                    {currentUser.profilePic || currentUser.photoURL ? (
+                      <img src={currentUser.profilePic || currentUser.photoURL} alt={currentUserName} className="user-profile-img" />
+                    ) : (
+                      <div className="user-profile-placeholder">
+                        {currentUserName ? currentUserName.charAt(0).toUpperCase() : <User size={20} />}
+                      </div>
+                    )}
+                  </div>
+                  <div className="user-profile-info">
+                    <span className="user-name">{currentUserName}</span>
+                    <span className="user-status-badge">Going</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* All Attendees Section */}
+            <div className="all-attendees-section">
+              <p className="section-subtitle">
+                {otherAttendees.length > 0 ? "Others Attending" : ""}
+              </p>
+              
+              {otherAttendees.length > 0 ? (
+                <div className="attendees-scroll-container">
+                  <div className="attendees-grid">
+                    {otherAttendees.slice(0, 4).map((att, idx) => (
+                      <div key={idx} className="attendee-profile-item">
+                        <div className="attendee-avatar-circle">
+                          {att.userProfileImage ? (
+                            <img src={att.userProfileImage} alt={att.userName} className="attendee-profile-img" />
+                          ) : (
+                            <div className="attendee-profile-placeholder">
+                              {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={16} />}
+                            </div>
+                          )}
+                        </div>
+                        <span className="attendee-name">{att.userName}</span>
+                      </div>
+                    ))}
+                    {otherAttendees.length > 4 && (
+                      <div className="attendee-profile-item more-item">
+                        <div className="attendee-avatar-circle more-circle">
+                          <span>+{otherAttendees.length - 4}</span>
+                        </div>
+                        <span className="attendee-name">More</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                !currentUser && (
+                  <p className="no-attendees-text" style={{ textAlign: 'center', width: '100%', color: 'rgba(255, 255, 255, 0.6)', margin: '1rem 0' }}>
+                    Be the first to secure a spot!
+                  </p>
+                )
+              )}
+            </div>
+
             {/* App badges */}
             <div className="share-app-section" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1.25rem', marginTop: '1.25rem', width: '100%' }}>
               <div className="share-app-info">
@@ -460,20 +535,88 @@ const EventDetails = () => {
   const [showTermsBtn, setShowTermsBtn] = useState(false);
   const [organiser, setOrganiser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [userLocation, setUserLocation] = useState(null);
+  const [userLocation, setUserLocation] = useState(() => {
+    const cached = localStorage.getItem('blithe_user_location');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [attendeesList, setAttendeesList] = useState([]);
   const [attendeesCount, setAttendeesCount] = useState(0);
   const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Fetch current user from sessionStorage and Firestore
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+      try {
+        const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+        if (cachedDetails) {
+          const parsed = JSON.parse(cachedDetails);
+          const email = parsed.email?.trim().toLowerCase();
+          const phone = parsed.phone?.trim();
+
+          if (email) {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", email));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              const userDoc = querySnapshot.docs[0];
+              setCurrentUser({ uid: userDoc.id, ...userDoc.data() });
+              return;
+            }
+          }
+
+          if (phone) {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("phoneNo", "==", phone));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              const userDoc = querySnapshot.docs[0];
+              setCurrentUser({ uid: userDoc.id, ...userDoc.data() });
+              return;
+            }
+          }
+
+          if (parsed.name) {
+            setCurrentUser({
+              name: parsed.name,
+              email: parsed.email || '',
+              phoneNo: parsed.phone || '',
+              profilePic: ''
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[CurrentUser] Failed to fetch current user profile:", err);
+      }
+    };
+    fetchCurrentUserProfile();
+  }, []);
 
   // Fetch user location
   useEffect(() => {
+    const cached = localStorage.getItem('blithe_user_location');
+    if (cached) {
+      try {
+        setUserLocation(JSON.parse(cached));
+        return;
+      } catch (e) { }
+    }
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
+        const loc = { lat: latitude, lng: longitude, type: 'precise' };
+        setUserLocation(loc);
+        localStorage.setItem('blithe_user_location', JSON.stringify(loc));
       },
-      () => {},
+      () => { },
       { maximumAge: 60000, timeout: 10000, enableHighAccuracy: false }
     );
   }, []);
@@ -775,11 +918,11 @@ const EventDetails = () => {
                   const R = 6371; // Earth's radius in km
                   const dLat = (lat2 - lat1) * Math.PI / 180;
                   const dLon = (lon2 - lon1) * Math.PI / 180;
-                  const a = 
-                    Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                    Math.sin(dLon/2) * Math.sin(dLon/2);
-                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                  const a =
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                   return R * c;
                 };
 
@@ -798,7 +941,7 @@ const EventDetails = () => {
                 } else if (data.location && event.location && data.location.includes(event.location.split(',')[0])) {
                   score += 2; // fallback to text location prefix match
                 }
-                
+
                 if (formattedDate === event.date) score += 1;
 
                 const featuredEndD = toDateObj(data.featuredEndDate);
@@ -834,22 +977,22 @@ const EventDetails = () => {
         topRelated.sort((a, b) => {
           const dateA = a.eventStartDate ? (typeof a.eventStartDate.toDate === 'function' ? a.eventStartDate.toDate() : new Date(a.eventStartDate)) : new Date(0);
           const dateB = b.eventStartDate ? (typeof b.eventStartDate.toDate === 'function' ? b.eventStartDate.toDate() : new Date(b.eventStartDate)) : new Date(0);
-          
+
           const dayA = dateA instanceof Date && !isNaN(dateA)
             ? new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate()).getTime()
             : 0;
           const dayB = dateB instanceof Date && !isNaN(dateB)
             ? new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate()).getTime()
             : 0;
-            
+
           if (dayA !== dayB) {
             return dayA - dayB;
           }
-          
+
           // Same calendar day: sort by distance ascending
           const distA = a.distance;
           const distB = b.distance;
-          
+
           if (distA !== null && distA !== undefined && distB !== null && distB !== undefined) {
             if (distA !== distB) {
               return distA - distB;
@@ -859,7 +1002,7 @@ const EventDetails = () => {
           } else if (distB !== null && distB !== undefined) {
             return 1;  // b has distance, a does not, so b comes first
           }
-          
+
           // Fallback/Tie-breaker: chronological order of the time
           return dateA - dateB;
         });
@@ -883,9 +1026,9 @@ const EventDetails = () => {
 
   const mediaList = event
     ? (event.extraImages && event.extraImages.length > 0
-        ? [event.image, ...event.extraImages]
-        : getEventMedia(event)
-      ).filter(Boolean)
+      ? [event.image, ...event.extraImages]
+      : getEventMedia(event)
+    ).filter(Boolean)
     : [];
 
   const paddedMediaList = mediaList.length > 0
@@ -1161,57 +1304,6 @@ const EventDetails = () => {
               <h1 className="event-title">{event.title}</h1>
               <p className="mobile-date-highlight">{event.date}, {event.time}</p>
 
-              {/* Attendees section */}
-              <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
-                <div className="attendee-avatars">
-                  {attendeesCount >= 4 ? (
-                    <>
-                      {attendeesList.slice(0, 3).map((att, idx) => (
-                        <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
-                          {att.userProfileImage ? (
-                            <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
-                          ) : (
-                            <div className="attendee-avatar-placeholder">
-                              {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 1 }}>
-                        <span>+{attendeesCount - 3}</span>
-                      </div>
-                    </>
-                  ) : (
-                    attendeesList.map((att, idx) => (
-                      <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
-                        {att.userProfileImage ? (
-                          <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
-                        ) : (
-                          <div className="attendee-avatar-placeholder">
-                            {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                  {attendeesList.length === 0 && (
-                    <div className="attendee-avatar-wrapper">
-                      <div className="attendee-avatar-placeholder">
-                        <User size={14} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <span className="attendees-count-text">
-                  {attendeesCount > 0 ? (
-                    <>
-                      <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
-                    </>
-                  ) : (
-                    "Be the first to secure a spot!"
-                  )}
-                </span>
-              </div>
 
               <div className="info-list">
                 <div className="info-item desktop-date-time">
@@ -1268,6 +1360,57 @@ const EventDetails = () => {
                     </div>
                   </div>
                 )}
+              </div>
+              {/* Attendees section */}
+              <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
+                <div className="attendee-avatars">
+                  {attendeesCount >= 4 ? (
+                    <>
+                      {attendeesList.slice(0, 3).map((att, idx) => (
+                        <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
+                          {att.userProfileImage ? (
+                            <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
+                          ) : (
+                            <div className="attendee-avatar-placeholder">
+                              {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 1 }}>
+                        <span>+{attendeesCount - 3}</span>
+                      </div>
+                    </>
+                  ) : (
+                    attendeesList.map((att, idx) => (
+                      <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
+                        {att.userProfileImage ? (
+                          <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
+                        ) : (
+                          <div className="attendee-avatar-placeholder">
+                            {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                  {attendeesList.length === 0 && (
+                    <div className="attendee-avatar-wrapper">
+                      <div className="attendee-avatar-placeholder">
+                        <User size={14} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <span className="attendees-count-text">
+                  {attendeesCount > 0 ? (
+                    <>
+                      <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
+                    </>
+                  ) : (
+                    "Be the first to secure a spot!"
+                  )}
+                </span>
               </div>
 
               <div className="action-box desktop-booking-box">
@@ -1405,7 +1548,11 @@ const EventDetails = () => {
       {/* Attendees Modal */}
       <AnimatePresence>
         {showAttendeesPopup && (
-          <AttendeesModal onClose={() => setShowAttendeesPopup(false)} />
+          <AttendeesModal 
+            onClose={() => setShowAttendeesPopup(false)} 
+            attendeesList={attendeesList}
+            currentUser={currentUser}
+          />
         )}
       </AnimatePresence>
 

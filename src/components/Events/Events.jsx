@@ -1,11 +1,159 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight, Globe, Info, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice';
 import logo from '../../assets/logo.jpeg';
 import './Events.scss';
+
+// Robust multi-fallback IP Geolocation helper
+const fetchApproximateLocation = async () => {
+  try {
+    const response = await fetch('https://ipapi.co/json/');
+    if (response.ok) {
+      const data = await response.json();
+      if (data.latitude && data.longitude) {
+        return {
+          lat: parseFloat(data.latitude),
+          lng: parseFloat(data.longitude),
+          type: 'approximate',
+          city: data.city || '',
+          region: data.region || ''
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to fetch location from ipapi.co, trying ipinfo.io...", err);
+  }
+
+  try {
+    const response = await fetch('https://ipinfo.io/json');
+    if (response.ok) {
+      const data = await response.json();
+      if (data.loc) {
+        const [lat, lng] = data.loc.split(',').map(parseFloat);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          return {
+            lat,
+            lng,
+            type: 'approximate',
+            city: data.city || '',
+            region: data.region || ''
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.error("All IP geolocation fallbacks failed", err);
+  }
+  throw new Error("Could not retrieve approximate location.");
+};
+
+// Geolocation instructions & recovery modal
+const LocationPermissionModal = ({ onClose, onUseApproxLocation, isFetchingApprox }) => {
+  const [activeTab, setActiveTab] = useState('chrome');
+
+  const instructions = {
+    chrome: [
+      "Click the lock/settings icon (🔒) on the left side of the address bar.",
+      "Toggle the 'Location' permission switch to 'Allow'.",
+      "Reload the page to apply changes."
+    ],
+    safari: [
+      "Open Safari Settings (Cmd + ,) and click on 'Websites'.",
+      "Click on 'Location' in the left sidebar.",
+      "Find 'blithe' in the list and set its permission to 'Allow'.",
+      "Refresh the browser tab."
+    ],
+    firefox: [
+      "Click the permissions settings icon to the left of the URL address bar.",
+      "Click the 'X' button next to 'Blocked' to clear the blocked status.",
+      "Reload the page and select 'Allow' when prompted for location access."
+    ],
+    edge: [
+      "Click the lock icon (🔒) next to the URL in the address bar.",
+      "Change the 'Location' permission selection to 'Allow'.",
+      "Reload the page."
+    ]
+  };
+
+  return (
+    <div className="location-modal-overlay" onClick={onClose}>
+      <motion.div
+        className="location-modal"
+        initial={{ opacity: 0, y: 50, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 50, scale: 0.95 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button className="location-modal-close" onClick={onClose} aria-label="Close">
+          <X size={20} />
+        </button>
+
+        <div className="location-modal-content">
+          <div className="icon-pulse-wrapper">
+            <MapPin size={32} />
+          </div>
+          <h2>Location Access Blocked</h2>
+          <p className="modal-description">
+            We couldn't access your location. To find events near you, choose one of the options below:
+          </p>
+
+          <div className="option-card IP-option">
+            <h3>Option 1: Quick Approximate Location</h3>
+            <p>Find events in your region using your IP address. No browser settings change required!</p>
+            <button
+              type="button"
+              className="approx-loc-btn"
+              onClick={onUseApproxLocation}
+              disabled={isFetchingApprox}
+            >
+              {isFetchingApprox ? (
+                <>
+                  <span className="spinner-icon"></span>
+                  Locating...
+                </>
+              ) : (
+                <>
+                  <Globe size={18} />
+                  Use Approximate Location
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="option-card settings-option">
+            <h3>Option 2: Allow Precise GPS Location</h3>
+            <p>For high-accuracy event sorting and distances, reset permissions in your browser settings:</p>
+            
+            <div className="browser-tabs">
+              {['chrome', 'safari', 'firefox', 'edge'].map(browser => (
+                <button
+                  type="button"
+                  key={browser}
+                  className={`browser-tab-btn ${activeTab === browser ? 'active' : ''}`}
+                  onClick={() => setActiveTab(browser)}
+                >
+                  {browser.charAt(0).toUpperCase() + browser.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="instruction-steps">
+              <ol>
+                {instructions[activeTab].map((step, idx) => (
+                  <li key={idx}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 // Helper to process and split hashtags from string/array formats
 const processTags = (tagsInput) => {
@@ -174,10 +322,22 @@ const Events = () => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [isNearbyFilterActive, setIsNearbyFilterActive] = useState(false);
-  const [userLocation, setUserLocation] = useState(null);
+  const [userLocation, setUserLocation] = useState(() => {
+    const cached = localStorage.getItem('blithe_user_location');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState(null);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [isFetchingApprox, setIsFetchingApprox] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(() => {
     const today = new Date();
@@ -411,12 +571,21 @@ const Events = () => {
 
   // Request location on mount — triggers browser permission popup if not yet granted
   useEffect(() => {
+    const cached = localStorage.getItem('blithe_user_location');
+    if (cached) {
+      try {
+        setUserLocation(JSON.parse(cached));
+        return;
+      } catch (e) {}
+    }
     if (!navigator.geolocation) return;
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
+        const loc = { lat: latitude, lng: longitude, type: 'precise' };
+        setUserLocation(loc);
+        localStorage.setItem('blithe_user_location', JSON.stringify(loc));
         setIsLocating(false);
       },
       () => {
@@ -703,40 +872,72 @@ const Events = () => {
   const handleNearbyClick = () => {
     if (isNearbyFilterActive) {
       setIsNearbyFilterActive(false);
-      // We do NOT clear userLocation here, so we can re-use it instantly next time
       setLocationError(null);
       return;
     }
 
     if (userLocation) {
-      // If we already prefetched it silently, activate immediately
       setIsNearbyFilterActive(true);
       return;
     }
 
-    // Otherwise, we need to request it now
     setIsLocating(true);
     setLocationError(null);
 
     if (!navigator.geolocation) {
-      setLocationError("Geolocation not supported.");
-      setIsLocating(false);
+      handleIPFallback();
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
+        const loc = { lat: latitude, lng: longitude, type: 'precise' };
+        setUserLocation(loc);
+        localStorage.setItem('blithe_user_location', JSON.stringify(loc));
         setIsNearbyFilterActive(true);
         setIsLocating(false);
       },
       (error) => {
-        setLocationError("Permission denied or failed.");
-        setIsLocating(false);
+        console.warn("Precise geolocation failed/denied, falling back to IP-based location...", error);
+        handleIPFallback();
       },
       { maximumAge: 60000, timeout: 5000, enableHighAccuracy: false }
     );
+  };
+
+  const handleIPFallback = async () => {
+    setIsLocating(true);
+    try {
+      const approxLoc = await fetchApproximateLocation();
+      setUserLocation(approxLoc);
+      localStorage.setItem('blithe_user_location', JSON.stringify(approxLoc));
+      setIsNearbyFilterActive(true);
+      setLocationError(null);
+    } catch (err) {
+      console.error("IP fallback fetch failed", err);
+      setLocationError("Could not retrieve location.");
+      setShowLocationModal(true);
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  const handleUseApproxLocation = async () => {
+    setIsFetchingApprox(true);
+    try {
+      const approxLoc = await fetchApproximateLocation();
+      setUserLocation(approxLoc);
+      localStorage.setItem('blithe_user_location', JSON.stringify(approxLoc));
+      setIsNearbyFilterActive(true);
+      setLocationError(null);
+      setShowLocationModal(false);
+    } catch (err) {
+      console.error("IP fallback fetch failed in modal", err);
+      setLocationError("Could not retrieve approximate location.");
+    } finally {
+      setIsFetchingApprox(false);
+    }
   };
 
   const renderCalendarDays = () => {
@@ -1124,6 +1325,30 @@ const Events = () => {
                   >
                     {isLocating ? 'Locating...' : 'Nearby'}
                   </button>
+                  {isNearbyFilterActive && userLocation?.type === 'approximate' && (
+                    <button
+                      type="button"
+                      className="approx-info-indicator"
+                      onClick={() => setShowLocationModal(true)}
+                      title="Using approximate location. Click to enable precise GPS."
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#7C3AED',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        marginLeft: '-4px',
+                        transition: 'transform 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <Info size={16} />
+                    </button>
+                  )}
                   {locationError && <span className="location-error" style={{ color: 'red', fontSize: '0.8rem', marginLeft: '0.5rem' }}>{locationError}</span>}
 
                   {/* Clear Filters Indicator */}
@@ -1223,6 +1448,13 @@ const Events = () => {
             </section>
           </div>
         </>
+      )}
+      {showLocationModal && (
+        <LocationPermissionModal
+          onClose={() => setShowLocationModal(false)}
+          onUseApproxLocation={handleUseApproxLocation}
+          isFetchingApprox={isFetchingApprox}
+        />
       )}
     </div>
   );
