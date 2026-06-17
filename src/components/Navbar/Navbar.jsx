@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logoText from '../../assets/fifablith.png';
+import ProfileDashboardModal from './ProfileDashboardModal';
 import './Navbar.scss';
 
 // Custom SVG Brand Icons
@@ -18,9 +19,51 @@ const InstagramIcon = () => (
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
 
   const isEventsPage = location.pathname === '/' || location.pathname === '/events' || location.pathname === '/events/';
+
+  const loadUser = () => {
+    try {
+      const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+      if (cachedDetails) {
+        setCurrentUser(JSON.parse(cachedDetails));
+      } else {
+        setCurrentUser(null);
+      }
+    } catch (err) {
+      console.warn("[Navbar] Failed to load session user:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadUser();
+
+    const handleSessionChange = () => {
+      loadUser();
+    };
+
+    window.addEventListener('session-user-changed', handleSessionChange);
+    return () => {
+      window.removeEventListener('session-user-changed', handleSessionChange);
+    };
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.nav-profile-wrapper')) {
+        setIsProfileOpen(false);
+      }
+    };
+    if (isProfileOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isProfileOpen]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -34,6 +77,13 @@ const Navbar = () => {
   const closeMenu = () => {
     setIsMenuOpen(false);
     document.body.style.overflow = 'unset';
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('blithe_checkout_attendee');
+    setCurrentUser(null);
+    setIsProfileOpen(false);
+    window.dispatchEvent(new CustomEvent('session-user-changed'));
   };
 
   const menuVariants = {
@@ -71,6 +121,26 @@ const Navbar = () => {
           <a href="https://blithe.social/#for-creators" className="nav-link">For Creators</a>
           <a href="https://blithe.social/#discover" className="nav-link">Discover</a>
           {!isEventsPage && <Link to="/events" className="nav-pill">Explore Events</Link>}
+          {currentUser && (
+            <div className="nav-profile-wrapper">
+              <button className="nav-profile-trigger" onClick={() => setIsProfileOpen(!isProfileOpen)} aria-label="Open Profile">
+                {currentUser.profilePic ? (
+                  <img src={currentUser.profilePic} alt={currentUser.name} className="nav-avatar-img" />
+                ) : (
+                  <span className="nav-avatar-initial">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User size={14} />}
+                  </span>
+                )}
+              </button>
+              {isProfileOpen && (
+                <ProfileDashboardModal 
+                  isOpen={isProfileOpen} 
+                  onClose={() => setIsProfileOpen(false)} 
+                  user={currentUser} 
+                />
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mobile-actions-group">
@@ -78,6 +148,26 @@ const Navbar = () => {
             <Link to="/events" className="nav-pill mobile-explore-btn" onClick={closeMenu}>
               Explore Events
             </Link>
+          )}
+          {currentUser && (
+            <div className="nav-profile-wrapper">
+              <button className="nav-profile-trigger mobile-avatar-trigger" onClick={() => setIsProfileOpen(!isProfileOpen)} aria-label="Open Profile">
+                {currentUser.profilePic ? (
+                  <img src={currentUser.profilePic} alt={currentUser.name} className="nav-avatar-img" />
+                ) : (
+                  <span className="nav-avatar-initial">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User size={12} />}
+                  </span>
+                )}
+              </button>
+              {isProfileOpen && (
+                <ProfileDashboardModal 
+                  isOpen={isProfileOpen} 
+                  onClose={() => setIsProfileOpen(false)} 
+                  user={currentUser} 
+                />
+              )}
+            </div>
           )}
           <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle Menu">
             <Menu size={28} />
@@ -117,7 +207,20 @@ const Navbar = () => {
                       </a>
                     </motion.div>
                   ))}
-
+                  {currentUser && (
+                    <motion.div variants={itemVariants} className="mobile-nav-item">
+                      <button 
+                        className="mobile-nav-link discover" 
+                        onClick={() => {
+                          closeMenu();
+                          setIsProfileOpen(true);
+                        }}
+                        style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >
+                        My Profile Dashboard
+                      </button>
+                    </motion.div>
+                  )}
                 </div>
               </div>
 
@@ -139,6 +242,7 @@ const Navbar = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
     </>
   );
 };

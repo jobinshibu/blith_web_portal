@@ -1797,14 +1797,18 @@
   0% {
     box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4);
   }
+
   70% {
     box-shadow: 0 0 0 10px rgba(124, 58, 237, 0);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
   }
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
-}
+  to {
+    transform: rotate(360deg);
+  }
+}

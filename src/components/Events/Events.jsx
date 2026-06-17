@@ -127,7 +127,7 @@ const LocationPermissionModal = ({ onClose, onUseApproxLocation, isFetchingAppro
           <div className="option-card settings-option">
             <h3>Option 2: Allow Precise GPS Location</h3>
             <p>For high-accuracy event sorting and distances, reset permissions in your browser settings:</p>
-            
+
             <div className="browser-tabs">
               {['chrome', 'safari', 'firefox', 'edge'].map(browser => (
                 <button
@@ -533,22 +533,22 @@ const Events = () => {
       eventsData.sort((a, b) => {
         const dateA = a.raw.eventStartDate ? (typeof a.raw.eventStartDate.toDate === 'function' ? a.raw.eventStartDate.toDate() : new Date(a.raw.eventStartDate)) : new Date(0);
         const dateB = b.raw.eventStartDate ? (typeof b.raw.eventStartDate.toDate === 'function' ? b.raw.eventStartDate.toDate() : new Date(b.raw.eventStartDate)) : new Date(0);
-        
+
         const dayA = dateA instanceof Date && !isNaN(dateA)
           ? new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate()).getTime()
           : 0;
         const dayB = dateB instanceof Date && !isNaN(dateB)
           ? new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate()).getTime()
           : 0;
-          
+
         if (dayA !== dayB) {
           return dayA - dayB;
         }
-        
+
         // Same calendar day: sort by distance ascending
         const distA = a.distance;
         const distB = b.distance;
-        
+
         if (distA !== null && distA !== undefined && distB !== null && distB !== undefined) {
           if (distA !== distB) {
             return distA - distB;
@@ -558,7 +558,7 @@ const Events = () => {
         } else if (distB !== null && distB !== undefined) {
           return 1;  // b has distance, a does not, so b comes first
         }
-        
+
         // Fallback/Tie-breaker: chronological order of the time
         return dateA - dateB;
       });
@@ -576,7 +576,7 @@ const Events = () => {
       try {
         setUserLocation(JSON.parse(cached));
         return;
-      } catch (e) {}
+      } catch (e) { }
     }
     if (!navigator.geolocation) return;
     setIsLocating(true);

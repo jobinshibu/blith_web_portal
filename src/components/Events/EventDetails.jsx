@@ -360,27 +360,7 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
             </div>
             <h2>Event Attendees</h2>
 
-            {/* Current User Profile */}
-            {currentUser && (
-              <div className="current-user-profile-section">
-                <p className="section-subtitle">Your Profile</p>
-                <div className="current-user-profile-card">
-                  <div className="user-avatar-circle">
-                    {currentUser.profilePic || currentUser.photoURL ? (
-                      <img src={currentUser.profilePic || currentUser.photoURL} alt={currentUserName} className="user-profile-img" />
-                    ) : (
-                      <div className="user-profile-placeholder">
-                        {currentUserName ? currentUserName.charAt(0).toUpperCase() : <User size={20} />}
-                      </div>
-                    )}
-                  </div>
-                  <div className="user-profile-info">
-                    <span className="user-name">{currentUserName}</span>
-                    <span className="user-status-badge">Going</span>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {/* All Attendees Section */}
             <div className="all-attendees-section">
@@ -397,9 +377,11 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                           {att.userProfileImage ? (
                             <img src={att.userProfileImage} alt={att.userName} className="attendee-profile-img" />
                           ) : (
-                            <div className="attendee-profile-placeholder">
-                              {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={16} />}
-                            </div>
+                            <img
+                              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                              alt={att.userName || 'Attendee'}
+                              className="attendee-profile-img dicebear-avatar"
+                            />
                           )}
                         </div>
                         <span className="attendee-name">{att.userName}</span>
@@ -424,48 +406,49 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
               )}
             </div>
 
-            {/* App badges */}
-            <div className="share-app-section" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1.25rem', marginTop: '1.25rem', width: '100%' }}>
-              <div className="share-app-info">
-                <img src={logoTransparent} alt="Blithe App" className="share-app-logo" />
-                <div style={{ textAlign: 'left' }}>
-                  <p className="share-app-name" style={{ color: '#fff', margin: 0 }}>Blithe</p>
-                  <p className="share-app-tagline" style={{ color: 'rgba(255, 255, 255, 0.55)', margin: 0 }}>Discover events on the go</p>
+            {/* Download the Blithe App */}
+            <div className="attendees-app-download">
+              <div className="attendees-app-divider"><span>Also available on</span></div>
+              <div className="attendees-app-section">
+                <div className="attendees-app-info">
+                  <img src={logoTransparent} alt="Blithe App" className="attendees-app-logo" />
+                  <div>
+                    <p className="attendees-app-name">Blithe</p>
+                    <p className="attendees-app-tagline">Discover events on the go</p>
+                  </div>
                 </div>
-              </div>
-              <div className="share-app-badges" style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                <a
-                  href="https://play.google.com/store"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="share-badge-btn"
-                  aria-label="Get it on Google Play"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '0.6rem', padding: '0.45rem 0.75rem', textDecoration: 'none', color: '#fff' }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
-                  </svg>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span className="badge-sub" style={{ fontSize: '0.55rem', color: 'rgba(255, 255, 255, 0.6)' }}>Get it on</span>
-                    <span className="badge-main" style={{ fontSize: '0.72rem', fontWeight: 700 }}>Google Play</span>
-                  </div>
-                </a>
-                <a
-                  href="https://apps.apple.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="share-badge-btn"
-                  aria-label="Download on the App Store"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '0.6rem', padding: '0.45rem 0.75rem', textDecoration: 'none', color: '#fff' }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                  </svg>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span className="badge-sub" style={{ fontSize: '0.55rem', color: 'rgba(255, 255, 255, 0.6)' }}>Download on the</span>
-                    <span className="badge-main" style={{ fontSize: '0.72rem', fontWeight: 700 }}>App Store</span>
-                  </div>
-                </a>
+                <div className="attendees-app-badges">
+                  <a
+                    href="https://play.google.com/store"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="share-badge-btn"
+                    aria-label="Get it on Google Play"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
+                    </svg>
+                    <div>
+                      <span className="badge-sub">Get it on</span>
+                      <span className="badge-main">Google Play</span>
+                    </div>
+                  </a>
+                  <a
+                    href="https://apps.apple.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="share-badge-btn"
+                    aria-label="Download on the App Store"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                    </svg>
+                    <div>
+                      <span className="badge-sub">Download on the</span>
+                      <span className="badge-main">App Store</span>
+                    </div>
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -1248,9 +1231,11 @@ const EventDetails = () => {
                     {organiser.image ? (
                       <img src={organiser.image} alt={organiser.name} />
                     ) : (
-                      <div className="avatar-placeholder">
-                        {(organiser.name && typeof organiser.name === 'string' && organiser.name.length > 0) ? organiser.name.charAt(0).toUpperCase() : "O"}
-                      </div>
+                      <img
+                        src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(organiser.name || 'Organizer')}&backgroundColor=b6e3f4,c0aede,d1d4f9`}
+                        alt={organiser.name || 'Organizer'}
+                        className="organiser-avatar-img dicebear-avatar"
+                      />
                     )}
                   </div>
                   <div className="organiser-meta">
@@ -1371,9 +1356,11 @@ const EventDetails = () => {
                           {att.userProfileImage ? (
                             <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
                           ) : (
-                            <div className="attendee-avatar-placeholder">
-                              {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
-                            </div>
+                            <img
+                              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                              alt={att.userName || 'Attendee'}
+                              className="attendee-avatar-img dicebear-avatar"
+                            />
                           )}
                         </div>
                       ))}
@@ -1387,9 +1374,11 @@ const EventDetails = () => {
                         {att.userProfileImage ? (
                           <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
                         ) : (
-                          <div className="attendee-avatar-placeholder">
-                            {att.userName ? att.userName.charAt(0).toUpperCase() : <User size={14} />}
-                          </div>
+                          <img
+                            src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                            alt={att.userName || 'Attendee'}
+                            className="attendee-avatar-img dicebear-avatar"
+                          />
                         )}
                       </div>
                     ))

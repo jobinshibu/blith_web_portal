@@ -136,34 +136,43 @@ const EventBookingPage = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [attendee, setAttendee] = useState({ name: '', email: '', phone: '' });
 
-  // Load attendee details from sessionStorage on mount
+  // Load attendee details from sessionStorage on mount and listen for session changes
   useEffect(() => {
-    try {
-      const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
-      if (cachedDetails) {
-        const parsed = JSON.parse(cachedDetails);
-        setAttendee(prev => ({
-          ...prev,
-          name: parsed.name || prev.name,
-          email: parsed.email || prev.email,
-          phone: parsed.phone || prev.phone
-        }));
+    const syncDetails = () => {
+      try {
+        const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+        if (cachedDetails) {
+          const parsed = JSON.parse(cachedDetails);
+          setAttendee(prev => {
+            if (prev.name === parsed.name && prev.email === parsed.email && prev.phone === parsed.phone) {
+              return prev;
+            }
+            return {
+              name: parsed.name || '',
+              email: parsed.email || '',
+              phone: parsed.phone || ''
+            };
+          });
+        } else {
+          setAttendee(prev => {
+            if (prev.name === '' && prev.email === '' && prev.phone === '') return prev;
+            return { name: '', email: '', phone: '' };
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to load checkout details from session:", err);
       }
-    } catch (err) {
-      console.warn("Failed to load checkout details from session:", err);
-    }
+    };
+
+    syncDetails();
+
+    window.addEventListener('session-user-changed', syncDetails);
+    return () => {
+      window.removeEventListener('session-user-changed', syncDetails);
+    };
   }, []);
 
-  // Save attendee details to sessionStorage when they change
-  useEffect(() => {
-    if (attendee.name || attendee.email || attendee.phone) {
-      try {
-        sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify(attendee));
-      } catch (err) {
-        console.warn("Failed to save checkout details to session:", err);
-      }
-    }
-  }, [attendee]);
+  // Removed real-time save effect to prevent avatar updating letter-by-letter as user types
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [bookingId, setBookingId] = useState('');
@@ -171,6 +180,7 @@ const EventBookingPage = () => {
   const [showErrors, setShowErrors] = useState(false);
   const [isVerifyingUser, setIsVerifyingUser] = useState(false);
   const [resolvedUserId, setResolvedUserId] = useState(null);
+
 
   // Coupon state
   const [filteredCoupons, setFilteredCoupons] = useState([]);
@@ -1034,6 +1044,20 @@ const EventBookingPage = () => {
       // Update userId for coupon context so re-fetch filters properly
       if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
 
+      // Save user profile state and dispatch change event only when user clicks Proceed to Payment
+      try {
+        sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+          name: attendee.name,
+          email: attendee.email,
+          phone: attendee.phone,
+          uid: uId,
+          profilePic: userProfileImage || ""
+        }));
+        window.dispatchEvent(new CustomEvent('session-user-changed'));
+      } catch (err) {
+        console.warn("Failed to save checkout details to session on proceed:", err);
+      }
+
       // Validate coupon reservation is still live
       if (appliedCoupon && couponSession) {
         if (!couponReservedUntil || couponReservedUntil < new Date()) {
@@ -1864,6 +1888,14 @@ const EventBookingPage = () => {
           {/* Attendee Details */}
           <div className="section-block attendee-details-block glass">
             <h3>{isMultiDay ? '3. Contact Information' : '2. Contact Information'}</h3>
+
+            {resolvedUserId && attendee.name && (
+              <div className="user-logged-in-message" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '0.5rem', marginBottom: '1.25rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
+                <CheckCircle size={16} style={{ color: '#10B981', flexShrink: 0 }} />
+                <span>Logged in as {attendee.name}</span>
+              </div>
+            )}
+
             <div className="input-group">
               <label htmlFor="name">Full Name <span className="required-star">*</span></label>
               <div className="input-wrapper">

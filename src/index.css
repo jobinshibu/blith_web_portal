@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700;800&family=Playfair+Display:wght@600;700;800&family=Syne:wght@700;800&family=Urbanist:wght@700;800&family=Cinzel:wght@600;700;800&family=Unbounded:wght@700;800&display=swap');
 
 :root {
   --lavender-600: #7C3AED;
@@ -17,6 +17,7 @@
   
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
+  --font-display: 'Cinzel', serif;
   
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);

@@ -133,18 +133,58 @@
     .back-link-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      color: $text-700;
-      text-decoration: none;
+      justify-content: center;
+      align-self: flex-start;
+      gap: 0;
+      color: $text-600;
+      font-family: $font-heading;
       font-weight: 600;
-      transition: color 0.3s ease;
-      background: none;
-      border: none;
+      font-size: 0.9rem;
+      letter-spacing: 0.01em;
+      background: rgba($white, 0.95);
+      border: 1px solid rgba($lavender-200, 0.8);
+      border-radius: 2rem;
+      padding: 0.55rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
       cursor: pointer;
-      padding: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+      svg {
+        color: $text-500;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+      }
+
+      .text {
+        max-width: 0;
+        opacity: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        margin-left: 0;
+        transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin-left 0.3s ease;
+      }
 
       &:hover {
         color: $lavender-600;
+        background: $white;
+        border-color: $lavender-400;
+        box-shadow: 0 6px 16px rgba($lavender-600, 0.08);
+        padding: 0.55rem 1.25rem;
+
+        svg {
+          color: $lavender-600;
+          transform: translateX(-2px);
+        }
+
+        .text {
+          max-width: 120px;
+          opacity: 1;
+          margin-left: 0.5rem;
+        }
+      }
+
+      &:active {
+        transform: scale(0.96);
       }
     }
   }
@@ -1116,9 +1156,21 @@
         color: #fff;
         padding: 0.5rem;
         border-radius: 50%;
+        border: none;
+        box-shadow: none;
 
         .text {
           display: none;
+        }
+
+        &:hover {
+          background: rgba(0, 0, 0, 0.6);
+          color: #fff;
+          box-shadow: none;
+
+          svg {
+            transform: none;
+          }
         }
       }
 
@@ -1903,6 +1955,15 @@
         font-size: 0.75rem;
       }
 
+      // DiceBear illustrated avatars — ensure crisp fill without distortion
+      .dicebear-avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
+      }
+
       &.attendee-avatar-more {
         background: linear-gradient(135deg, #7C3AED, #584CF4);
         color: white;
@@ -2125,6 +2186,78 @@
       width: 100%;
       text-align: left;
       margin-bottom: 0.5rem;
+    }
+
+    .attendees-app-download {
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .attendees-app-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+
+      &::before,
+      &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #E5E7EB;
+      }
+
+      span {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #9CA3AF;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
+    }
+
+    .attendees-app-section {
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      border-radius: 1rem;
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .attendees-app-info {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+
+      .attendees-app-logo {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        object-fit: cover;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+      }
+
+      .attendees-app-name {
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #fff;
+        margin: 0;
+        line-height: 1.2;
+      }
+
+      .attendees-app-tagline {
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.55);
+        margin: 0;
+        font-weight: 400;
+      }
+    }
+
+    .attendees-app-badges {
+      display: flex;
+      gap: 0.5rem;
     }
 
     .section-subtitle {
