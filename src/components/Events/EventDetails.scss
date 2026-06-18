@@ -290,6 +290,7 @@
     }
   }
 
+
   .venue-details-card {
     .venue-info {
       display: grid;
@@ -684,6 +685,29 @@
           box-shadow: none !important;
           cursor: not-allowed !important;
           transform: none !important;
+        }
+      }
+
+      .support-query-line {
+        margin-top: 0.85rem;
+        padding-top: 0.85rem;
+        border-top: 1px dashed rgba($lavender-300, 0.5);
+        font-size: 0.82rem;
+        color: $text-500;
+        text-align: center;
+        font-weight: 500;
+        line-height: 1.5;
+
+        a {
+          color: $lavender-600;
+          font-weight: 700;
+          text-decoration: none;
+          transition: color 0.2s ease;
+
+          &:hover {
+            color: darken(#7C3AED, 10%);
+            text-decoration: underline;
+          }
         }
       }
     }

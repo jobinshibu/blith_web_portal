@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -533,30 +533,7 @@ const EventDetails = () => {
   const [attendeesCount, setAttendeesCount] = useState(0);
   const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [supportInfo, setSupportInfo] = useState({ 
-    phone: '+91 98453 47592', 
-    email: 'hello@blithe.social' 
-  });
-
-  // Fetch support contact details from settings collection
-  useEffect(() => {
-    const fetchSupportSettings = async () => {
-      try {
-        const docRef = doc(db, "settings", "settings");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setSupportInfo({
-            phone: data.contactSupport?.trim() || "+91 98453 47592",
-            email: data.email?.trim() || "hello@blithe.social"
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to fetch support settings, using defaults:", err);
-      }
-    };
-    fetchSupportSettings();
-  }, []);
+  const [settings, setSettings] = useState(null);
 
   // Fetch current user from sessionStorage and Firestore
   useEffect(() => {
@@ -631,6 +608,37 @@ const EventDetails = () => {
     }, 5000);
 
     return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch platform settings for contact support info
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const attempts = [
+        () => getDocs(collection(db, 'appConfig')),
+        () => getDocs(collection(db, 'config')),
+        () => getDocs(collection(db, 'platformSettings')),
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          const snapshot = await attempt();
+          if (!snapshot.empty) {
+            const data = snapshot.docs[0].data();
+            if (data.contactSupport !== undefined || data.email !== undefined) {
+              setSettings(data);
+              return;
+            }
+          }
+        } catch (_) { }
+      }
+      
+      // Fallback
+      setSettings({
+        contactSupport: "+91 98453 47592",
+        email: "hello@blithe.social"
+      });
+    };
+    fetchSettings();
   }, []);
 
   // Fetch attendees for the event
@@ -1277,7 +1285,6 @@ const EventDetails = () => {
                 </div>
               </div>
             )}
-
           </div>
 
           {/* Right Column: Event Details & Action Box */}
@@ -1459,20 +1466,22 @@ const EventDetails = () => {
                 <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
                   <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
                 </p>
-                <div className="support-sidebar-info" style={{ marginTop: '1rem', borderTop: '1px solid rgba(229, 231, 235, 0.5)', paddingTop: '0.85rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#6B7280' }}>
-                  <span>Need assistance?</span>
-                  {supportInfo.phone && (
-                    <a href={`tel:${supportInfo.phone}`} style={{ color: '#4B5563', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#7C3AED'} onMouseLeave={(e) => e.target.style.color = '#4B5563'}>
-                      <Phone size={11} style={{ color: '#7C3AED' }} /> {supportInfo.phone}
-                    </a>
-                  )}
-                  {supportInfo.phone && supportInfo.email && <span style={{ color: '#D1D5DB' }}>|</span>}
-                  {supportInfo.email && (
-                    <a href={`mailto:${supportInfo.email}`} style={{ color: '#4B5563', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#7C3AED'} onMouseLeave={(e) => e.target.style.color = '#4B5563'}>
-                      <Mail size={11} style={{ color: '#7C3AED' }} /> {supportInfo.email}
-                    </a>
-                  )}
-                </div>
+                {(settings?.contactSupport || settings?.email) && (
+                  <p className="support-query-line">
+                    Need Help?{' '}
+                    {settings.contactSupport && (
+                      <a href={`tel:${settings.contactSupport.trim()}`}>
+                        {settings.contactSupport.trim()}
+                      </a>
+                    )}
+                    {settings.contactSupport && settings.email && ' | '}
+                    {settings.email && (
+                      <a href={`mailto:${settings.email.trim()}`}>
+                        {settings.email.trim()}
+                      </a>
+                    )}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1499,6 +1508,7 @@ const EventDetails = () => {
                 </button>
               )}
             </div>
+
 
           </div>
 
