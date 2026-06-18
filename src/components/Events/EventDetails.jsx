@@ -368,42 +368,66 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
 
             {/* All Attendees Section */}
             <div className="all-attendees-section">
-              <p className="section-subtitle">
-                {otherAttendees.length > 0 ? "Others Attending" : ""}
-              </p>
-
               {otherAttendees.length > 0 ? (
-                <div className="attendees-stack">
-                  {otherAttendees.map((att, idx) => (
-                    <div
-                      key={idx}
-                      className="attendee-profile-card"
-                      style={{ zIndex: otherAttendees.length - idx }}
-                    >
-                      <div className="attendee-card-avatar">
-                        {att.userProfileImage ? (
-                          <img src={att.userProfileImage} alt={att.userName} className="attendee-profile-img" />
-                        ) : (
-                          <img
-                            src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
-                            alt={att.userName || 'Attendee'}
-                            className="attendee-profile-img dicebear-avatar"
-                          />
-                        )}
-                      </div>
-                      <div className="attendee-card-info">
-                        <span className="attendee-card-name">{att.userName || 'Attendee'}</span>
-                        <span className="attendee-card-label">Attending</span>
-                      </div>
+                <>
+                  {/* Overlapping avatars row — same design as going-section */}
+                  <div className="modal-attendees-pill">
+                    <div className="attendee-avatars">
+                      {otherAttendees.slice(0, 6).map((att, idx) => (
+                        <div
+                          key={idx}
+                          className="attendee-avatar-wrapper"
+                          style={{ zIndex: otherAttendees.length - idx }}
+                          title={att.userName || 'Attendee'}
+                        >
+                          {att.userProfileImage ? (
+                            <img src={att.userProfileImage} alt={att.userName || 'Attendee'} className="attendee-avatar-img" />
+                          ) : (
+                            <img
+                              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                              alt={att.userName || 'Attendee'}
+                              className="attendee-avatar-img dicebear-avatar"
+                            />
+                          )}
+                        </div>
+                      ))}
+                      {otherAttendees.length > 6 && (
+                        <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 0 }}>
+                          <span>+{otherAttendees.length - 6}</span>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                    <span className="attendees-count-text">
+                      <span className="highlight-count">{otherAttendees.length}</span>{' '}
+                      {otherAttendees.length === 1 ? 'person is' : 'people are'} going
+                    </span>
+                  </div>
+
+                  {/* Name list below avatars */}
+                  {/* <div className="modal-attendees-names">
+                    {otherAttendees.map((att, idx) => (
+                      <div key={idx} className="modal-attendee-row">
+                        <div className="modal-attendee-avatar">
+                          {att.userProfileImage ? (
+                            <img src={att.userProfileImage} alt={att.userName || 'Attendee'} className="attendee-avatar-img" />
+                          ) : (
+                            <img
+                              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                              alt={att.userName || 'Attendee'}
+                              className="attendee-avatar-img dicebear-avatar"
+                            />
+                          )}
+                        </div>
+                        <span className="modal-attendee-name">{att.userName || 'Attendee'}</span>
+                        <span className="modal-attendee-badge">Going</span>
+                      </div>
+                    ))}
+                  </div> */}
+                </>
               ) : (
-                !currentUser && (
-                  <p className="no-attendees-text" style={{ textAlign: 'center', width: '100%', color: 'rgba(255, 255, 255, 0.6)', margin: '1rem 0' }}>
-                    Be the first to secure a spot!
-                  </p>
-                )
+                <p className="no-attendees-text" style={{ textAlign: 'center', width: '100%', color: 'rgba(100,100,120,0.7)', margin: '1rem 0' }}>
+                  Be the first to secure a spot!
+                </p>
               )}
             </div>
 
