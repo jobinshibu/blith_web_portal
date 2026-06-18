@@ -136,50 +136,44 @@
       justify-content: center;
       align-self: flex-start;
       gap: 0;
-      color: $text-600;
+      color: $lavender-600;
       font-family: $font-heading;
       font-weight: 600;
       font-size: 0.9rem;
       letter-spacing: 0.01em;
-      background: rgba($white, 0.95);
-      border: 1px solid rgba($lavender-200, 0.8);
+      background: $white;
+      border: 1px solid $lavender-400;
       border-radius: 2rem;
-      padding: 0.55rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      padding: 0.55rem 1.25rem;
+      box-shadow: 0 6px 16px rgba($lavender-600, 0.08);
       cursor: pointer;
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 
       svg {
-        color: $text-500;
-        transition: all 0.3s ease;
+        color: $lavender-600;
+        transform: translateX(-2px);
         flex-shrink: 0;
+        transition: all 0.3s ease;
       }
 
       .text {
-        max-width: 0;
-        opacity: 0;
+        max-width: 120px;
+        opacity: 1;
         overflow: hidden;
         white-space: nowrap;
-        margin-left: 0;
+        margin-left: 0.5rem;
         transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin-left 0.3s ease;
       }
 
       &:hover {
-        color: $lavender-600;
-        background: $white;
-        border-color: $lavender-400;
-        box-shadow: 0 6px 16px rgba($lavender-600, 0.08);
-        padding: 0.55rem 1.25rem;
+        color: darken(#7C3AED, 8%);
+        background: $lavender-50;
+        border-color: $lavender-500;
+        box-shadow: 0 8px 20px rgba($lavender-600, 0.14);
 
         svg {
-          color: $lavender-600;
-          transform: translateX(-2px);
-        }
-
-        .text {
-          max-width: 120px;
-          opacity: 1;
-          margin-left: 0.5rem;
+          color: darken(#7C3AED, 8%);
+          transform: translateX(-4px);
         }
       }
 
@@ -2759,6 +2753,188 @@
       padding: 0.15rem 0.55rem;
       white-space: nowrap;
       letter-spacing: 0.02em;
+    }
+  }
+}
+
+// ─── Attendees Modal – Download App Section ────────────────────────────────────
+.attendees-app-download {
+  margin-top: 1.25rem;
+
+  .attendees-app-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .attendees-app-section {
+    background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
+    border: 1px solid rgba(124, 58, 237, 0.12);
+    border-radius: 14px;
+    padding: 14px 16px;
+
+    @media (max-width: 480px) {
+      padding: 10px 12px;
+    }
+  }
+
+  .attendees-app-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+
+    .attendees-app-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      object-fit: contain;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.18);
+      flex-shrink: 0;
+      padding: 4px;
+    }
+
+    .attendees-app-name {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: #5B21B6;
+    }
+
+    .attendees-app-tagline {
+      margin: 2px 0 0;
+      font-size: 11px;
+      color: #6B7280;
+      line-height: 1.4;
+    }
+  }
+
+  .attendees-app-badges {
+    display: flex;
+    gap: 10px;
+  }
+}
+
+// ─── Share Modal – App Download Section ───────────────────────────────────────
+.share-app-section {
+  background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
+  border: 1px solid rgba(124, 58, 237, 0.12);
+  border-radius: 14px;
+  padding: 14px 16px;
+
+  @media (max-width: 480px) {
+    padding: 10px 12px;
+  }
+}
+
+.share-app-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+
+  .share-app-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    object-fit: contain;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.18);
+    flex-shrink: 0;
+    padding: 4px;
+  }
+
+  .share-app-name {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #5B21B6;
+  }
+
+  .share-app-tagline {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #6B7280;
+    line-height: 1.4;
+  }
+}
+
+.share-app-badges {
+  display: flex;
+  gap: 10px;
+}
+
+// ─── App Store / Play Store Badge Buttons (shared across modals) ──────────────
+.share-badge-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #111827;
+  color: #fff;
+  text-decoration: none;
+  padding: 9px 14px;
+  border-radius: 10px;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+
+  &:hover {
+    background: #1F2937;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  svg {
+    flex-shrink: 0;
+    opacity: 0.95;
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1;
+
+    .badge-sub {
+      font-size: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+
+    .badge-main {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 7px 10px;
+
+    div .badge-main {
+      font-size: 11px;
     }
   }
 }

@@ -567,11 +567,13 @@
     margin-bottom: 16px;
 
     .app-logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      object-fit: cover;
-      box-shadow: 0 4px 10px rgba(124, 58, 237, 0.15);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      object-fit: contain;
+      background: #fff;
+      padding: 4px;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.18);
       flex-shrink: 0;
     }
 
