@@ -569,7 +569,7 @@ const Events = () => {
     }
   }, [rawEvents, reduxLoading, userLocation]);
 
-  // Request location on mount — triggers browser permission popup if not yet granted
+  // Request location on mount — triggers browser permission popup after a 5s delay if not cached
   useEffect(() => {
     const cached = localStorage.getItem('blithe_user_location');
     if (cached) {
@@ -579,21 +579,26 @@ const Events = () => {
       } catch (e) { }
     }
     if (!navigator.geolocation) return;
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const loc = { lat: latitude, lng: longitude, type: 'precise' };
-        setUserLocation(loc);
-        localStorage.setItem('blithe_user_location', JSON.stringify(loc));
-        setIsLocating(false);
-      },
-      () => {
-        // User denied or error — fail silently, nearby filter will handle it
-        setIsLocating(false);
-      },
-      { maximumAge: 60000, timeout: 10000, enableHighAccuracy: false }
-    );
+
+    const timer = setTimeout(() => {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const loc = { lat: latitude, lng: longitude, type: 'precise' };
+          setUserLocation(loc);
+          localStorage.setItem('blithe_user_location', JSON.stringify(loc));
+          setIsLocating(false);
+        },
+        () => {
+          // User denied or error — fail silently, nearby filter will handle it
+          setIsLocating(false);
+        },
+        { maximumAge: 60000, timeout: 10000, enableHighAccuracy: false }
+      );
+    }, 5000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Close calendar dropdown when clicking outside

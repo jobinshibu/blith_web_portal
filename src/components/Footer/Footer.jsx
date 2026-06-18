@@ -70,7 +70,7 @@ const Footer = () => {
           <p>&copy; {new Date().getFullYear()} Blithe. All rights reserved.</p>
           <div className="bottom-links">
             <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
+            <Link to="/terms">Terms of Service</Link>
             <a href="#">Cookie Policy</a>
           </div>
         </div>
