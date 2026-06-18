@@ -6,6 +6,7 @@ import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 
 import { db } from '../../firebase';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
+import { updateUserInterests } from '../../services/userService';
 import Button from '../Button/Button';
 import logo from '../../assets/logo.jpeg';
 import logoTransparent from '../../assets/logo-transparent.png';
@@ -48,7 +49,8 @@ const processTags = (tagsInput) => {
 };
 
 // ─── Share Modal ─────────────────────────────────────────────────────────────
-const ShareModal = ({ event, onClose }) => {
+// eslint-disable-next-line react/prop-types
+const ShareModal = ({ event, onClose, onShare }) => {
   const [copied, setCopied] = useState(false);
   const [copiedSocial, setCopiedSocial] = useState(null);
   const shareUrl = window.location.href;
@@ -82,12 +84,14 @@ const ShareModal = ({ event, onClose }) => {
 
     if (success) {
       setCopied(true);
+      if (onShare) onShare();
       setTimeout(() => setCopied(false), 2500);
     }
     return success;
   };
 
   const handleSocialClick = async (e, s) => {
+    if (onShare) onShare();
     if (s.id === 'instagram') {
       e.preventDefault();
       const success = await handleCopy();
@@ -540,44 +544,75 @@ const EventDetails = () => {
     const fetchCurrentUserProfile = async () => {
       try {
         const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+        console.log("[CurrentUser Debug] cachedDetails from sessionStorage:", cachedDetails);
         if (cachedDetails) {
           const parsed = JSON.parse(cachedDetails);
           const email = parsed.email?.trim().toLowerCase();
           const phone = parsed.phone?.trim();
+          const uid = parsed.uid;
 
+          // 1. Try UID lookup directly (most reliable)
+          if (uid) {
+            console.log("[CurrentUser Debug] Attempting Firestore lookup by UID:", uid);
+            const userDocRef = doc(db, "users", uid);
+            const userSnap = await getDoc(userDocRef);
+            if (userSnap.exists()) {
+              const uData = { uid: userSnap.id, ...userSnap.data() };
+              setCurrentUser(uData);
+              console.log("[CurrentUser Debug] Resolved user profile from Firestore by UID:", uData);
+              return;
+            } else {
+              console.warn("[CurrentUser Debug] User doc does not exist for UID:", uid);
+            }
+          }
+
+          // 2. Try Email lookup
           if (email) {
+            console.log("[CurrentUser Debug] Attempting Firestore lookup by email:", email);
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("email", "==", email));
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty) {
               const userDoc = querySnapshot.docs[0];
-              setCurrentUser({ uid: userDoc.id, ...userDoc.data() });
+              const uData = { uid: userDoc.id, ...userDoc.data() };
+              setCurrentUser(uData);
+              console.log("[CurrentUser Debug] Resolved user profile from Firestore by email:", uData);
               return;
             }
           }
 
+          // 3. Try Phone lookup
           if (phone) {
+            console.log("[CurrentUser Debug] Attempting Firestore lookup by phoneNo:", phone);
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("phoneNo", "==", phone));
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty) {
               const userDoc = querySnapshot.docs[0];
-              setCurrentUser({ uid: userDoc.id, ...userDoc.data() });
+              const uData = { uid: userDoc.id, ...userDoc.data() };
+              setCurrentUser(uData);
+              console.log("[CurrentUser Debug] Resolved user profile from Firestore by phoneNo:", uData);
               return;
             }
           }
 
+          // 4. Fallback to session details
           if (parsed.name) {
-            setCurrentUser({
+            const fallbackUser = {
+              uid: uid || parsed.bookingId || '',
               name: parsed.name,
               email: parsed.email || '',
               phoneNo: parsed.phone || '',
-              profilePic: ''
-            });
+              profilePic: parsed.profilePic || ''
+            };
+            setCurrentUser(fallbackUser);
+            console.log("[CurrentUser Debug] Fell back to cached session user (not found in Firestore):", fallbackUser);
           }
+        } else {
+          console.log("[CurrentUser Debug] No cached user found in sessionStorage.");
         }
       } catch (err) {
-        console.warn("[CurrentUser] Failed to fetch current user profile:", err);
+        console.warn("[CurrentUser Debug] Failed to fetch current user profile:", err);
       }
     };
     fetchCurrentUserProfile();
@@ -721,6 +756,61 @@ const EventDetails = () => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const hasLoggedView = useRef(false);
+  const hasLoggedShare = useRef(false);
+
+  // Reset logged states on event ID change
+  useEffect(() => {
+    hasLoggedView.current = false;
+    hasLoggedShare.current = false;
+  }, [id]);
+
+  // Log viewEvent interest update (score = 1) when both user and event details are loaded
+  useEffect(() => {
+    console.log("[Interests Debug] viewEvent effect triggered. Details:", {
+      userId: currentUser?.uid,
+      eventCategory: event?.category,
+      eventId: event?.id,
+      routeId: id,
+      hasLoggedView: hasLoggedView.current
+    });
+    if (currentUser?.uid && event?.category && event?.id === id && !hasLoggedView.current) {
+      hasLoggedView.current = true;
+      console.log(`[Interests Debug] Invoking updateUserInterests for viewEvent. Category: '${event.category}', UID: '${currentUser.uid}'`);
+      updateUserInterests(currentUser.uid, event.category, 1)
+        .then(() => console.log("[Interests Debug] viewEvent update finished."))
+        .catch(err => console.error("[Interests Debug] viewEvent update failed:", err));
+    } else {
+      console.log("[Interests Debug] viewEvent conditions not satisfied:", {
+        hasUid: !!currentUser?.uid,
+        hasCategory: !!event?.category,
+        idMatch: event?.id === id,
+        notAlreadyLogged: !hasLoggedView.current
+      });
+    }
+  }, [currentUser?.uid, event?.category, event?.id, id]);
+
+  const handleShareEvent = () => {
+    console.log("[Interests Debug] handleShareEvent called. Details:", {
+      userId: currentUser?.uid,
+      eventCategory: event?.category,
+      hasLoggedShare: hasLoggedShare.current
+    });
+    if (currentUser?.uid && event?.category && !hasLoggedShare.current) {
+      hasLoggedShare.current = true;
+      console.log(`[Interests Debug] Invoking updateUserInterests for shareEvent. Category: '${event.category}', UID: '${currentUser.uid}'`);
+      updateUserInterests(currentUser.uid, event.category, 1)
+        .then(() => console.log("[Interests Debug] shareEvent update finished."))
+        .catch(err => console.error("[Interests Debug] shareEvent update failed:", err));
+    } else {
+      console.log("[Interests Debug] shareEvent conditions not satisfied:", {
+        hasUid: !!currentUser?.uid,
+        hasCategory: !!event?.category,
+        notAlreadyLogged: !hasLoggedShare.current
+      });
+    }
+  };
+
   const tagsRef = useRef(null);
   const [showTagsScrollBtn, setShowTagsScrollBtn] = useState(false);
   const [isTagsScrollAtEnd, setIsTagsScrollAtEnd] = useState(false);
@@ -762,6 +852,7 @@ const EventDetails = () => {
   }, [dispatch, id]);
 
   const handleShareClick = () => {
+    handleShareEvent();
     setShowShareModal(true);
   };
 
@@ -1584,7 +1675,7 @@ const EventDetails = () => {
       {/* Share Modal */}
       <AnimatePresence>
         {showShareModal && event && (
-          <ShareModal event={event} onClose={() => setShowShareModal(false)} />
+          <ShareModal event={event} onClose={() => setShowShareModal(false)} onShare={handleShareEvent} />
         )}
       </AnimatePresence>
 

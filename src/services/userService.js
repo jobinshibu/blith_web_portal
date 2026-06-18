@@ -198,8 +198,12 @@ export const registerNewUser = async (userData) => {
  * @param {number} score - Interest score to add (e.g. 5)
  */
 export const updateUserInterests = async (uid, categoryNameOrId, score) => {
+  console.log(`[Interests Debug] updateUserInterests called. uid: '${uid}', categoryNameOrId: '${categoryNameOrId}', score: ${score}`);
   try {
-    if (!uid || !categoryNameOrId) return;
+    if (!uid || !categoryNameOrId) {
+      console.warn("[Interests Debug] Missing uid or categoryNameOrId:", { uid, categoryNameOrId });
+      return;
+    }
 
     let categoryId = categoryNameOrId;
 
@@ -207,6 +211,7 @@ export const updateUserInterests = async (uid, categoryNameOrId, score) => {
       const categoriesRef = collection(db, 'eventCategories');
       const q = query(categoriesRef, where('deleted', '==', false));
       const querySnapshot = await getDocs(q);
+      console.log(`[Interests Debug] Fetched ${querySnapshot.size} eventCategories.`);
 
       let foundIdByDocId = null;
       let foundIdByName = null;
@@ -226,8 +231,9 @@ export const updateUserInterests = async (uid, categoryNameOrId, score) => {
 
       // Prefer matching by docId, then by name, fallback to categoryNameOrId
       categoryId = foundIdByDocId || foundIdByName || categoryNameOrId;
+      console.log(`[Interests Debug] Resolved category ID: '${categoryId}' (original: '${categoryNameOrId}')`);
     } catch (catErr) {
-      console.warn("[Interests] Failed to resolve category ID from name/ID:", catErr);
+      console.warn("[Interests Debug] Failed to resolve category ID from name/ID:", catErr);
     }
 
     const userDocRef = doc(db, 'users', uid);
@@ -242,14 +248,15 @@ export const updateUserInterests = async (uid, categoryNameOrId, score) => {
         [categoryId]: newScore
       };
 
+      console.log(`[Interests Debug] Updating Firestore interests for user '${uid}':`, updatedInterests);
       await setDoc(userDocRef, {
         interests: updatedInterests
       }, { merge: true });
-      console.log(`[Interests] Updated user ${uid} interests for category ID '${categoryId}':`, updatedInterests);
+      console.log(`[Interests Debug] Successfully updated user '${uid}' interests for category '${categoryId}':`, updatedInterests);
     } else {
-      console.warn(`[Interests] User document not found for uid: ${uid}`);
+      console.warn(`[Interests Debug] User document not found in Firestore for uid: '${uid}'`);
     }
   } catch (err) {
-    console.error("[Interests] Failed to update user interests:", err);
+    console.error("[Interests Debug] Failed to update user interests:", err);
   }
 };
