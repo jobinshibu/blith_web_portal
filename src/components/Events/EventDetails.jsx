@@ -371,35 +371,32 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
               <p className="section-subtitle">
                 {otherAttendees.length > 0 ? "Others Attending" : ""}
               </p>
-              
+
               {otherAttendees.length > 0 ? (
-                <div className="attendees-scroll-container">
-                  <div className="attendees-grid">
-                    {otherAttendees.slice(0, 4).map((att, idx) => (
-                      <div key={idx} className="attendee-profile-item">
-                        <div className="attendee-avatar-circle">
-                          {att.userProfileImage ? (
-                            <img src={att.userProfileImage} alt={att.userName} className="attendee-profile-img" />
-                          ) : (
-                            <img
-                              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
-                              alt={att.userName || 'Attendee'}
-                              className="attendee-profile-img dicebear-avatar"
-                            />
-                          )}
-                        </div>
-                        <span className="attendee-name">{att.userName}</span>
+                <div className="attendees-stack">
+                  {otherAttendees.map((att, idx) => (
+                    <div
+                      key={idx}
+                      className="attendee-profile-card"
+                      style={{ zIndex: otherAttendees.length - idx }}
+                    >
+                      <div className="attendee-card-avatar">
+                        {att.userProfileImage ? (
+                          <img src={att.userProfileImage} alt={att.userName} className="attendee-profile-img" />
+                        ) : (
+                          <img
+                            src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                            alt={att.userName || 'Attendee'}
+                            className="attendee-profile-img dicebear-avatar"
+                          />
+                        )}
                       </div>
-                    ))}
-                    {otherAttendees.length > 4 && (
-                      <div className="attendee-profile-item more-item">
-                        <div className="attendee-avatar-circle more-circle">
-                          <span>+{otherAttendees.length - 4}</span>
-                        </div>
-                        <span className="attendee-name">More</span>
+                      <div className="attendee-card-info">
+                        <span className="attendee-card-name">{att.userName || 'Attendee'}</span>
+                        <span className="attendee-card-label">Attending</span>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 !currentUser && (
@@ -666,7 +663,7 @@ const EventDetails = () => {
           }
         } catch (_) { }
       }
-      
+
       // Fallback
       setSettings({
         contactSupport: "+91 98453 47592",
@@ -928,7 +925,7 @@ const EventDetails = () => {
                   id: organiserSnap.id,
                   name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
                   image: orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
-                  about: orgData.about || orgData.description || ""
+                  about: orgData.about || orgData.description || orgData.bio || ""
                 });
               } else {
                 setOrganiser(null);
@@ -1373,13 +1370,11 @@ const EventDetails = () => {
                       <Check size={12} strokeWidth={3} className="check-icon" />
                       Verified Organiser
                     </span>
+                    {organiser.about && (
+                      <p className="organiser-about">{organiser.about}</p>
+                    )}
                   </div>
                 </div>
-                {organiser.about && (
-                  <p className="organiser-about">
-                    {organiser.about}
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -1688,8 +1683,8 @@ const EventDetails = () => {
       {/* Attendees Modal */}
       <AnimatePresence>
         {showAttendeesPopup && (
-          <AttendeesModal 
-            onClose={() => setShowAttendeesPopup(false)} 
+          <AttendeesModal
+            onClose={() => setShowAttendeesPopup(false)}
             attendeesList={attendeesList}
             currentUser={currentUser}
           />

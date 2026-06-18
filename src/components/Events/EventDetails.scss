@@ -871,16 +871,6 @@
         }
       }
     }
-
-    .organiser-about {
-      margin-top: 1.25rem;
-      padding-top: 1rem;
-      border-top: 1px dashed rgba($lavender-300, 0.4);
-      color: $text-600;
-      font-size: 0.92rem;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
   }
 
   // Terms and Conditions specific styles
@@ -2595,6 +2585,89 @@
 
     &:hover {
       color: #7C3AED;
+    }
+  }
+}
+
+// ─── Organiser About ──────────────────────────────────────────────────────────
+.organiser-about {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: rgba(55, 65, 81, 0.85);
+  margin-top: 0.5rem;
+  font-weight: 400;
+}
+
+// ─── Attendees Stacked Cards ──────────────────────────────────────────────────
+.attendees-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.25rem 0;
+
+  .attendee-profile-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.75rem 1.1rem;
+    border-radius: 1.1rem;
+    background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(243,244,246,0.9) 100%);
+    border: 1px solid rgba(124, 58, 237, 0.12);
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.06);
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+    cursor: default;
+
+    &:not(:first-child) {
+      margin-top: -10px;
+    }
+
+    &:hover {
+      transform: translateY(-3px) scale(1.01);
+      box-shadow: 0 6px 18px rgba(124, 58, 237, 0.13), 0 2px 6px rgba(0,0,0,0.08);
+      z-index: 100 !important;
+    }
+
+    .attendee-card-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 2.5px solid #fff;
+      box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15), 0 3px 8px rgba(0,0,0,0.1);
+      background: #f3f4f6;
+
+      .attendee-profile-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .attendee-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex: 1;
+      min-width: 0;
+
+      .attendee-card-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .attendee-card-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #7C3AED;
+        letter-spacing: 0.02em;
+        opacity: 0.85;
+      }
     }
   }
 }
