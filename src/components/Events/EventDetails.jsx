@@ -327,6 +327,7 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
   const currentUserId = currentUser?.uid;
   const currentUserName = currentUser?.name;
 
+  // Filter out the current user from the displayed avatar list (they're already counted)
   const otherAttendees = attendeesList.filter(att => {
     if (!currentUser) return true;
     if (att.userId && currentUserId && att.userId === currentUserId) return false;
@@ -335,6 +336,9 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
     }
     return true;
   });
+
+  // Always use the full list length as the total count (same as event detail page)
+  const totalCount = attendeesList.length;
 
   return (
     <AnimatePresence>
@@ -368,16 +372,16 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
 
             {/* All Attendees Section */}
             <div className="all-attendees-section">
-              {otherAttendees.length > 0 ? (
+              {totalCount > 0 ? (
                 <>
                   {/* Overlapping avatars row — same design as going-section */}
                   <div className="modal-attendees-pill">
                     <div className="attendee-avatars">
-                      {otherAttendees.slice(0, 6).map((att, idx) => (
+                      {attendeesList.slice(0, 6).map((att, idx) => (
                         <div
                           key={idx}
                           className="attendee-avatar-wrapper"
-                          style={{ zIndex: otherAttendees.length - idx }}
+                          style={{ zIndex: attendeesList.length - idx }}
                           title={att.userName || 'Attendee'}
                         >
                           {att.userProfileImage ? (
@@ -391,15 +395,15 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                           )}
                         </div>
                       ))}
-                      {otherAttendees.length > 6 && (
+                      {attendeesList.length > 6 && (
                         <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 0 }}>
-                          <span>+{otherAttendees.length - 6}</span>
+                          <span>+{attendeesList.length - 6}</span>
                         </div>
                       )}
                     </div>
                     <span className="attendees-count-text">
-                      <span className="highlight-count">{otherAttendees.length}</span>{' '}
-                      {otherAttendees.length === 1 ? 'person is' : 'people are'} going
+                      <span className="highlight-count">{totalCount}</span>{' '}
+                      {totalCount === 1 ? 'person is' : 'people are'} going
                     </span>
                   </div>
 
@@ -433,13 +437,13 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
 
             {/* Download the Blithe App */}
             <div className="attendees-app-download">
-              <div className="attendees-app-divider"><span>Also available on</span></div>
+              <div className="attendees-app-divider"><span>Download the app to see the attendees near you</span></div>
               <div className="attendees-app-section">
                 <div className="attendees-app-info">
                   <img src={logoTransparent} alt="Blithe App" className="attendees-app-logo" />
                   <div>
                     <p className="attendees-app-name">Blithe</p>
-                    <p className="attendees-app-tagline">Discover events on the go</p>
+                    <p className="attendees-app-tagline">See the attendees near you</p>
                   </div>
                 </div>
                 <div className="attendees-app-badges">
@@ -1539,7 +1543,7 @@ const EventDetails = () => {
                 </p>
                 {(settings?.contactSupport || settings?.email) && (
                   <p className="support-query-line">
-                    Need Help?{' '}
+                    Talk to Us?{' '}
                     {settings.contactSupport && (
                       <a href={`tel:${settings.contactSupport.trim()}`}>
                         {settings.contactSupport.trim()}

@@ -2214,7 +2214,7 @@
 
     .attendees-app-download {
       width: 100%;
-      margin-top: 1rem;
+      margin-top: 1.25rem;
     }
 
     .attendees-app-divider {
@@ -2234,9 +2234,9 @@
       span {
         font-size: 0.65rem;
         font-weight: 600;
-        color: #9CA3AF;
+        color: #7C3AED;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.07em;
         white-space: nowrap;
       }
     }
@@ -2689,9 +2689,11 @@
   &::-webkit-scrollbar {
     width: 4px;
   }
+
   &::-webkit-scrollbar-track {
     background: transparent;
   }
+
   &::-webkit-scrollbar-thumb {
     background: rgba(124, 58, 237, 0.2);
     border-radius: 2px;
@@ -2720,7 +2722,7 @@
       flex-shrink: 0;
       border: 2px solid #fff;
       background: #f3f4f6;
-      box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12), 0 2px 6px rgba(0,0,0,0.07);
+      box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12), 0 2px 6px rgba(0, 0, 0, 0.07);
 
       .attendee-avatar-img {
         width: 100%;
