@@ -927,7 +927,8 @@ const EventDetails = () => {
                 setOrganiser({
                   id: organiserSnap.id,
                   name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
-                  image: orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || ""
+                  image: orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
+                  about: orgData.about || orgData.description || ""
                 });
               } else {
                 setOrganiser(null);
@@ -1374,6 +1375,11 @@ const EventDetails = () => {
                     </span>
                   </div>
                 </div>
+                {organiser.about && (
+                  <p className="organiser-about">
+                    {organiser.about}
+                  </p>
+                )}
               </div>
             )}
           </div>
