@@ -71,7 +71,7 @@ const ProfileDashboardModal = ({ isOpen, onClose, user }) => {
               <div className="app-download-header">
                 <img src={logoTransparent} alt="Blithe App" className="app-logo" />
                 <div>
-                  <h4>Get the Blithe App</h4>
+                  <h4>To see more info, download</h4>
                   <p>Scan tickets, browse offline, & receive instant event alerts.</p>
                 </div>
               </div>
