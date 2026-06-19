@@ -738,13 +738,20 @@ const EventBookingPage = () => {
   const gstPercentage = (settings && platformFeeVal > 0) ? (parseFloat(settings.gst) || 0.0) : 0.0;
   const gstAmount = platformFeeVal * (gstPercentage / 100);
 
+  const getWelcomeDiscountValueText = (coupon, halved) => {
+    if (!coupon) return '';
+    const value = halved ? coupon.discountValue / 2 : coupon.discountValue;
+    return coupon.percentage ? `${value}%` : `₹${value}`;
+  };
+
   const calculateDiscount = (coupon, currentSubtotal) => {
     if (!coupon || currentSubtotal < (coupon.minOrderAmount || 0)) return 0;
+    const discountVal = coupon.type === 'welcome' ? coupon.discountValue / 2 : coupon.discountValue;
     if (coupon.percentage) {
-      const computed = Math.round(currentSubtotal * (coupon.discountValue / 100));
+      const computed = Math.round(currentSubtotal * (discountVal / 100));
       return coupon.maxDiscount ? Math.min(computed, coupon.maxDiscount) : computed;
     }
-    return coupon.discountValue;
+    return discountVal;
   };
 
   const discountAmount = calculateDiscount(appliedCoupon, subtotal);
@@ -895,7 +902,7 @@ const EventBookingPage = () => {
     const couponMap = appliedCoupon ? {
       code: String(appliedCoupon.code),
       discount: Number(discountAmount),
-      discountValue: Number(appliedCoupon.discountValue),
+      discountValue: appliedCoupon.type === 'welcome' ? Number(appliedCoupon.discountValue) / 2 : Number(appliedCoupon.discountValue),
       id: String(appliedCoupon.id),
       percentage: Boolean(appliedCoupon.percentage)
     } : {};
@@ -1148,7 +1155,7 @@ const EventBookingPage = () => {
         const couponMap = appliedCoupon ? {
           code: String(appliedCoupon.code),
           discount: Number(discountAmount),
-          discountValue: Number(appliedCoupon.discountValue),
+          discountValue: appliedCoupon.type === 'welcome' ? Number(appliedCoupon.discountValue) / 2 : Number(appliedCoupon.discountValue),
           id: String(appliedCoupon.id),
           percentage: Boolean(appliedCoupon.percentage)
         } : {};
@@ -2133,6 +2140,33 @@ const EventBookingPage = () => {
                   })}
               </div>
             )}
+            {(() => {
+              const welcomeCoupon = appliedCoupon && appliedCoupon.type === 'welcome'
+                ? appliedCoupon
+                : filteredCoupons.find(c => c.type === 'welcome');
+              if (!welcomeCoupon) return null;
+              const halvedText = getWelcomeDiscountValueText(welcomeCoupon, true);
+              const originalText = getWelcomeDiscountValueText(welcomeCoupon, false);
+              return (
+                <div className="welcome-download-banner">
+                  <div className="banner-icon-container">🎉</div>
+                  <div className="banner-content">
+                    <h4 className="banner-title">Download the App & Unlock Full Savings</h4>
+                    <p className="banner-message">
+                      You're currently receiving a special web discount of <strong>{halvedText} OFF</strong>. Download the app and save more with the full <strong>{originalText} Welcome Offer</strong>.
+                    </p>
+                  </div>
+                  <a 
+                    href="https://play.google.com/store" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="banner-download-btn"
+                  >
+                    Download App
+                  </a>
+                </div>
+              );
+            })()}
           </div>}
 
         </div>

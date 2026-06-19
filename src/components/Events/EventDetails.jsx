@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -11,6 +11,17 @@ import Button from '../Button/Button';
 import logo from '../../assets/logo.jpeg';
 import logoTransparent from '../../assets/logo-transparent.png';
 import './EventDetails.scss';
+
+// Custom SVG Brand Icons since they were removed from Lucide v1.0+
+const FacebookIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+);
+const TwitterIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
+);
+const InstagramIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+);
 
 // Helper to calculate distance in km
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -907,8 +918,12 @@ const EventDetails = () => {
                 setOrganiser({
                   id: organiserSnap.id,
                   name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
-                  image: orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
-                  about: orgData.about || orgData.description || orgData.bio || ""
+                  image: orgData.profileImage || orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
+                  about: orgData.about || orgData.description || orgData.bio || "",
+                  facebookUrl: orgData.facebookUrl || orgData.facebook || "",
+                  instagramUrl: orgData.instagramUrl || orgData.instagram || "",
+                  twitterUrl: orgData.twitterUrl || orgData.twitter || "",
+                  websiteUrl: orgData.websiteUrl || orgData.website || ""
                 });
               } else {
                 setOrganiser(null);
@@ -1353,6 +1368,30 @@ const EventDetails = () => {
                       <Check size={12} strokeWidth={3} className="check-icon" />
                       Verified Organiser
                     </span>
+                    {(organiser.instagramUrl || organiser.facebookUrl || organiser.twitterUrl || organiser.websiteUrl) && (
+                      <div className="organiser-socials">
+                        {organiser.instagramUrl && (
+                          <a href={organiser.instagramUrl} target="_blank" rel="noopener noreferrer" className="social-link instagram" aria-label="Instagram">
+                            <InstagramIcon size={16} />
+                          </a>
+                        )}
+                        {organiser.facebookUrl && (
+                          <a href={organiser.facebookUrl} target="_blank" rel="noopener noreferrer" className="social-link facebook" aria-label="Facebook">
+                            <FacebookIcon size={16} />
+                          </a>
+                        )}
+                        {organiser.twitterUrl && (
+                          <a href={organiser.twitterUrl} target="_blank" rel="noopener noreferrer" className="social-link twitter" aria-label="Twitter">
+                            <TwitterIcon size={16} />
+                          </a>
+                        )}
+                        {organiser.websiteUrl && (
+                          <a href={organiser.websiteUrl} target="_blank" rel="noopener noreferrer" className="social-link website" aria-label="Website">
+                            <Globe size={16} />
+                          </a>
+                        )}
+                      </div>
+                    )}
                     {organiser.about && (
                       <p className="organiser-about">{organiser.about}</p>
                     )}
