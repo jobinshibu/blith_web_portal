@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
@@ -174,12 +174,32 @@ const EventBookingPage = () => {
 
   // Removed real-time save effect to prevent avatar updating letter-by-letter as user types
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [bookingId, setBookingId] = useState('');
 
   const [showErrors, setShowErrors] = useState(false);
   const [isVerifyingUser, setIsVerifyingUser] = useState(false);
   const [resolvedUserId, setResolvedUserId] = useState(null);
+
+  const termsList = [
+    "By accepting, holding, or using a ticket, you acknowledge that you have read, understood, and agreed to these Terms & Conditions in full.",
+    "Registration or possession of a ticket does not guarantee admission for free events and entry is strictly subject to capacity and availability.",
+    "Event access details (where applicable) are personal and non-transferable.",
+    "Recording, reproducing, distributing, or sharing any part of the event content without prior written consent is strictly prohibited.",
+    "The Organiser reserves the right to deny admission or remove any participant for misconduct, non-compliance, or disruptive behaviour without prior notice and without obligation of refund, unless stated otherwise.",
+    "Participants are responsible for meeting all event requirements, including timely attendance, necessary materials, and technical arrangements (if applicable).",
+    "Blithe acts solely as a technology platform facilitating event discovery and registrations and is not responsible for event execution, content accuracy, venue arrangements, or technical issues.",
+    "The Organiser reserves the right to reschedule, modify, or cancel the event due to unforeseen circumstances.",
+    "By registering or purchasing a ticket, you agree to receive event-related communications from Blithe and the Organiser.",
+    "Please note that once a ticket is booked in Blithe, it cannot be canceled."
+  ];
+
+  const handleAgreeAndProceed = (e) => {
+    setAgreeTerms(true);
+    setShowTermsModal(false);
+    handleCheckout(e, true);
+  };
 
 
   // Coupon state
@@ -1033,9 +1053,17 @@ const EventBookingPage = () => {
     });
   };
 
-  const handleCheckout = async (e) => {
-    e.preventDefault();
-    if (!isValid) {
+  const handleCheckout = async (e, bypassTermsCheck = false) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const isFormValid =
+      totalTickets > 0 &&
+      (isMultiDay ? selectedDate !== null : true) &&
+      attendee.name.trim() !== '' &&
+      attendee.email.trim() !== '' &&
+      isPhoneValid &&
+      (agreeTerms || bypassTermsCheck);
+
+    if (!isFormValid) {
       setShowErrors(true);
       setTimeout(() => {
         const firstErrorEl = document.querySelector('.validation-hint');
@@ -2221,7 +2249,7 @@ const EventBookingPage = () => {
                     </p>
                   </div>
                   <a
-                    href="https://play.google.com/store"
+                    href="https://play.google.com/store/apps/details?id=com.firstlogicmetalab.blith_user_app"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="banner-download-btn"
@@ -2337,7 +2365,7 @@ const EventBookingPage = () => {
             <div className="terms-checkbox" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
               <input type="checkbox" id="terms" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
               <label htmlFor="terms" style={{ fontSize: '0.85rem' }}>
-                I agree to Blithe's <Link to="/terms" target="_blank" style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600 }}>terms and conditions</Link>
+                I agree to Blithe's <span onClick={(e) => { e.preventDefault(); setShowTermsModal(true); }} style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>terms and conditions</span>
               </label>
             </div>
             {showErrors && !agreeTerms && (
@@ -2375,6 +2403,54 @@ const EventBookingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Terms and Conditions Modal */}
+      <AnimatePresence>
+        {showTermsModal && (
+          <div className="terms-modal-overlay" onClick={() => setShowTermsModal(false)}>
+            <motion.div
+              className="terms-modal-card glass"
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button className="close-modal-btn" onClick={() => setShowTermsModal(false)}>
+                <X size={20} />
+              </button>
+              
+              <div className="terms-modal-header">
+                <FileText size={32} className="terms-modal-icon" />
+                <h2>Terms & Conditions</h2>
+              </div>
+              
+              <div className="terms-modal-body">
+                <p className="terms-modal-desc">
+                  Please review the terms and conditions carefully before proceeding to payment.
+                </p>
+                <div className="terms-modal-list">
+                  {termsList.map((term, index) => (
+                    <div key={index} className="terms-modal-item">
+                      <span className="terms-modal-num">{index + 1}.</span>
+                      <p className="terms-modal-text">{term}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="terms-modal-footer">
+                <button className="terms-cancel-btn" onClick={() => setShowTermsModal(false)}>
+                  Cancel
+                </button>
+                <button className="terms-agree-btn" onClick={handleAgreeAndProceed}>
+                  Agree & Proceed
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

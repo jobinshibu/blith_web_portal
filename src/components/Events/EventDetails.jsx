@@ -296,7 +296,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
             </div>
             <div className="share-app-badges">
               <a
-                href="https://play.google.com/store"
+                href="https://play.google.com/store/apps/details?id=com.firstlogicmetalab.blith_user_app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="share-badge-btn"
@@ -311,7 +311,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
                 </div>
               </a>
               <a
-                href="https://apps.apple.com"
+                href="https://apps.apple.com/in/app/blithe/id6473627877"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="share-badge-btn"
@@ -419,22 +419,26 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                   </div>
 
                   {/* Name list below avatars */}
-                  {/* <div className="modal-attendees-names">
-                    {otherAttendees.map((att, idx) => (
-                      <div key={idx} className="modal-attendee-row">
-                        <div className="modal-attendee-avatar">
-                          {att.userProfileImage ? (
-                            <img src={att.userProfileImage} alt={att.userName || 'Attendee'} className="attendee-avatar-img" />
-                          ) : (
-                            <img
-                              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
-                              alt={att.userName || 'Attendee'}
-                              className="attendee-avatar-img dicebear-avatar"
-                            />
-                          )}
+                  {/* <div className="modal-attendees-names" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '240px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                    {attendeesList.filter(att => !att.isGuest).map((att, idx) => (
+                      <div key={idx} className="modal-attendee-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div className="modal-attendee-avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden' }}>
+                            {att.userProfileImage ? (
+                              <img src={att.userProfileImage} alt={att.userName || 'Attendee'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <img
+                                src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                                alt={att.userName || 'Attendee'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            )}
+                          </div>
+                          <span className="modal-attendee-name" style={{ fontWeight: 600, fontSize: '0.9rem' }}>{att.userName || 'Attendee'}</span>
                         </div>
-                        <span className="modal-attendee-name">{att.userName || 'Attendee'}</span>
-                        <span className="modal-attendee-badge">Going</span>
+                        <span className="modal-attendee-badge" style={{ fontSize: '0.8rem', background: 'rgba(124, 58, 237, 0.08)', color: '#7C3AED', padding: '0.25rem 0.6rem', borderRadius: '2rem', fontWeight: 700 }}>
+                          {att.ticketCount} {att.ticketCount === 1 ? 'ticket' : 'tickets'}
+                        </span>
                       </div>
                     ))}
                   </div> */}
@@ -454,12 +458,12 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                   <img src={logoTransparent} alt="Blithe App" className="attendees-app-logo" />
                   <div>
                     <p className="attendees-app-name">Blithe</p>
-                    <p className="attendees-app-tagline">See the attendees near you</p>
+                    {/* <p className="attendees-app-tagline">See the attendees near you</p> */}
                   </div>
                 </div>
                 <div className="attendees-app-badges">
                   <a
-                    href="https://play.google.com/store"
+                    href="https://play.google.com/store/apps/details?id=com.firstlogicmetalab.blith_user_app"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="share-badge-btn"
@@ -474,7 +478,7 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                     </div>
                   </a>
                   <a
-                    href="https://apps.apple.com"
+                    href="https://apps.apple.com/in/app/blithe/id6473627877"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="share-badge-btn"
@@ -721,18 +725,46 @@ const EventDetails = () => {
         const uniqueUsers = new Map();
         bookings.forEach(b => {
           const userId = b.userId || b.bookingId;
-          if (userId && !uniqueUsers.has(userId)) {
-            uniqueUsers.set(userId, {
-              userId,
-              userName: b.userName || 'Attendee',
-              userProfileImage: b.userProfileImage || b.profilePic || ''
+          if (userId) {
+            const qty = b.totalQuantity || (b.tickets ? b.tickets.reduce((sum, t) => sum + (t.quantity || 0), 0) : 1);
+            if (!uniqueUsers.has(userId)) {
+              uniqueUsers.set(userId, {
+                userId,
+                userName: b.userName || 'Attendee',
+                userProfileImage: b.userProfileImage || b.profilePic || '',
+                ticketCount: qty
+              });
+            } else {
+              const existing = uniqueUsers.get(userId);
+              existing.ticketCount += qty;
+            }
+          }
+        });
+
+        const expandedList = [];
+        uniqueUsers.forEach((userData) => {
+          expandedList.push({
+            userId: userData.userId,
+            userName: userData.userName,
+            userProfileImage: userData.userProfileImage,
+            isGuest: false,
+            ticketCount: userData.ticketCount
+          });
+
+          for (let i = 1; i < userData.ticketCount; i++) {
+            expandedList.push({
+              userId: `${userData.userId}_guest_${i}`,
+              userName: `${userData.userName} (Guest ${i})`,
+              userProfileImage: '',
+              isGuest: true,
+              parentName: userData.userName,
+              ticketCount: 1
             });
           }
         });
 
-        const list = Array.from(uniqueUsers.values());
-        setAttendeesList(list);
-        setAttendeesCount(list.length);
+        setAttendeesList(expandedList);
+        setAttendeesCount(expandedList.length);
       } catch (err) {
         console.error("[Attendees] Error fetching attendees:", err);
       }
@@ -1438,7 +1470,7 @@ const EventDetails = () => {
                 </div>
               )}
               <h1 className="event-title">{event.title}</h1>
-              <p className="mobile-date-highlight">{event.date}, {event.time}</p>
+              {/* <p className="mobile-date-highlight">{event.date}, {event.time}</p> */}
 
 
               <div className="info-list">
@@ -1582,7 +1614,7 @@ const EventDetails = () => {
                 </p>
                 {(settings?.contactSupport || settings?.email) && (
                   <p className="support-query-line">
-                    Talk to Us?{' '}
+                    Talk to Us{' '}
                     {settings.contactSupport && (
                       <a href={`tel:${settings.contactSupport.trim()}`}>
                         {settings.contactSupport.trim()}
