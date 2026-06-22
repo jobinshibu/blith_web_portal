@@ -1530,9 +1530,9 @@ const EventDetails = () => {
                 )}
               </div>
               {/* Attendees section */}
-              <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
-                <div className="attendee-avatars">
-                  {attendeesCount >= 4 ? (
+              {attendeesCount >= 4 && (
+                <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
+                  <div className="attendee-avatars">
                     <>
                       {attendeesList.slice(0, 3).map((att, idx) => (
                         <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
@@ -1551,39 +1551,12 @@ const EventDetails = () => {
                         <span>+{attendeesCount - 3}</span>
                       </div>
                     </>
-                  ) : (
-                    attendeesList.map((att, idx) => (
-                      <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
-                        {att.userProfileImage ? (
-                          <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
-                        ) : (
-                          <img
-                            src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
-                            alt={att.userName || 'Attendee'}
-                            className="attendee-avatar-img dicebear-avatar"
-                          />
-                        )}
-                      </div>
-                    ))
-                  )}
-                  {attendeesList.length === 0 && (
-                    <div className="attendee-avatar-wrapper">
-                      <div className="attendee-avatar-placeholder">
-                        <User size={14} />
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                  <span className="attendees-count-text">
+                    <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
+                  </span>
                 </div>
-                <span className="attendees-count-text">
-                  {attendeesCount > 0 ? (
-                    <>
-                      <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
-                    </>
-                  ) : (
-                    "Be the first to secure a spot!"
-                  )}
-                </span>
-              </div>
+              )}
 
               <div className="action-box desktop-booking-box">
                 <div className="price-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '4px' }}>
