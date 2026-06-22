@@ -34,7 +34,7 @@ const ProfileDashboardModal = ({ isOpen, onClose, user }) => {
           </div>
           <div className="profile-title-group">
             <h3>{user?.name || 'User Profile'}</h3>
-            <p>Member since {formatDate(user?.createdTime || new Date())}</p>
+            {/* <p>Member since {formatDate(user?.createdTime || new Date())}</p> */}
           </div>
         </div>
 
@@ -72,7 +72,7 @@ const ProfileDashboardModal = ({ isOpen, onClose, user }) => {
                 <img src={logoTransparent} alt="Blithe App" className="app-logo" />
                 <div>
                   <h4>To see more info, download</h4>
-                  <p>Scan tickets, browse offline, & receive instant event alerts.</p>
+                  {/* <p>Scan tickets, browse offline, & receive instant event alerts.</p> */}
                 </div>
               </div>
               <div className="download-buttons">

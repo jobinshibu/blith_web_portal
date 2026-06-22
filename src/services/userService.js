@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
 import { db } from '../firebase'; // Adjust this path if your firebase.js is located elsewhere
 
 /**
@@ -95,6 +95,24 @@ export const checkPhoneExists = async (phoneNo) => {
  */
 export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {}) => {
   const setSearch = generateSearchKeywords(name || '', email || '');
+
+  let latitude = 0.0;
+  let longitude = 0.0;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const cachedLoc = window.localStorage.getItem('blithe_user_location');
+      if (cachedLoc) {
+        const parsed = JSON.parse(cachedLoc);
+        if (parsed && typeof parsed.lat === 'number' && (typeof parsed.lng === 'number' || typeof parsed.longitude === 'number')) {
+          latitude = parsed.lat;
+          longitude = parsed.lng || parsed.longitude;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to retrieve cached location for new user creation:", e);
+    }
+  }
+
   return {
     about: "Up for Event! Go Blithe",
     admin: false,
@@ -112,14 +130,17 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     followRequest: [],
     followers: [],
     gender: "",
-    geo: { geohash: "" },
+    geo: { 
+      geohash: "", 
+      geopoint: new GeoPoint(latitude, longitude)
+    },
     instagramUrl: "",
     interests: {},
     isNotification: true,
     lastSeen: serverTimestamp(),
-    lat: 0.0,
+    lat: latitude,
     loginTime: serverTimestamp(),
-    long: 0.0,
+    long: longitude,
     macAddress: "",
     name: name || "",
     oid: "",

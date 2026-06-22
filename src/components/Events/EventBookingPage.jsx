@@ -378,6 +378,19 @@ const EventBookingPage = () => {
             }));
             setResolvedUserId(userData.uid);
             setResolvedUserIdForCoupons(userData.uid);
+
+            try {
+              sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+                name: userData.name || attendee.name,
+                email: userData.email || attendee.email,
+                phone: userData.phoneNo || userData.phone || attendee.phone,
+                uid: userData.uid,
+                profilePic: userData.profilePic || ""
+              }));
+              window.dispatchEvent(new CustomEvent('session-user-changed'));
+            } catch (err) {
+              console.warn("Failed to save checkout details to session on email resolve:", err);
+            }
             return; // Done
           } else {
             console.log(`[User Fetch] No user found with email == ${trimmedEmail}`);
@@ -401,13 +414,51 @@ const EventBookingPage = () => {
             const userData = { uid: userDoc.id, ...userDoc.data() };
             console.log(`[User Fetch] User exists by phone: true. Found UID: ${userData.uid}`);
 
+            setAttendee(prev => ({
+              ...prev,
+              name: userData.name || prev.name,
+              email: userData.email || prev.email
+            }));
             // Resolve the ID so we associate with the existing user (avoid duplicate)
             setResolvedUserId(userData.uid);
             setResolvedUserIdForCoupons(userData.uid);
+
+            try {
+              sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+                name: userData.name || attendee.name,
+                email: userData.email || attendee.email,
+                phone: userData.phoneNo || userData.phone || attendee.phone,
+                uid: userData.uid,
+                profilePic: userData.profilePic || ""
+              }));
+              window.dispatchEvent(new CustomEvent('session-user-changed'));
+            } catch (err) {
+              console.warn("Failed to save checkout details to session on phone resolve:", err);
+            }
           } else {
-            console.log(`[User Fetch] User exists by phone: false for phoneNo == ${trimmedPhone}`);
-            setResolvedUserId(null);
-            setResolvedUserIdForCoupons(null);
+            console.log(`[User Fetch] User exists by phone: false for phoneNo == ${trimmedPhone}. Instantly creating user...`);
+            const newUid = generateUID();
+            const newDocRef = doc(usersRef, newUid);
+            const newUserDoc = createDefaultUserObject(newUid, attendee.name, attendee.email, trimmedPhone);
+            await setDoc(newDocRef, newUserDoc);
+            console.log(`[User Fetch] Created user document for UID: ${newUid}`);
+
+            if (!active) return;
+            setResolvedUserId(newUid);
+            setResolvedUserIdForCoupons(newUid);
+
+            try {
+              sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+                name: attendee.name,
+                email: attendee.email,
+                phone: trimmedPhone,
+                uid: newUid,
+                profilePic: ""
+              }));
+              window.dispatchEvent(new CustomEvent('session-user-changed'));
+            } catch (err) {
+              console.warn("Failed to save checkout details to session on instant create:", err);
+            }
           }
         } catch (err) {
           console.error("Error fetching existing user by phone:", err);
@@ -759,6 +810,7 @@ const EventBookingPage = () => {
   const totalTickets = Object.values(quantities).reduce((a, b) => a + b, 0);
 
   const isPhoneValid = /^\d{10}$/.test(attendee.phone.trim());
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(attendee.email.trim());
 
   const isValid =
     totalTickets > 0 &&
@@ -1045,6 +1097,15 @@ const EventBookingPage = () => {
         const newUserDocument = createDefaultUserObject(uId, attendee.name, attendee.email, attendee.phone);
         await setDoc(newDocRef, newUserDocument);
         console.log(`New user record created successfully with UID: ${uId}`);
+      } else {
+        const userDocRef = doc(usersRef, uId);
+        console.log(`User already exists. Merging final details with UID: ${uId}`);
+        await setDoc(userDocRef, {
+          name: attendee.name,
+          email: attendee.email,
+          phoneNo: attendee.phone
+        }, { merge: true });
+        console.log(`User details merged successfully.`);
       }
 
       setResolvedUserId(uId);
@@ -1896,13 +1957,6 @@ const EventBookingPage = () => {
           <div className="section-block attendee-details-block glass">
             <h3>{isMultiDay ? '3. Contact Information' : '2. Contact Information'}</h3>
 
-            {resolvedUserId && attendee.name && (
-              <div className="user-logged-in-message" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '0.5rem', marginBottom: '1.25rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
-                <CheckCircle size={16} style={{ color: '#10B981', flexShrink: 0 }} />
-                <span>Logged in as {attendee.name}</span>
-              </div>
-            )}
-
             <div className="input-group">
               <label htmlFor="name">Full Name <span className="required-star">*</span></label>
               <div className="input-wrapper">
@@ -1940,8 +1994,8 @@ const EventBookingPage = () => {
                   }}
                 />
               </div>
-              {showErrors && !attendee.email.trim() && (
-                <div className="validation-hint"><Info size={16} /><span>Please provide a valid email address.</span></div>
+              {((showErrors || (attendee.name.trim() !== '' && isPhoneValid)) && !attendee.email.trim()) && (
+                <div className="validation-hint"><Info size={16} /><span>Please enter your email.</span></div>
               )}
             </div>
 
@@ -1949,10 +2003,12 @@ const EventBookingPage = () => {
               <label htmlFor="phone">Phone Number <span className="required-star">*</span></label>
               <div className="input-wrapper">
                 <Phone size={18} className="input-icon" />
+                <span className="phone-prefix" style={{ position: 'absolute', left: '2.5rem', color: '#6B7280', fontWeight: 500, fontSize: '0.95rem', userSelect: 'none' }}>+91</span>
                 <input
                   type="tel"
                   id="phone"
-                  placeholder="e.g. 9876543210"
+                  placeholder="9876543210"
+                  style={{ paddingLeft: '4.75rem' }}
                   value={attendee.phone}
                   onChange={(e) => {
                     const newPhone = e.target.value;
@@ -1971,10 +2027,18 @@ const EventBookingPage = () => {
                   }}
                 />
               </div>
-              {showErrors && !isPhoneValid && (
+              {((showErrors || (attendee.name.trim() !== '' && isEmailValid)) && !isPhoneValid) && (
                 <div className="validation-hint"><Info size={16} /><span>Please provide a valid 10-digit phone number.</span></div>
               )}
             </div>
+
+            {resolvedUserId && attendee.name && (
+              <div className="user-logged-in-message" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '0.5rem', marginBottom: '1.25rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
+                <CheckCircle size={16} style={{ color: '#10B981', flexShrink: 0 }} />
+                <span>Logged in as {attendee.name}</span>
+              </div>
+            )}
+
           </div>
 
           {/* Coupons Section — hidden for free events */}
@@ -2156,10 +2220,10 @@ const EventBookingPage = () => {
                       You're currently receiving a special web discount of <strong>{halvedText} OFF</strong>. Download the app and save more with the full <strong>{originalText} Welcome Offer</strong>.
                     </p>
                   </div>
-                  <a 
-                    href="https://play.google.com/store" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                  <a
+                    href="https://play.google.com/store"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="banner-download-btn"
                   >
                     Download App
