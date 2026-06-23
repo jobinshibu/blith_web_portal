@@ -1,3 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Croissant+One&family=Jost:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Croissant+One&family=Jost:ital,wght@0,100..900;1,100..900&family=Lexend:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Croissant+One&family=Jost:ital,wght@0,100..900;1,100..900&family=Lexend:wght@100..900&family=Outfit:wght@100..900&display=swap');
+
 .linktree-page-wrapper {
   width: 100%;
   min-height: 100vh;
@@ -34,13 +39,14 @@
     min-height: auto;
     border-radius: 32px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 
+    box-shadow:
       0 30px 65px rgba(0, 0, 0, 0.8),
       0 0 50px rgba(124, 58, 237, 0.15); // soft lavender ambient glow to feel like it pops out
   }
 
   /* Ambient glowing orbs in the background */
-  &::before, &::after {
+  &::before,
+  &::after {
     content: '';
     position: absolute;
     width: 300px;
@@ -63,8 +69,9 @@
     background: #EC4899;
   }
 
-  > * {
-    z-index: 1; /* Keep content above ambient orbs */
+  >* {
+    z-index: 1;
+    /* Keep content above ambient orbs */
   }
 
   .profile-section {
@@ -81,7 +88,7 @@
       width: 70px;
       height: 70px;
       border-radius: 50%;
-      background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
       padding: 3px;
       box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(4px);
@@ -110,9 +117,9 @@
     }
 
     h1 {
-      font-family: var(--font-display);
+      font-family: Cinzel;
       font-size: 2.1rem;
-      font-weight: 800;
+      font-weight: 600;
       letter-spacing: -0.03em;
       background: linear-gradient(135deg, #ffffff 30%, #a78bfa 100%);
       -webkit-background-clip: text;
@@ -123,7 +130,7 @@
 
     p {
       font-size: 0.85rem;
-      color: rgba(255,255,255,0.6);
+      color: rgba(255, 255, 255, 0.6);
       max-width: 100%;
       line-height: 1.4;
       font-weight: 400;
@@ -140,7 +147,7 @@
 
     .loading-text {
       text-align: center;
-      color: rgba(255,255,255,0.6);
+      color: rgba(255, 255, 255, 0.6);
       padding: 3rem;
       font-weight: 500;
       animation: pulse 2s infinite;
@@ -171,14 +178,15 @@
         left: -50%;
         width: 200%;
         height: 200%;
-        background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
+        background: linear-gradient(to bottom right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0) 100%);
         transform: rotate(45deg) translate(-100%, 100%);
         transition: all 0.6s ease;
         z-index: 0;
       }
 
-      > * {
-        z-index: 1; /* Keep content above shimmer */
+      >* {
+        z-index: 1;
+        /* Keep content above shimmer */
       }
 
       &:hover {
@@ -186,7 +194,7 @@
         background: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.3);
         box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2), 0 0 20px rgba(124, 58, 237, 0.3);
-        
+
         &::after {
           transform: rotate(45deg) translate(100%, -100%);
         }
@@ -209,8 +217,8 @@
         object-fit: cover;
         margin-right: 1.25rem;
         flex-shrink: 0;
-        background-color: rgba(255,255,255,0.05);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        background-color: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
         transition: transform 0.4s ease;
       }
 
@@ -236,13 +244,13 @@
 
         .event-meta {
           font-size: 0.78rem;
-          color: rgba(255,255,255,0.6);
+          color: rgba(255, 255, 255, 0.6);
           margin-top: 0.4rem;
           display: flex;
           align-items: center;
           gap: 0.75rem;
           flex-wrap: wrap;
-          
+
           span {
             display: flex;
             align-items: center;
@@ -252,7 +260,7 @@
       }
 
       .arrow-icon {
-        color: rgba(255,255,255,0.4);
+        color: rgba(255, 255, 255, 0.4);
         opacity: 0.7;
         transform: translateX(-5px);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -263,12 +271,12 @@
   .footer-logo {
     margin-top: auto;
     padding-top: 4rem;
-    
+
     img {
       height: 32px;
       opacity: 0.5;
       transition: opacity 0.3s ease;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 
       &:hover {
         opacity: 1;
@@ -278,19 +286,26 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Extra small devices */
 @media (max-width: 480px) {
   .linktree-container {
     padding: 3rem 1rem;
-    
+
     .profile-section {
       margin-bottom: 2rem;
       gap: 1rem;
-      
+
       .avatar {
         width: 55px;
         height: 55px;
@@ -305,22 +320,22 @@
         font-size: 0.78rem;
       }
     }
-    
+
     .links-section .link-button {
       padding: 1rem;
       border-radius: 16px;
-      
+
       .event-thumbnail {
         width: 55px;
         height: 55px;
         margin-right: 1rem;
         border-radius: 12px;
       }
-      
+
       .event-info h3 {
         font-size: 0.9rem;
       }
-      
+
       .event-info .event-meta {
         font-size: 0.72rem;
       }

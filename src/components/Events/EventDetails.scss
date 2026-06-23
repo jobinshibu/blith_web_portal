@@ -236,6 +236,7 @@
   }
 
   .about-details-card,
+  .organiser-details-card,
   .terms-details-card {
     .description {
       font-size: 1.1rem;
@@ -876,8 +877,8 @@
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 32px;
-          height: 32px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           background: rgba($lavender-100, 0.5);
           color: $lavender-600;

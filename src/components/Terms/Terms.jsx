@@ -1,26 +1,65 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 import './Terms.scss';
 
 const Terms = () => {
-  const termsList = [
-    "By accepting, holding, or using a ticket, you acknowledge that you have read, understood, and agreed to these Terms & Conditions in full.",
-    "Registration or possession of a ticket does not guarantee admission for free events and entry is strictly subject to capacity and availability.",
-    "Event access details (where applicable) are personal and non-transferable.",
-    "Recording, reproducing, distributing, or sharing any part of the event content without prior written consent is strictly prohibited.",
-    "The Organiser reserves the right to deny admission or remove any participant for misconduct, non-compliance, or disruptive behaviour without prior notice and without obligation of refund, unless stated otherwise.",
-    "Participants are responsible for meeting all event requirements, including timely attendance, necessary materials, and technical arrangements (if applicable).",
-    "Blithe acts solely as a technology platform facilitating event discovery and registrations and is not responsible for event execution, content accuracy, venue arrangements, or technical issues.",
-    "The Organiser reserves the right to reschedule, modify, or cancel the event due to unforeseen circumstances.",
-    "By registering or purchasing a ticket, you agree to receive event-related communications from Blithe and the Organiser.",
-    "Please note that once a ticket is booked in Blithe, it cannot be canceled."
-  ];
+  const [termsText, setTermsText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTerms = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'event');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data && data.tAndC) {
+            setTermsText(data.tAndC);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching Terms & Conditions:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTerms();
+  }, []);
+
+  const parseTerms = (text) => {
+    if (!text) return [];
+    if (text.includes('\n')) {
+      return text.split('\n').map(t => t.trim()).filter(Boolean);
+    }
+    const parts = text.split(/(?=\d+\.\s+)/);
+    if (parts.length > 1) {
+      return parts.map(t => t.trim()).filter(Boolean);
+    }
+    return [text.trim()];
+  };
+
+  const cleanTermText = (text) => {
+    if (!text) return '';
+    return text.replace(/^\d+\.\s*/, '');
+  };
+
+  const termsList = parseTerms(termsText);
+
+  if (loading) {
+    return (
+      <div className="terms-page container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <h2 style={{ color: '#7C3AED' }}>Loading terms & conditions...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="terms-page container">
-      <motion.div 
+      <motion.div
         className="terms-card glass"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -36,18 +75,22 @@ const Terms = () => {
         </div>
 
         <h1 className="terms-title">Terms & Conditions</h1>
-        
+
         <p className="terms-desc">
           Please read these terms and conditions carefully before booking or attending any event through Blithe.
         </p>
 
         <div className="terms-list">
-          {termsList.map((term, index) => (
-            <div key={index} className="terms-item">
-              <span className="terms-num">{index + 1}.</span>
-              <p className="terms-text">{term}</p>
-            </div>
-          ))}
+          {termsList.length > 0 ? (
+            termsList.map((term, index) => (
+              <div key={index} className="terms-item">
+                <span className="terms-num">{index + 1}.</span>
+                <p className="terms-text">{cleanTermText(term)}</p>
+              </div>
+            ))
+          ) : (
+            <p className="terms-text" style={{ textAlign: 'center' }}>No terms and conditions specified.</p>
+          )}
         </div>
 
         <div className="terms-actions">

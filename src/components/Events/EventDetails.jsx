@@ -23,6 +23,16 @@ const InstagramIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
 );
 
+// Helper to format social and website links as absolute URLs
+const formatSocialUrl = (url) => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (/^(f|ht)tps?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+};
+
 // Helper to calculate distance in km
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
@@ -512,9 +522,12 @@ const EventDetails = () => {
   const [isTransitioning, setIsTransitioning] = useState(true);
   const lastClickTime = useRef(0);
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
+  const [isOrgAboutExpanded, setIsOrgAboutExpanded] = useState(false);
   const [isTermsExpanded, setIsTermsExpanded] = useState(false);
   const [showAboutBtn, setShowAboutBtn] = useState(false);
+  const [showOrgAboutBtn, setShowOrgAboutBtn] = useState(false);
   const [showTermsBtn, setShowTermsBtn] = useState(false);
+  const [dbTAndC, setDbTAndC] = useState("");
   const [organiser, setOrganiser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [userLocation, setUserLocation] = useState(() => {
@@ -671,6 +684,25 @@ const EventDetails = () => {
     fetchSettings();
   }, []);
 
+  // Fetch dynamic terms and conditions from settings/event document
+  useEffect(() => {
+    const fetchTAndC = async () => {
+      try {
+        const docRef = doc(db, "settings", "event");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data && data.tAndC) {
+            setDbTAndC(data.tAndC);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching terms and conditions from /settings/event:", err);
+      }
+    };
+    fetchTAndC();
+  }, []);
+
   // Fetch attendees for the event
   useEffect(() => {
     const fetchAttendees = async () => {
@@ -774,6 +806,7 @@ const EventDetails = () => {
   }, [id]);
 
   const aboutRef = useRef(null);
+  const orgAboutRef = useRef(null);
   const termsRef = useRef(null);
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [event, setEvent] = useState(null);
@@ -884,6 +917,9 @@ const EventDetails = () => {
       if (aboutRef.current && !isAboutExpanded) {
         setShowAboutBtn(aboutRef.current.scrollHeight > aboutRef.current.clientHeight);
       }
+      if (orgAboutRef.current && !isOrgAboutExpanded) {
+        setShowOrgAboutBtn(orgAboutRef.current.scrollHeight > orgAboutRef.current.clientHeight);
+      }
       if (termsRef.current && !isTermsExpanded) {
         setShowTermsBtn(termsRef.current.scrollHeight > termsRef.current.clientHeight);
       }
@@ -896,7 +932,7 @@ const EventDetails = () => {
       window.removeEventListener('resize', checkOverflow);
       clearTimeout(timeoutId);
     };
-  }, [event, isAboutExpanded, isTermsExpanded]);
+  }, [event, organiser, isAboutExpanded, isOrgAboutExpanded, isTermsExpanded, dbTAndC]);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -1400,32 +1436,38 @@ const EventDetails = () => {
                       <Check size={12} strokeWidth={3} className="check-icon" />
                       Verified Organiser
                     </span>
-                    {(organiser.instagramUrl || organiser.facebookUrl || organiser.twitterUrl || organiser.websiteUrl) && (
+                    {(organiser.instagramUrl || organiser.websiteUrl) && (
                       <div className="organiser-socials">
                         {organiser.instagramUrl && (
-                          <a href={organiser.instagramUrl} target="_blank" rel="noopener noreferrer" className="social-link instagram" aria-label="Instagram">
-                            <InstagramIcon size={16} />
-                          </a>
-                        )}
-                        {organiser.facebookUrl && (
-                          <a href={organiser.facebookUrl} target="_blank" rel="noopener noreferrer" className="social-link facebook" aria-label="Facebook">
-                            <FacebookIcon size={16} />
-                          </a>
-                        )}
-                        {organiser.twitterUrl && (
-                          <a href={organiser.twitterUrl} target="_blank" rel="noopener noreferrer" className="social-link twitter" aria-label="Twitter">
-                            <TwitterIcon size={16} />
+                          <a href={formatSocialUrl(organiser.instagramUrl)} target="_blank" rel="noopener noreferrer" className="social-link instagram" aria-label="Instagram">
+                            <InstagramIcon size={22} />
                           </a>
                         )}
                         {organiser.websiteUrl && (
-                          <a href={organiser.websiteUrl} target="_blank" rel="noopener noreferrer" className="social-link website" aria-label="Website">
-                            <Globe size={16} />
+                          <a href={formatSocialUrl(organiser.websiteUrl)} target="_blank" rel="noopener noreferrer" className="social-link website" aria-label="Website">
+                            <Globe size={22} />
                           </a>
                         )}
                       </div>
                     )}
                     {organiser.about && (
-                      <p className="organiser-about">{organiser.about}</p>
+                      <>
+                        <div className={`expandable-content ${isOrgAboutExpanded ? 'expanded' : ''}`} ref={orgAboutRef}>
+                          <p className="organiser-about" style={{ margin: 0 }}>{organiser.about}</p>
+                        </div>
+                        {showOrgAboutBtn && (
+                          <button
+                            type="button"
+                            className="read-more-btn"
+                            onClick={() => setIsOrgAboutExpanded(!isOrgAboutExpanded)}
+                            aria-expanded={isOrgAboutExpanded}
+                            style={{ alignSelf: 'flex-start', marginTop: '0.25rem' }}
+                          >
+                            {isOrgAboutExpanded ? 'Read Less' : 'Read More'}
+                            <ChevronDown size={18} className={`chevron-icon ${isOrgAboutExpanded ? 'expanded' : ''}`} />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -1613,7 +1655,7 @@ const EventDetails = () => {
               </div>
               <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsRef}>
                 <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
-                  {event.termsAndConditions}
+                  {dbTAndC || event.termsAndConditions}
                 </p>
               </div>
               {showTermsBtn && (

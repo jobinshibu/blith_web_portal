@@ -182,18 +182,44 @@ const EventBookingPage = () => {
   const [isVerifyingUser, setIsVerifyingUser] = useState(false);
   const [resolvedUserId, setResolvedUserId] = useState(null);
 
-  const termsList = [
-    "By accepting, holding, or using a ticket, you acknowledge that you have read, understood, and agreed to these Terms & Conditions in full.",
-    "Registration or possession of a ticket does not guarantee admission for free events and entry is strictly subject to capacity and availability.",
-    "Event access details (where applicable) are personal and non-transferable.",
-    "Recording, reproducing, distributing, or sharing any part of the event content without prior written consent is strictly prohibited.",
-    "The Organiser reserves the right to deny admission or remove any participant for misconduct, non-compliance, or disruptive behaviour without prior notice and without obligation of refund, unless stated otherwise.",
-    "Participants are responsible for meeting all event requirements, including timely attendance, necessary materials, and technical arrangements (if applicable).",
-    "Blithe acts solely as a technology platform facilitating event discovery and registrations and is not responsible for event execution, content accuracy, venue arrangements, or technical issues.",
-    "The Organiser reserves the right to reschedule, modify, or cancel the event due to unforeseen circumstances.",
-    "By registering or purchasing a ticket, you agree to receive event-related communications from Blithe and the Organiser.",
-    "Please note that once a ticket is booked in Blithe, it cannot be canceled."
-  ];
+  const [termsText, setTermsText] = useState("");
+
+  useEffect(() => {
+    const fetchTerms = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'event');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data && data.tAndC) {
+            setTermsText(data.tAndC);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching Terms & Conditions:", err);
+      }
+    };
+    fetchTerms();
+  }, []);
+
+  const parseTerms = (text) => {
+    if (!text) return [];
+    if (text.includes('\n')) {
+      return text.split('\n').map(t => t.trim()).filter(Boolean);
+    }
+    const parts = text.split(/(?=\d+\.\s+)/);
+    if (parts.length > 1) {
+      return parts.map(t => t.trim()).filter(Boolean);
+    }
+    return [text.trim()];
+  };
+
+  const cleanTermText = (text) => {
+    if (!text) return '';
+    return text.replace(/^\d+\.\s*/, '');
+  };
+
+  const termsList = parseTerms(termsText);
 
   const handleAgreeAndProceed = (e) => {
     setAgreeTerms(true);
@@ -2419,12 +2445,12 @@ const EventBookingPage = () => {
               <button className="close-modal-btn" onClick={() => setShowTermsModal(false)}>
                 <X size={20} />
               </button>
-              
+
               <div className="terms-modal-header">
                 <FileText size={32} className="terms-modal-icon" />
                 <h2>Terms & Conditions</h2>
               </div>
-              
+
               <div className="terms-modal-body">
                 <p className="terms-modal-desc">
                   Please review the terms and conditions carefully before proceeding to payment.
@@ -2433,12 +2459,12 @@ const EventBookingPage = () => {
                   {termsList.map((term, index) => (
                     <div key={index} className="terms-modal-item">
                       <span className="terms-modal-num">{index + 1}.</span>
-                      <p className="terms-modal-text">{term}</p>
+                      <p className="terms-modal-text">{cleanTermText(term)}</p>
                     </div>
                   ))}
                 </div>
               </div>
-              
+
               <div className="terms-modal-footer">
                 <button className="terms-cancel-btn" onClick={() => setShowTermsModal(false)}>
                   Cancel
