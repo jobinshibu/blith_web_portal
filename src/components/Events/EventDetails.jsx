@@ -1006,6 +1006,15 @@ const EventDetails = () => {
 
           const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
 
+          let languageVal = "";
+          if (data.language) {
+            languageVal = Array.isArray(data.language) ? data.language.join(', ') : String(data.language);
+          } else if (data.languages) {
+            languageVal = Array.isArray(data.languages) ? data.languages.join(', ') : String(data.languages);
+          } else if (data.eventLanguage) {
+            languageVal = Array.isArray(data.eventLanguage) ? data.eventLanguage.join(', ') : String(data.eventLanguage);
+          }
+
           setEvent({
             id: docSnap.id,
             promoted: isFeatured,
@@ -1032,6 +1041,7 @@ const EventDetails = () => {
             eventStartDate: data.eventStartDate || null,
             eventEndDate: data.eventEndDate || null,
             soldOut: data.soldOut || false,
+            language: languageVal,
             raw: data
           });
         } else {
@@ -1560,6 +1570,16 @@ const EventDetails = () => {
                     <p className="val">{event.eventType} Event</p>
                   </div>
                 </div>
+
+                {event.language && (
+                  <div className="info-item">
+                    <div className="icon-box"><Globe size={20} className="icon" /></div>
+                    <div className="text-content">
+                      <p className="val">{event.language}</p>
+                      <p className="sub">Language</p>
+                    </div>
+                  </div>
+                )}
 
                 {event.ageRestriction && (
                   <div className="info-item">

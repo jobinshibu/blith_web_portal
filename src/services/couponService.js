@@ -201,7 +201,7 @@ export const fetchFilteredCoupons = async (userId, eventId) => {
     const q = query(
       couponsRef(),
       where('isActive', '==', true),
-      where('deleted', '==', false),
+      where('deleted', '==', true),
       where('expiryDate', '>=', now)
     );
     const snapshot = await getDocs(q);
