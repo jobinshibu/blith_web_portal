@@ -153,11 +153,19 @@ const EventBookingPage = () => {
               phone: parsed.phone || ''
             };
           });
+          if (parsed.uid) {
+            setResolvedUserId(parsed.uid);
+            setResolvedUserIdForCoupons(parsed.uid);
+            setFetchedUserName(parsed.name || '');
+          }
         } else {
           setAttendee(prev => {
             if (prev.name === '' && prev.email === '' && prev.phone === '') return prev;
             return { name: '', email: '', phone: '' };
           });
+          setResolvedUserId(null);
+          setResolvedUserIdForCoupons(null);
+          setFetchedUserName('');
         }
       } catch (err) {
         console.warn("Failed to load checkout details from session:", err);
@@ -181,6 +189,7 @@ const EventBookingPage = () => {
   const [showErrors, setShowErrors] = useState(false);
   const [isVerifyingUser, setIsVerifyingUser] = useState(false);
   const [resolvedUserId, setResolvedUserId] = useState(null);
+  const [fetchedUserName, setFetchedUserName] = useState('');
 
   const [termsText, setTermsText] = useState("");
 
@@ -426,6 +435,7 @@ const EventBookingPage = () => {
             }));
             setResolvedUserId(userData.uid);
             setResolvedUserIdForCoupons(userData.uid);
+            setFetchedUserName(userData.name || '');
 
             try {
               sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
@@ -470,6 +480,7 @@ const EventBookingPage = () => {
             // Resolve the ID so we associate with the existing user (avoid duplicate)
             setResolvedUserId(userData.uid);
             setResolvedUserIdForCoupons(userData.uid);
+            setFetchedUserName(userData.name || '');
 
             try {
               sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
@@ -495,6 +506,7 @@ const EventBookingPage = () => {
               if (!active) return;
               setResolvedUserId(newUid);
               setResolvedUserIdForCoupons(newUid);
+              setFetchedUserName(attendee.name);
 
               try {
                 sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
@@ -519,6 +531,7 @@ const EventBookingPage = () => {
         if (active) {
           setResolvedUserId(null);
           setResolvedUserIdForCoupons(null);
+          setFetchedUserName('');
         }
       }
     };
@@ -1169,6 +1182,7 @@ const EventBookingPage = () => {
       }
 
       setResolvedUserId(uId);
+      setFetchedUserName(attendee.name);
       // Update userId for coupon context so re-fetch filters properly
       if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
 
@@ -2039,18 +2053,18 @@ const EventBookingPage = () => {
                   value={attendee.email}
                   onChange={(e) => {
                     const newEmail = e.target.value;
-                    setAttendee(prev => {
-                      if (resolvedUserId) {
-                        setResolvedUserId(null);
-                        setResolvedUserIdForCoupons(null);
-                        return {
-                          name: '',
-                          phone: '',
-                          email: newEmail
-                        };
-                      }
-                      return { ...prev, email: newEmail };
-                    });
+                    if (resolvedUserId) {
+                      setResolvedUserId(null);
+                      setResolvedUserIdForCoupons(null);
+                      setFetchedUserName('');
+                      setAttendee({
+                        name: '',
+                        phone: '',
+                        email: newEmail
+                      });
+                    } else {
+                      setAttendee(prev => ({ ...prev, email: newEmail }));
+                    }
                   }}
                 />
               </div>
@@ -2072,18 +2086,18 @@ const EventBookingPage = () => {
                   value={attendee.phone}
                   onChange={(e) => {
                     const newPhone = e.target.value;
-                    setAttendee(prev => {
-                      if (resolvedUserId) {
-                        setResolvedUserId(null);
-                        setResolvedUserIdForCoupons(null);
-                        return {
-                          name: '',
-                          email: '',
-                          phone: newPhone
-                        };
-                      }
-                      return { ...prev, phone: newPhone };
-                    });
+                    if (resolvedUserId) {
+                      setResolvedUserId(null);
+                      setResolvedUserIdForCoupons(null);
+                      setFetchedUserName('');
+                      setAttendee({
+                        name: '',
+                        email: '',
+                        phone: newPhone
+                      });
+                    } else {
+                      setAttendee(prev => ({ ...prev, phone: newPhone }));
+                    }
                   }}
                 />
               </div>
@@ -2092,10 +2106,10 @@ const EventBookingPage = () => {
               )}
             </div>
 
-            {resolvedUserId && attendee.name && (
+            {resolvedUserId && fetchedUserName && (
               <div className="user-logged-in-message" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '0.5rem', marginBottom: '1.25rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
                 <CheckCircle size={16} style={{ color: '#10B981', flexShrink: 0 }} />
-                <span>Logged in as {attendee.name}</span>
+                <span>Logged in as {fetchedUserName}</span>
               </div>
             )}
 
