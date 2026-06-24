@@ -157,6 +157,7 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     otpLogin: false,
     private: false,
     profilePic: "",
+    platform: "web",
     qrCode: "",
     reference: doc(db, 'users', uid),
     setSearch: setSearch,
@@ -174,7 +175,17 @@ export const registerNewUser = async (userData) => {
   console.log("Attempting to register new user with data:", userData);
   const { name, email, phoneNo, password, gender, dateOfBirth, countryCode, countryShortName } = userData;
 
-  if (!phoneNo) {
+  if (!name || name.trim() === "") {
+    console.error("Registration failed: Name is required");
+    throw new Error("Name is required");
+  }
+
+  if (!email || email.trim() === "") {
+    console.error("Registration failed: Email is required");
+    throw new Error("Email is required");
+  }
+
+  if (!phoneNo || phoneNo.trim() === "") {
     console.error("Registration failed: Phone number is required");
     throw new Error("Phone number is required");
   }

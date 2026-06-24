@@ -404,6 +404,8 @@ const EventBookingPage = () => {
       const isEmailValid = emailRegex.test(trimmedEmail);
       const isPhoneValid = /^\d{10}$/.test(trimmedPhone);
 
+      const trimmedName = attendee.name.trim();
+
       if (isEmailValid) {
         console.log(`[User Fetch] Querying Firestore for email == ${trimmedEmail}`);
         try {
@@ -482,28 +484,32 @@ const EventBookingPage = () => {
               console.warn("Failed to save checkout details to session on phone resolve:", err);
             }
           } else {
-            console.log(`[User Fetch] User exists by phone: false for phoneNo == ${trimmedPhone}. Instantly creating user...`);
-            const newUid = generateUID();
-            const newDocRef = doc(usersRef, newUid);
-            const newUserDoc = createDefaultUserObject(newUid, attendee.name, attendee.email, trimmedPhone);
-            await setDoc(newDocRef, newUserDoc);
-            console.log(`[User Fetch] Created user document for UID: ${newUid}`);
+            if (trimmedName && isEmailValid && isPhoneValid) {
+              console.log(`[User Fetch] User exists by phone: false for phoneNo == ${trimmedPhone}. Instantly creating user...`);
+              const newUid = generateUID();
+              const newDocRef = doc(usersRef, newUid);
+              const newUserDoc = createDefaultUserObject(newUid, attendee.name, attendee.email, trimmedPhone);
+              await setDoc(newDocRef, newUserDoc);
+              console.log(`[User Fetch] Created user document for UID: ${newUid}`);
 
-            if (!active) return;
-            setResolvedUserId(newUid);
-            setResolvedUserIdForCoupons(newUid);
+              if (!active) return;
+              setResolvedUserId(newUid);
+              setResolvedUserIdForCoupons(newUid);
 
-            try {
-              sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
-                name: attendee.name,
-                email: attendee.email,
-                phone: trimmedPhone,
-                uid: newUid,
-                profilePic: ""
-              }));
-              window.dispatchEvent(new CustomEvent('session-user-changed'));
-            } catch (err) {
-              console.warn("Failed to save checkout details to session on instant create:", err);
+              try {
+                sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+                  name: attendee.name,
+                  email: attendee.email,
+                  phone: trimmedPhone,
+                  uid: newUid,
+                  profilePic: ""
+                }));
+                window.dispatchEvent(new CustomEvent('session-user-changed'));
+              } catch (err) {
+                console.warn("Failed to save checkout details to session on instant create:", err);
+              }
+            } else {
+              console.log(`[User Fetch] Fields not complete yet (Name: "${trimmedName}", Email Valid: ${isEmailValid}, Phone Valid: ${isPhoneValid}). Skipping instant user creation.`);
             }
           }
         } catch (err) {

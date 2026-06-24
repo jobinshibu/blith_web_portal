@@ -1612,7 +1612,7 @@ const EventDetails = () => {
                     <div className="icon-box"><Globe size={20} className="icon" /></div>
                     <div className="text-content">
                       <p className="val">{event.language}</p>
-                      <p className="sub">Language</p>
+                      {/* <p className="sub">Language</p> */}
                     </div>
                   </div>
                 )}
