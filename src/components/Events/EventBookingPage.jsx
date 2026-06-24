@@ -542,6 +542,12 @@ const EventBookingPage = () => {
     };
   }, [attendee.email, attendee.phone]);
 
+  useEffect(() => {
+    if (!resolvedUserId) {
+      setFetchedUserName('');
+    }
+  }, [resolvedUserId]);
+
   // Apply coupon handler
   const handleApplyCoupon = async (coupon) => {
     const isApplicable = subtotal >= (coupon.minOrderAmount || 0);
@@ -2053,18 +2059,18 @@ const EventBookingPage = () => {
                   value={attendee.email}
                   onChange={(e) => {
                     const newEmail = e.target.value;
-                    if (resolvedUserId) {
-                      setResolvedUserId(null);
-                      setResolvedUserIdForCoupons(null);
-                      setFetchedUserName('');
-                      setAttendee({
-                        name: '',
-                        phone: '',
-                        email: newEmail
-                      });
-                    } else {
-                      setAttendee(prev => ({ ...prev, email: newEmail }));
-                    }
+                    setAttendee(prev => {
+                      if (resolvedUserId) {
+                        setResolvedUserId(null);
+                        setResolvedUserIdForCoupons(null);
+                        return {
+                          name: '',
+                          phone: '',
+                          email: newEmail
+                        };
+                      }
+                      return { ...prev, email: newEmail };
+                    });
                   }}
                 />
               </div>
@@ -2086,18 +2092,18 @@ const EventBookingPage = () => {
                   value={attendee.phone}
                   onChange={(e) => {
                     const newPhone = e.target.value;
-                    if (resolvedUserId) {
-                      setResolvedUserId(null);
-                      setResolvedUserIdForCoupons(null);
-                      setFetchedUserName('');
-                      setAttendee({
-                        name: '',
-                        email: '',
-                        phone: newPhone
-                      });
-                    } else {
-                      setAttendee(prev => ({ ...prev, phone: newPhone }));
-                    }
+                    setAttendee(prev => {
+                      if (resolvedUserId) {
+                        setResolvedUserId(null);
+                        setResolvedUserIdForCoupons(null);
+                        return {
+                          name: '',
+                          email: '',
+                          phone: newPhone
+                        };
+                      }
+                      return { ...prev, phone: newPhone };
+                    });
                   }}
                 />
               </div>
