@@ -546,6 +546,7 @@ const EventDetails = () => {
   const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [clusterCategoryNames, setClusterCategoryNames] = useState([]);
 
   // Fetch current user from sessionStorage and Firestore
   useEffect(() => {
@@ -1004,6 +1005,36 @@ const EventDetails = () => {
             setOrganiser(null);
           }
 
+          // Fetch categories and clusters to determine matching cluster category names
+          let names = [];
+          try {
+            const categoriesSnap = await getDocs(query(collection(db, "eventCategories"), where("deleted", "==", false)));
+            const categoriesList = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const clustersSnap = await getDocs(query(collection(db, "cluster_categories"), where("isDeleted", "==", false)));
+            const clustersList = clustersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const currentEventCategoryDoc = categoriesList.find(
+              cat => cat.categoryName?.toLowerCase() === data.category?.toLowerCase()
+            );
+
+            if (currentEventCategoryDoc) {
+              const matchingCluster = clustersList.find(
+                cluster => cluster.categoryIds && cluster.categoryIds.includes(currentEventCategoryDoc.id)
+              );
+
+              if (matchingCluster && matchingCluster.categoryIds) {
+                names = categoriesList
+                  .filter(cat => matchingCluster.categoryIds.includes(cat.id))
+                  .map(cat => cat.categoryName?.toLowerCase())
+                  .filter(Boolean);
+              }
+            }
+          } catch (clusterErr) {
+            console.error("Error determining cluster category names:", clusterErr);
+          }
+          setClusterCategoryNames(names);
+
           const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
 
           let languageVal = "";
@@ -1090,12 +1121,17 @@ const EventDetails = () => {
               }
 
               const isCategoryMatch = data.category && event.category && data.category === event.category;
+              const isClusterMatch = data.category && clusterCategoryNames.includes(data.category.toLowerCase());
               const commonTags = processTags(data.tags).filter(t => (event.tags || []).includes(t));
 
-              // Only recommend if there is a category match OR common tags
-              if (isCategoryMatch || commonTags.length > 0) {
+              // Only recommend if there is a category match OR cluster match OR common tags
+              if (isCategoryMatch || isClusterMatch || commonTags.length > 0) {
                 let score = 0;
-                if (isCategoryMatch) score += 5;
+                if (isCategoryMatch) {
+                  score += 8;
+                } else if (isClusterMatch) {
+                  score += 5;
+                }
                 score += commonTags.length * 2;
 
                 // Match distance proximity (nearby, if location geopoint is available)
@@ -1201,7 +1237,7 @@ const EventDetails = () => {
     if (event) {
       fetchRelatedEvents();
     }
-  }, [event, rawEvents, userLocation]);
+  }, [event, rawEvents, userLocation, clusterCategoryNames]);
 
   // Reset currentIndex to 1 when event ID changes
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
 import { motion } from 'framer-motion';
@@ -33,6 +33,7 @@ const BookingSuccess = () => {
   const [booking, setBooking] = useState(null);
   const [eventDetails, setEventDetails] = useState(null);
   const [relatedEvents, setRelatedEvents] = useState([]);
+  const [clusterCategoryNames, setClusterCategoryNames] = useState([]);
   
   const dispatch = useDispatch();
   const { events: rawEvents } = useSelector(state => state.events);
@@ -85,7 +86,6 @@ const BookingSuccess = () => {
     }
   };
 
-  // Fetch Event Details (immediately)
   useEffect(() => {
     if (!eventId) return;
 
@@ -94,7 +94,38 @@ const BookingSuccess = () => {
         const eventRef = doc(db, 'event', eventId);
         const snap = await getDoc(eventRef);
         if (snap.exists()) {
-          setEventDetails({ id: snap.id, ...snap.data() });
+          const data = snap.data();
+          setEventDetails({ id: snap.id, ...data });
+
+          // Fetch categories and clusters to determine matching cluster category names
+          let names = [];
+          try {
+            const categoriesSnap = await getDocs(query(collection(db, "eventCategories"), where("deleted", "==", false)));
+            const categoriesList = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const clustersSnap = await getDocs(query(collection(db, "cluster_categories"), where("isDeleted", "==", false)));
+            const clustersList = clustersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const currentEventCategoryDoc = categoriesList.find(
+              cat => cat.categoryName?.toLowerCase() === data.category?.toLowerCase()
+            );
+
+            if (currentEventCategoryDoc) {
+              const matchingCluster = clustersList.find(
+                cluster => cluster.categoryIds && cluster.categoryIds.includes(currentEventCategoryDoc.id)
+              );
+
+              if (matchingCluster && matchingCluster.categoryIds) {
+                names = categoriesList
+                  .filter(cat => matchingCluster.categoryIds.includes(cat.id))
+                  .map(cat => cat.categoryName?.toLowerCase())
+                  .filter(Boolean);
+              }
+            }
+          } catch (clusterErr) {
+            console.error("Error determining cluster category names in BookingSuccess:", clusterErr);
+          }
+          setClusterCategoryNames(names);
         }
       } catch (err) {
         console.error("Error fetching event details:", err);
@@ -173,9 +204,14 @@ const BookingSuccess = () => {
         const scored = allEvents.map(e => {
           let score = 0;
 
-          // Category match
-          if (eventDetails.category && e.category && e.category.toLowerCase() === eventDetails.category.toLowerCase()) {
+          // Category match or Cluster match
+          const isCategoryMatch = eventDetails.category && e.category && e.category.toLowerCase() === eventDetails.category.toLowerCase();
+          const isClusterMatch = e.category && clusterCategoryNames.includes(e.category.toLowerCase());
+
+          if (isCategoryMatch) {
             score += 10;
+          } else if (isClusterMatch) {
+            score += 6;
           }
 
           // Event type match (Online vs In-person)
@@ -271,7 +307,7 @@ const BookingSuccess = () => {
     };
 
     fetchRelatedEvents();
-  }, [eventDetails, rawEvents]);
+  }, [eventDetails, rawEvents, clusterCategoryNames]);
 
   // Framer Motion Entrance
   const ticketVariant = {
