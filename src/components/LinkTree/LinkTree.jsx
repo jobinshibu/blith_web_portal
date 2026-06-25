@@ -62,7 +62,7 @@ const LinkTree = () => {
   }, [rawEvents, eventsLoading]);
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'Date TBD';
+    if (!timestamp) return '(Choose Date)';
     const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString('en-GB', {
       day: 'numeric', month: 'short', year: 'numeric'

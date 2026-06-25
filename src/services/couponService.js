@@ -201,8 +201,9 @@ export const fetchFilteredCoupons = async (userId, eventId) => {
     const q = query(
       couponsRef(),
       where('isActive', '==', true),
-      where('deleted', '==', true),
-      where('expiryDate', '>=', now)
+      where('deleted', '==', false),
+      where('expiryDate', '>=', now),
+      where('platform', 'in', ['web', 'both'])
     );
     const snapshot = await getDocs(q);
 
@@ -279,6 +280,11 @@ export const applyCoupon = async ({ couponId, userId, orderAmount, eventId }) =>
 
       // --- Validations ---
       if (!coupon.isActive) return applyFailure('Coupon is inactive');
+
+      const platform = (coupon.platform || '').toLowerCase();
+      if (platform !== 'web' && platform !== 'both') {
+        return applyFailure('This coupon is not valid on web');
+      }
 
       const expiryDate = toDate(coupon.expiryDate);
       if (expiryDate < new Date()) return applyFailure('Coupon has expired');
