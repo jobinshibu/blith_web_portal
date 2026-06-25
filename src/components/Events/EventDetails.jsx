@@ -901,6 +901,38 @@ const EventDetails = () => {
     };
   }, [event?.tags]);
 
+  const languagesRef = useRef(null);
+  const [showLanguagesScrollBtn, setShowLanguagesScrollBtn] = useState(false);
+  const [isLanguagesScrollAtEnd, setIsLanguagesScrollAtEnd] = useState(false);
+
+  const checkLanguagesOverflow = () => {
+    if (languagesRef.current) {
+      const { scrollWidth, clientWidth, scrollLeft } = languagesRef.current;
+      setShowLanguagesScrollBtn(scrollWidth > clientWidth);
+      setIsLanguagesScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
+    }
+  };
+
+  const handleLanguagesScroll = () => {
+    if (languagesRef.current) {
+      if (isLanguagesScrollAtEnd) {
+        languagesRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        languagesRef.current.scrollBy({ left: 150, behavior: 'smooth' });
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkLanguagesOverflow();
+    const timer = setTimeout(checkLanguagesOverflow, 100);
+    window.addEventListener('resize', checkLanguagesOverflow);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkLanguagesOverflow);
+    };
+  }, [event?.language]);
+
   const dispatch = useDispatch();
   const { events: rawEvents } = useSelector(state => state.events);
 
@@ -1608,12 +1640,27 @@ const EventDetails = () => {
                 </div>
 
                 {event.language && (
-                  <div className="info-item">
+                  <div className="languages-row">
                     <div className="icon-box"><Globe size={20} className="icon" /></div>
-                    <div className="text-content">
-                      <p className="val">{event.language}</p>
-                      {/* <p className="sub">Language</p> */}
+                    <div className="languages-wrapper">
+                      <div className="event-languages" ref={languagesRef} onScroll={checkLanguagesOverflow}>
+                        {event.language.split(',').map(l => l.trim()).filter(Boolean).map((lang, idx) => (
+                          <span key={idx} className="language-tag">
+                            {lang}
+                          </span>
+                        ))}
+                      </div>
                     </div>
+                    {showLanguagesScrollBtn && (
+                      <button
+                        type="button"
+                        className="languages-scroll-btn"
+                        aria-label={isLanguagesScrollAtEnd ? "Scroll Languages Left" : "Scroll Languages Right"}
+                        onClick={handleLanguagesScroll}
+                      >
+                        {isLanguagesScrollAtEnd ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+                      </button>
+                    )}
                   </div>
                 )}
 
