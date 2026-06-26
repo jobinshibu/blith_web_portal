@@ -2125,7 +2125,7 @@ const EventBookingPage = () => {
                 <Tag size={16} className="tag-search-icon" />
                 <input
                   type="text"
-                  placeholder="Enter promo code"
+                  placeholder="Enter coupon code"
                   value={couponSearchInput}
                   onChange={(e) => setCouponSearchInput(e.target.value)}
                   className="coupon-search-input"
