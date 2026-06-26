@@ -111,16 +111,54 @@ const BookingSuccess = () => {
             );
 
             if (currentEventCategoryDoc) {
-              const matchingCluster = clustersList.find(
-                cluster => cluster.categoryIds && cluster.categoryIds.includes(currentEventCategoryDoc.id)
-              );
+              const associatedClusterIds = new Set();
 
-              if (matchingCluster && matchingCluster.categoryIds) {
-                names = categoriesList
-                  .filter(cat => matchingCluster.categoryIds.includes(cat.id))
-                  .map(cat => cat.categoryName?.toLowerCase())
-                  .filter(Boolean);
+              // 1. Add cluster IDs from the current category's own clusterId field
+              if (currentEventCategoryDoc.clusterId) {
+                if (Array.isArray(currentEventCategoryDoc.clusterId)) {
+                  currentEventCategoryDoc.clusterId.forEach(id => {
+                    if (id) associatedClusterIds.add(id);
+                  });
+                } else if (typeof currentEventCategoryDoc.clusterId === 'string' && currentEventCategoryDoc.clusterId) {
+                  associatedClusterIds.add(currentEventCategoryDoc.clusterId);
+                }
               }
+
+              // 2. Add cluster IDs from clusters that list this category's ID in categoryIds
+              clustersList.forEach(cluster => {
+                if (cluster.categoryIds && cluster.categoryIds.includes(currentEventCategoryDoc.id)) {
+                  if (cluster.id) associatedClusterIds.add(cluster.id);
+                  if (cluster.clusterId) associatedClusterIds.add(cluster.clusterId);
+                }
+              });
+
+              // 3. Find all category names that belong to these associated clusters
+              const matchedCategories = new Set();
+              
+              categoriesList.forEach(cat => {
+                // Check if this category's own clusterId matches any associatedClusterIds
+                if (cat.clusterId) {
+                  if (Array.isArray(cat.clusterId)) {
+                    if (cat.clusterId.some(id => associatedClusterIds.has(id))) {
+                      matchedCategories.add(cat.categoryName?.toLowerCase());
+                    }
+                  } else if (typeof cat.clusterId === 'string' && associatedClusterIds.has(cat.clusterId)) {
+                    matchedCategories.add(cat.categoryName?.toLowerCase());
+                  }
+                }
+
+                // Check if this category's ID is in the categoryIds of any associated clusters
+                const isInCategoryIdsOfAssociatedCluster = clustersList.some(cluster => {
+                  const isAssociated = associatedClusterIds.has(cluster.id) || associatedClusterIds.has(cluster.clusterId);
+                  return isAssociated && cluster.categoryIds && cluster.categoryIds.includes(cat.id);
+                });
+
+                if (isInCategoryIdsOfAssociatedCluster) {
+                  matchedCategories.add(cat.categoryName?.toLowerCase());
+                }
+              });
+
+              names = Array.from(matchedCategories).filter(Boolean);
             }
           } catch (clusterErr) {
             console.error("Error determining cluster category names in BookingSuccess:", clusterErr);
