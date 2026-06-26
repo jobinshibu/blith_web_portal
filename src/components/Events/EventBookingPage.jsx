@@ -2003,12 +2003,12 @@ const EventBookingPage = () => {
                     </div>
                     <div className="tier-bottom">
                       <span className="tier-price">
-                        {(ticket.actualPrice && ticket.actualPrice > ticket.blithePrice) && (
+                        {(Number(ticket.actualPrice || 0) > Number(ticket.blithePrice || 0)) && (
                           <span className="original-price" style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: '0.4rem', fontSize: '0.85em', fontWeight: 500 }}>
                             ₹ {ticket.actualPrice}
                           </span>
                         )}
-                        {!ticket.blithePrice || ticket.blithePrice === 0 ? 'FREE' : `₹ ${ticket.blithePrice}`}
+                        {(!ticket.blithePrice || Number(ticket.blithePrice) === 0) ? 'FREE' : `₹ ${ticket.blithePrice}`}
                       </span>
                       <div className="tier-selector">
                         <button type="button" className="qty-btn" disabled={qty <= 0} onClick={() => updateQuantity(idx, -1)}>-</button>
@@ -2344,7 +2344,7 @@ const EventBookingPage = () => {
                   return (
                     <div key={idx} className="ticket-item-row">
                       <span>{qty}x {ticket.ticketName}</span>
-                      <span>{(!ticket.blithePrice || ticket.blithePrice === 0) ? 'FREE' : `₹ ${qty * ticket.blithePrice}`}</span>
+                       <span>{(!ticket.blithePrice || Number(ticket.blithePrice) === 0) ? 'FREE' : `₹ ${qty * Number(ticket.blithePrice)}`}</span>
                     </div>
                   );
                 }
