@@ -2035,7 +2035,7 @@ const EventBookingPage = () => {
               <label htmlFor="name">Full Name <span className="required-star">*</span></label>
               <div className="input-wrapper">
                 <User size={18} className="input-icon" />
-                <input type="text" id="name" placeholder="e.g. Rahul Sharma" value={attendee.name} onChange={(e) => setAttendee(prev => ({ ...prev, name: e.target.value }))} />
+                <input type="text" id="name" placeholder="e.g. Rahul Sharma" value={attendee.name} onChange={(e) => setAttendee(prev => ({ ...prev, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') }))} />
               </div>
               {showErrors && !attendee.name.trim() && (
                 <div className="validation-hint"><Info size={16} /><span>Please provide your full name.</span></div>
@@ -2085,7 +2085,7 @@ const EventBookingPage = () => {
                   style={{ paddingLeft: '4.75rem' }}
                   value={attendee.phone}
                   onChange={(e) => {
-                    const newPhone = e.target.value;
+                    const newPhone = e.target.value.replace(/\D/g, '').slice(0, 10);
                     setAttendee(prev => {
                       if (resolvedUserId) {
                         setResolvedUserId(null);
