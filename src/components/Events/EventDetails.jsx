@@ -627,13 +627,12 @@ const EventDetails = () => {
     fetchCurrentUserProfile();
   }, []);
 
-  // Fetch user location — triggers browser permission popup after a 5s delay if not cached
+  // Fetch user location — triggers browser permission popup after a 5s delay
   useEffect(() => {
     const cached = localStorage.getItem('blithe_user_location');
     if (cached) {
       try {
         setUserLocation(JSON.parse(cached));
-        return;
       } catch (e) { }
     }
     if (!navigator.geolocation) return;

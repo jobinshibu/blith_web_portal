@@ -569,19 +569,20 @@ const Events = () => {
     }
   }, [rawEvents, reduxLoading, userLocation]);
 
-  // Request location on mount — triggers browser permission popup after a 5s delay if not cached
+  // Request location on mount — triggers browser permission popup after a 5s delay
   useEffect(() => {
     const cached = localStorage.getItem('blithe_user_location');
     if (cached) {
       try {
         setUserLocation(JSON.parse(cached));
-        return;
       } catch (e) { }
     }
     if (!navigator.geolocation) return;
 
     const timer = setTimeout(() => {
-      setIsLocating(true);
+      if (!localStorage.getItem('blithe_user_location')) {
+        setIsLocating(true);
+      }
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -883,14 +884,13 @@ const Events = () => {
 
     if (userLocation) {
       setIsNearbyFilterActive(true);
-      return;
+    } else {
+      setIsLocating(true);
     }
-
-    setIsLocating(true);
     setLocationError(null);
 
     if (!navigator.geolocation) {
-      handleIPFallback();
+      if (!userLocation) handleIPFallback();
       return;
     }
 
@@ -905,7 +905,11 @@ const Events = () => {
       },
       (error) => {
         console.warn("Precise geolocation failed/denied, falling back to IP-based location...", error);
-        handleIPFallback();
+        if (!userLocation) {
+          handleIPFallback();
+        } else {
+          setIsLocating(false);
+        }
       },
       { maximumAge: 60000, timeout: 5000, enableHighAccuracy: false }
     );
@@ -1147,7 +1151,7 @@ const Events = () => {
             );
           })()}
 
-          <div className="event-card-main-container">
+          <div className={`event-card-main-container ${!activeFeaturedEvent ? 'no-banner' : ''}`}>
             {/* Search Bar Section */}
             <section ref={searchSectionRef} className="search-section" style={{ paddingTop: !activeFeaturedEvent ? '20px' : '0' }}>
               <div className="search-bar-wrapper glass">

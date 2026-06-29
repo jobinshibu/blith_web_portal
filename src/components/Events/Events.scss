@@ -21,8 +21,15 @@
   padding: 0px 30px !important;
   // margin-top: 4rem;
 
+  &.no-banner {
+    padding-top: 65px !important;
+  }
+
   @media (max-width: 768px) {
     padding: 0px 12px !important;
+    &.no-banner {
+      padding: 65px 12px !important;
+    }
   }
 }
 
