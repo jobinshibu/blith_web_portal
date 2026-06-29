@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, analytics } from '../../firebase';
+import { logEvent } from 'firebase/analytics';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
 import { updateUserInterests } from '../../services/userService';
@@ -980,13 +981,13 @@ const EventDetails = () => {
           const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
           const endDateObj = data.eventEndDate ? data.eventEndDate.toDate() : null;
 
-          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
           let formattedDate = formattedStartDate;
 
           let formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
           if (endDateObj) {
-            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
             if (formattedStartDate !== formattedEndDate) {
               formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
             }
@@ -1144,6 +1145,19 @@ const EventDetails = () => {
             language: languageVal,
             raw: data
           });
+
+          try {
+            logEvent(analytics, 'view_event_page', {
+              event_id: docSnap.id,
+              event_name: data.eventName || "Untitled Event",
+              category_id: data.categoryId || data.category_id || "",
+              category_name: data.category || "Other",
+              enter_timestamp: new Date().toISOString(),
+              platform: 'web',
+            });
+          } catch (analyticsErr) {
+            console.warn("Failed to log view_event_page event to Firebase Analytics:", analyticsErr);
+          }
         } else {
           console.log("No such event found with ID:", id);
         }

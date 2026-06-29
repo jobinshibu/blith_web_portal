@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, analytics } from '../../firebase';
+import { logEvent } from 'firebase/analytics';
 import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
 import {
   fetchFilteredCoupons,
@@ -1123,6 +1124,19 @@ const EventBookingPage = () => {
     setShowErrors(false);
     setIsVerifyingUser(true);
 
+    if (total > 0) {
+      try {
+        logEvent(analytics, 'pay_and_proceed_button_click', {
+          email: attendee.email,
+          event_id: event.id,
+          event_name: event.eventName || event.title,
+          platform: 'web',
+        });
+      } catch (analyticsErr) {
+        console.warn("Failed to log pay_and_proceed_button_click to Firebase Analytics:", analyticsErr);
+      }
+    }
+
     try {
       // 1. Resolve User
       const usersRef = collection(db, "users");
@@ -1858,6 +1872,18 @@ const EventBookingPage = () => {
             if (!paymentId) {
               toast.error("Payment verification failed. No payment ID returned.");
               return;
+            }
+
+            try {
+              logEvent(analytics, 'booking_payment_success', {
+                payment_id: paymentId || '',
+                order_id: response.razorpay_order_id || orderId || '',
+                event_id: event.id,
+                event_name: event.eventName || event.title,
+                platform: 'web',
+              });
+            } catch (analyticsErr) {
+              console.warn("Failed to log booking_payment_success to Firebase Analytics:", analyticsErr);
             }
 
             // Commit the coupon reservation so usedCount is incremented and
