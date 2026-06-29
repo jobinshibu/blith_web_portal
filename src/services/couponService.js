@@ -282,8 +282,8 @@ export const applyCoupon = async ({ couponId, userId, orderAmount, eventId }) =>
       if (!coupon.isActive) return applyFailure('Coupon is inactive');
 
       const platform = (coupon.platform || '').toLowerCase();
-      if (platform !== 'web' && platform !== 'both') {
-        return applyFailure('This coupon is not valid on web');
+      if (platform !== 'web' && platform !== 'both' && coupon.isPrivate !== true) {
+        return applyFailure('This coupon is not valid on website');
       }
 
       const expiryDate = toDate(coupon.expiryDate);
