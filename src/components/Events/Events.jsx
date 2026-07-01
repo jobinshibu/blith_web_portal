@@ -351,7 +351,7 @@ const Events = () => {
   const [endDate, setEndDate] = useState(null);
   const [isNearbyFilterActive, setIsNearbyFilterActive] = useState(false);
   const [userLocation, setUserLocation] = useState(() => {
-    const cached = localStorage.getItem('blithe_user_location');
+    const cached = sessionStorage.getItem('blithe_user_location');
     if (cached) {
       try {
         return JSON.parse(cached);
@@ -599,29 +599,42 @@ const Events = () => {
 
   // Request location on mount — triggers browser permission popup after a 5s delay
   useEffect(() => {
-    const cached = localStorage.getItem('blithe_user_location');
+    const cached = sessionStorage.getItem('blithe_user_location');
     if (cached) {
       try {
         setUserLocation(JSON.parse(cached));
       } catch (e) { }
+      return; // Already have cached location, do not auto-request again
     }
+
+    if (sessionStorage.getItem('blithe_user_location_declined') === 'true') {
+      return; // User previously declined, do not auto-request again
+    }
+
     if (!navigator.geolocation) return;
 
     const timer = setTimeout(() => {
-      if (!localStorage.getItem('blithe_user_location')) {
-        setIsLocating(true);
+      // Re-verify that location wasn't set or declined while waiting
+      if (sessionStorage.getItem('blithe_user_location') || sessionStorage.getItem('blithe_user_location_declined') === 'true') {
+        return;
       }
+
+      setIsLocating(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           const loc = { lat: latitude, lng: longitude, type: 'precise' };
           setUserLocation(loc);
-          localStorage.setItem('blithe_user_location', JSON.stringify(loc));
+          sessionStorage.setItem('blithe_user_location', JSON.stringify(loc));
+          sessionStorage.removeItem('blithe_user_location_declined');
           setIsLocating(false);
         },
-        () => {
+        (error) => {
           // User denied or error — fail silently, nearby filter will handle it
           setIsLocating(false);
+          if (error && error.code === 1) { // PERMISSION_DENIED
+            sessionStorage.setItem('blithe_user_location_declined', 'true');
+          }
         },
         { maximumAge: 60000, timeout: 10000, enableHighAccuracy: false }
       );
@@ -927,12 +940,16 @@ const Events = () => {
         const { latitude, longitude } = position.coords;
         const loc = { lat: latitude, lng: longitude, type: 'precise' };
         setUserLocation(loc);
-        localStorage.setItem('blithe_user_location', JSON.stringify(loc));
+        sessionStorage.setItem('blithe_user_location', JSON.stringify(loc));
+        sessionStorage.removeItem('blithe_user_location_declined');
         setIsNearbyFilterActive(true);
         setIsLocating(false);
       },
       (error) => {
         console.warn("Precise geolocation failed/denied, falling back to IP-based location...", error);
+        if (error && error.code === 1) {
+          sessionStorage.setItem('blithe_user_location_declined', 'true');
+        }
         if (!userLocation) {
           handleIPFallback();
         } else {
@@ -948,7 +965,7 @@ const Events = () => {
     try {
       const approxLoc = await fetchApproximateLocation();
       setUserLocation(approxLoc);
-      localStorage.setItem('blithe_user_location', JSON.stringify(approxLoc));
+      sessionStorage.setItem('blithe_user_location', JSON.stringify(approxLoc));
       setIsNearbyFilterActive(true);
       setLocationError(null);
     } catch (err) {
@@ -965,7 +982,7 @@ const Events = () => {
     try {
       const approxLoc = await fetchApproximateLocation();
       setUserLocation(approxLoc);
-      localStorage.setItem('blithe_user_location', JSON.stringify(approxLoc));
+      sessionStorage.setItem('blithe_user_location', JSON.stringify(approxLoc));
       setIsNearbyFilterActive(true);
       setLocationError(null);
       setShowLocationModal(false);

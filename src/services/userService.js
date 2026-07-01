@@ -147,9 +147,9 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
 
   let latitude = 0.0;
   let longitude = 0.0;
-  if (typeof window !== 'undefined' && window.localStorage) {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
     try {
-      const cachedLoc = window.localStorage.getItem('blithe_user_location');
+      const cachedLoc = window.sessionStorage.getItem('blithe_user_location');
       if (cachedLoc) {
         const parsed = JSON.parse(cachedLoc);
         if (parsed && typeof parsed.lat === 'number' && (typeof parsed.lng === 'number' || typeof parsed.longitude === 'number')) {

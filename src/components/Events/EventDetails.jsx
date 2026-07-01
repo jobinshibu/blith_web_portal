@@ -532,7 +532,7 @@ const EventDetails = () => {
   const [organiser, setOrganiser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [userLocation, setUserLocation] = useState(() => {
-    const cached = localStorage.getItem('blithe_user_location');
+    const cached = sessionStorage.getItem('blithe_user_location');
     if (cached) {
       try {
         return JSON.parse(cached);
@@ -630,23 +630,39 @@ const EventDetails = () => {
 
   // Fetch user location — triggers browser permission popup after a 5s delay
   useEffect(() => {
-    const cached = localStorage.getItem('blithe_user_location');
+    const cached = sessionStorage.getItem('blithe_user_location');
     if (cached) {
       try {
         setUserLocation(JSON.parse(cached));
       } catch (e) { }
+      return; // Already have cached location, do not auto-request again
     }
+
+    if (sessionStorage.getItem('blithe_user_location_declined') === 'true') {
+      return; // User previously declined, do not auto-request again
+    }
+
     if (!navigator.geolocation) return;
 
     const timer = setTimeout(() => {
+      // Re-verify that location wasn't set or declined while waiting
+      if (sessionStorage.getItem('blithe_user_location') || sessionStorage.getItem('blithe_user_location_declined') === 'true') {
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           const loc = { lat: latitude, lng: longitude, type: 'precise' };
           setUserLocation(loc);
-          localStorage.setItem('blithe_user_location', JSON.stringify(loc));
+          sessionStorage.setItem('blithe_user_location', JSON.stringify(loc));
+          sessionStorage.removeItem('blithe_user_location_declined');
         },
-        () => { },
+        (error) => {
+          if (error && error.code === 1) { // PERMISSION_DENIED
+            sessionStorage.setItem('blithe_user_location_declined', 'true');
+          }
+        },
         { maximumAge: 60000, timeout: 10000, enableHighAccuracy: false }
       );
     }, 5000);
