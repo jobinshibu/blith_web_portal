@@ -125,10 +125,10 @@ const Navbar = () => {
             <div className="nav-profile-wrapper">
               <button className="nav-profile-trigger" onClick={() => setIsProfileOpen(!isProfileOpen)} aria-label="Open Profile">
                 {currentUser.profilePic ? (
-                  <img src={currentUser.profilePic} alt={currentUser.name} className="nav-avatar-img" />
+                  <img src={currentUser.profilePic} alt={currentUser.fetchedUserName || currentUser.name} className="nav-avatar-img" />
                 ) : (
                   <span className="nav-avatar-initial">
-                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User size={14} />}
+                    {(currentUser.fetchedUserName || currentUser.name) ? (currentUser.fetchedUserName || currentUser.name).charAt(0).toUpperCase() : <User size={14} />}
                   </span>
                 )}
               </button>
@@ -136,7 +136,7 @@ const Navbar = () => {
                 <ProfileDashboardModal 
                   isOpen={isProfileOpen} 
                   onClose={() => setIsProfileOpen(false)} 
-                  user={currentUser} 
+                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }} 
                 />
               )}
             </div>
@@ -153,10 +153,10 @@ const Navbar = () => {
             <div className="nav-profile-wrapper">
               <button className="nav-profile-trigger mobile-avatar-trigger" onClick={() => setIsProfileOpen(!isProfileOpen)} aria-label="Open Profile">
                 {currentUser.profilePic ? (
-                  <img src={currentUser.profilePic} alt={currentUser.name} className="nav-avatar-img" />
+                  <img src={currentUser.profilePic} alt={currentUser.fetchedUserName || currentUser.name} className="nav-avatar-img" />
                 ) : (
                   <span className="nav-avatar-initial">
-                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User size={12} />}
+                    {(currentUser.fetchedUserName || currentUser.name) ? (currentUser.fetchedUserName || currentUser.name).charAt(0).toUpperCase() : <User size={12} />}
                   </span>
                 )}
               </button>
@@ -164,7 +164,7 @@ const Navbar = () => {
                 <ProfileDashboardModal 
                   isOpen={isProfileOpen} 
                   onClose={() => setIsProfileOpen(false)} 
-                  user={currentUser} 
+                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }} 
                 />
               )}
             </div>

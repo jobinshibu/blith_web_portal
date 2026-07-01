@@ -86,10 +86,59 @@ export const checkPhoneExists = async (phoneNo) => {
 };
 
 /**
- * Registers a new user if the phone number does not already exist.
- * @param {Object} userData - User details (name, email,    , password, etc.)
- * @returns {Promise<Object>} The created user data or throws an error
+ * Encodes a latitude and longitude into a geohash string.
+ * @param {number} latitude 
+ * @param {number} longitude 
+ * @param {number} precision - Length of the geohash (defaults to 9)
+ * @returns {string} The geohash string
  */
+export const encodeGeohash = (latitude, longitude, precision = 9) => {
+  if (typeof latitude !== 'number' || typeof longitude !== 'number' || isNaN(latitude) || isNaN(longitude)) {
+    return "";
+  }
+  const lat = Math.max(-90.0, Math.min(90.0, latitude));
+  const lng = Math.max(-180.0, Math.min(180.0, longitude));
+
+  const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+  let minLat = -90.0, maxLat = 90.0;
+  let minLng = -180.0, maxLng = 180.0;
+  let geohash = "";
+  let isEven = true;
+  let bit = 0;
+  let ch = 0;
+
+  while (geohash.length < precision) {
+    let mid;
+    if (isEven) {
+      mid = (minLng + maxLng) / 2.0;
+      if (lng > mid) {
+        ch |= (1 << (4 - bit));
+        minLng = mid;
+      } else {
+        maxLng = mid;
+      }
+    } else {
+      mid = (minLat + maxLat) / 2.0;
+      if (lat > mid) {
+        ch |= (1 << (4 - bit));
+        minLat = mid;
+      } else {
+        maxLat = mid;
+      }
+    }
+
+    isEven = !isEven;
+    if (bit < 4) {
+      bit++;
+    } else {
+      geohash += BASE32[ch];
+      bit = 0;
+      ch = 0;
+    }
+  }
+  return geohash;
+};
+
 /**
  * Creates a default user object with all required schema fields.
  */
@@ -113,6 +162,8 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     }
   }
 
+  const geohashVal = (latitude !== 0.0 || longitude !== 0.0) ? encodeGeohash(latitude, longitude) : "";
+
   return {
     about: "Up for Event! Go Blithe",
     admin: false,
@@ -131,7 +182,7 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     followers: [],
     gender: "",
     geo: { 
-      geohash: "", 
+      geohash: geohashVal, 
       geopoint: new GeoPoint(latitude, longitude)
     },
     instagramUrl: "",

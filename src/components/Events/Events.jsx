@@ -6,6 +6,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice';
 import logo from '../../assets/logo.jpeg';
 import './Events.scss';
+import { db, analytics } from '../../firebase';
+import { logEvent } from 'firebase/analytics';
 
 // Robust multi-fallback IP Geolocation helper
 const fetchApproximateLocation = async () => {
@@ -318,6 +320,32 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 const Events = () => {
+  useEffect(() => {
+    try {
+      logEvent(analytics, 'view_landing_page', {
+        page_name: 'web-landing-page',
+        platform: 'web',
+        enter_timestamp: new Date().toISOString()
+      });
+    } catch (analyticsErr) {
+      console.warn("Failed to log view_landing_page event to Firebase Analytics:", analyticsErr);
+    }
+  }, []);
+
+  const handleEventClick = (event) => {
+    try {
+      logEvent(analytics, 'landing_page_event_click', {
+        page_name: 'web-landing-page',
+        event_id: event.id,
+        event_name: event.title || event.eventName || 'Untitled Event',
+        category_name: event.category || 'Other',
+        platform: 'web'
+      });
+    } catch (analyticsErr) {
+      console.warn("Failed to log landing_page_event_click event to Firebase Analytics:", analyticsErr);
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -1119,7 +1147,13 @@ const Events = () => {
                               <p className="hero-price">{event.price}</p>
 
                               <div className={`hero-actions ${index !== 0 ? 'disabled' : ''}`}>
-                                <Link to={`/events/${event.id}`} onClick={e => index !== 0 && e.preventDefault()} className="hero-cta-btn" style={event.isSoldOut ? { backgroundColor: '#4B5563' } : {}}>
+                                <Link to={`/events/${event.id}`} onClick={e => {
+                                  if (index !== 0) {
+                                    e.preventDefault();
+                                  } else {
+                                    handleEventClick(event);
+                                  }
+                                }} className="hero-cta-btn" style={event.isSoldOut ? { backgroundColor: '#4B5563' } : {}}>
                                   {event.isSoldOut ? 'Sold Out' : 'Book Now'}
                                 </Link>
                               </div>
@@ -1390,7 +1424,7 @@ const Events = () => {
                             transition={{ duration: 0.3, delay: index * 0.03 }}
                             className="event-card-container"
                           >
-                            <Link to={`/events/${event.id}`} className="portrait-event-card">
+                            <Link to={`/events/${event.id}`} onClick={() => handleEventClick(event)} className="portrait-event-card">
                               <div className="portrait-image-wrapper">
                                 <img src={event.image} alt={event.title} loading="lazy" />
                                 {event.promoted && (

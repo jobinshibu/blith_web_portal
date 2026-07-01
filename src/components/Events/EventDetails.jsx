@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { db, analytics } from '../../firebase';
@@ -1692,7 +1692,7 @@ const EventDetails = () => {
 
                 {event.language && (
                   <div className="languages-row">
-                    <div className="icon-box"><Globe size={20} className="icon" /></div>
+                    <div className="icon-box"><Languages size={20} className="icon" /></div>
                     <div className="languages-wrapper">
                       <div className="event-languages" ref={languagesRef} onScroll={checkLanguagesOverflow}>
                         {event.language.split(',').map(l => l.trim()).filter(Boolean).map((lang, idx) => (
