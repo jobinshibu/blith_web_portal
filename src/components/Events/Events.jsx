@@ -194,22 +194,44 @@ const CATEGORY_STYLES = [
   { name: "Open Mics", label: "Open Mics", icon: Mic2, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
 ];
 
-const CALENDAR_MONTHS = [
-  {
-    name: "May 2026",
-    monthIndex: 4, // 0-indexed May
-    year: 2026,
-    daysInMonth: 31,
-    startDayOfWeek: 5, // Starts on Friday
-  },
-  {
-    name: "June 2026",
-    monthIndex: 5, // 0-indexed June
-    year: 2026,
-    daysInMonth: 30,
-    startDayOfWeek: 1, // Starts on Monday
+const getCalendarMonths = () => {
+  const months = [];
+  const startYear = 2026;
+  const startMonth = 4; // May (0-indexed)
+  
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  
+  // Generate months from May 2026 up to 10 years in the future to support future dates (2028, 2029, 2030, etc.)
+  const endYear = Math.max(currentYear, 2026) + 10;
+  
+  let tempYear = startYear;
+  let tempMonth = startMonth;
+  
+  while (tempYear < endYear || (tempYear === endYear && tempMonth <= 11)) {
+    const firstDay = new Date(tempYear, tempMonth, 1);
+    const name = firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const daysInMonth = new Date(tempYear, tempMonth + 1, 0).getDate();
+    const startDayOfWeek = firstDay.getDay();
+    
+    months.push({
+      name,
+      monthIndex: tempMonth,
+      year: tempYear,
+      daysInMonth,
+      startDayOfWeek
+    });
+    
+    tempMonth++;
+    if (tempMonth > 11) {
+      tempMonth = 0;
+      tempYear++;
+    }
   }
-];
+  return months;
+};
+
+const CALENDAR_MONTHS = getCalendarMonths();
 
 // Custom Category Card component to maintain single source of styles/logic
 const CategoryCard = ({ cat, isSelected, onClick }) => {
@@ -242,9 +264,13 @@ const CategoryCard = ({ cat, isSelected, onClick }) => {
   );
 };
 
-const parseEventDateRange = (dateStr) => {
-  const year = 2026;
-  const monthMap = { "may": 4, "jun": 5 };
+const parseEventDateRange = (dateStr, year = 2026) => {
+  const monthMap = {
+    "jan": 0, "feb": 1, "mar": 2, "apr": 3, "may": 4, "jun": 5,
+    "jul": 6, "aug": 7, "sep": 8, "oct": 9, "nov": 10, "dec": 11,
+    "january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
+    "july": 6, "august": 7, "september": 8, "october": 9, "november": 10, "december": 11
+  };
 
   if (dateStr.includes(" - ")) {
     const parts = dateStr.split(" - ");
@@ -280,7 +306,8 @@ const parseEventDateRange = (dateStr) => {
 const isEventInDateRange = (eventDateStr, selectedStart, selectedEnd) => {
   if (!selectedStart) return true;
 
-  const parsed = parseEventDateRange(eventDateStr);
+  const year = selectedStart.getFullYear();
+  const parsed = parseEventDateRange(eventDateStr, year);
   if (!parsed) return false;
 
   const eventStart = new Date(parsed.start.getFullYear(), parsed.start.getMonth(), parsed.start.getDate()).getTime();
@@ -1309,7 +1336,9 @@ const Events = () => {
                         <button
                           type="button"
                           className="month-nav-btn"
-                          onClick={() => setCurrentMonthIndex(prev => (prev === 1 ? 0 : 1))}
+                          onClick={() => setCurrentMonthIndex(prev => Math.max(0, prev - 1))}
+                          disabled={currentMonthIndex === 0}
+                          style={currentMonthIndex === 0 ? { opacity: 0.3, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
                         >
                           <ChevronLeft size={18} />
                         </button>
@@ -1319,7 +1348,9 @@ const Events = () => {
                         <button
                           type="button"
                           className="month-nav-btn"
-                          onClick={() => setCurrentMonthIndex(prev => (prev === 0 ? 1 : 0))}
+                          onClick={() => setCurrentMonthIndex(prev => Math.min(CALENDAR_MONTHS.length - 1, prev + 1))}
+                          disabled={currentMonthIndex === CALENDAR_MONTHS.length - 1}
+                          style={currentMonthIndex === CALENDAR_MONTHS.length - 1 ? { opacity: 0.3, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
                         >
                           <ChevronRight size={18} />
                         </button>
