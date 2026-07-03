@@ -7,6 +7,7 @@ import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
+import { getActiveLeadSource } from '../../services/leadService';
 import { updateUserInterests } from '../../services/userService';
 import Button from '../Button/Button';
 import logo from '../../assets/logo.jpeg';
@@ -1163,6 +1164,7 @@ const EventDetails = () => {
           });
 
           try {
+            const leadSource = getActiveLeadSource(docSnap.id);
             logEvent(analytics, 'view_event_page', {
               event_id: docSnap.id,
               event_name: data.eventName || "Untitled Event",
@@ -1170,9 +1172,10 @@ const EventDetails = () => {
               category_name: data.category || "Other",
               enter_timestamp: new Date().toISOString(),
               platform: 'web',
+              ...(leadSource ? { lead_source: leadSource } : {})
             });
           } catch (analyticsErr) {
-            console.warn("Failed to log view_event_page event to Firebase Analytics:", analyticsErr);
+            console.warn("Failed to log event analytics in EventDetails:", analyticsErr);
           }
         } else {
           console.log("No such event found with ID:", id);

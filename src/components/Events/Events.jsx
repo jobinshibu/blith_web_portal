@@ -8,6 +8,8 @@ import logo from '../../assets/logo.jpeg';
 import './Events.scss';
 import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
+import { getActiveLeadSource } from '../../services/leadService';
+
 
 // Robust multi-fallback IP Geolocation helper
 const fetchApproximateLocation = async () => {
@@ -361,15 +363,17 @@ const Events = () => {
 
   const handleEventClick = (event) => {
     try {
+      const leadSource = getActiveLeadSource(event.id);
       logEvent(analytics, 'landing_page_event_click', {
         page_name: 'web-landing-page',
         event_id: event.id,
         event_name: event.title || event.eventName || 'Untitled Event',
         category_name: event.category || 'Other',
-        platform: 'web'
+        platform: 'web',
+        ...(leadSource ? { lead_source: leadSource } : {})
       });
     } catch (analyticsErr) {
-      console.warn("Failed to log landing_page_event_click event to Firebase Analytics:", analyticsErr);
+      console.warn("Failed to log event analytics:", analyticsErr);
     }
   };
 

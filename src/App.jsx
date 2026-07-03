@@ -10,11 +10,16 @@ import LinkTree from './components/LinkTree/LinkTree'
 import Terms from './components/Terms/Terms'
 import Footer from './components/Footer/Footer'
 import ScrollToTop from './components/ScrollToTop'
+import { initLeadTracking } from './services/leadService'
 import './styles/main.scss'
 
 function App() {
   const location = useLocation();
   const isLinkTree = location.pathname === '/blithelink' || location.pathname === '/events/blithelink';
+
+  React.useEffect(() => {
+    initLeadTracking();
+  }, []);
 
   return (
     <div className="app-container">
