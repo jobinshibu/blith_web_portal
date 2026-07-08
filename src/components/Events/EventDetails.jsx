@@ -7,7 +7,7 @@ import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
-import { getActiveLeadSource } from '../../services/leadService';
+import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { updateUserInterests } from '../../services/userService';
 import Button from '../Button/Button';
 import logo from '../../assets/logo.jpeg';
@@ -76,14 +76,52 @@ const processTags = (tagsInput) => {
 const ShareModal = ({ event, onClose, onShare }) => {
   const [copied, setCopied] = useState(false);
   const [copiedSocial, setCopiedSocial] = useState(null);
-  const shareUrl = window.location.href;
+  const [showInstagramInfo, setShowInstagramInfo] = useState(false);
   const shareText = `Check out "${event.title}" on Blithe!`;
 
-  const handleCopy = async () => {
+  const getShareUrlForPlatform = (platformId) => {
+    try {
+      const url = new URL(window.location.href);
+      // Clean existing source tracking parameters
+      url.searchParams.delete('utm_source');
+      url.searchParams.delete('source');
+      url.searchParams.delete('ref');
+      url.searchParams.delete('utf');
+
+      // Map platform ID to the value for 'utf' & 'utm_source'
+      let value = platformId;
+      if (platformId === 'copy') {
+        value = 'blithecopy';
+      }
+
+      url.searchParams.set('utf', value);
+      url.searchParams.set('utm_source', value);
+
+      // Local development fallback: Replace localhost/IP host with production domain to prevent security blocks on Reddit, Facebook, LinkedIn etc.
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.startsWith('192.168.')) {
+        url.protocol = 'https:';
+        url.hostname = 'blithe.social';
+        url.port = '';
+      }
+
+      return url.toString();
+    } catch (e) {
+      let base = window.location.href.split('?')[0];
+      if (base.includes('localhost') || base.includes('127.0.0.1')) {
+        base = base.replace(/http:\/\/localhost:\d+/, 'https://blithe.social')
+                   .replace(/http:\/\/127.0.0.1:\d+/, 'https://blithe.social');
+      }
+      const val = platformId === 'copy' ? 'blithecopy' : platformId;
+      return `${base}?utf=${val}&utm_source=${val}`;
+    }
+  };
+
+  const handleCopy = async (platformId = 'copy') => {
     let success = false;
+    const targetUrl = getShareUrlForPlatform(platformId);
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
+        await navigator.clipboard.writeText(targetUrl);
         success = true;
       } else {
         throw new Error('Clipboard API not available');
@@ -91,7 +129,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
     } catch {
       try {
         const textArea = document.createElement("textarea");
-        textArea.value = shareUrl;
+        textArea.value = targetUrl;
         textArea.style.top = "0";
         textArea.style.left = "0";
         textArea.style.position = "fixed";
@@ -106,23 +144,28 @@ const ShareModal = ({ event, onClose, onShare }) => {
     }
 
     if (success) {
-      setCopied(true);
+      if (platformId === 'copy') {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
       if (onShare) onShare();
-      setTimeout(() => setCopied(false), 2500);
     }
     return success;
   };
 
   const handleSocialClick = async (e, s) => {
-    if (onShare) onShare();
     if (s.id === 'instagram') {
       e.preventDefault();
-      const success = await handleCopy();
+      
+      // Copy link and show guidance screen directly
+      const success = await handleCopy('instagram');
       if (success) {
         setCopiedSocial('instagram');
         setTimeout(() => setCopiedSocial(null), 2000);
       }
-      window.open(s.url, '_blank', 'noopener,noreferrer');
+      setShowInstagramInfo(true);
+    } else {
+      if (onShare) onShare();
     }
   };
 
@@ -136,7 +179,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
         </svg>
       ),
-      url: `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
+      url: `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + getShareUrlForPlatform('whatsapp'))}`,
     },
     {
       id: 'telegram',
@@ -147,7 +190,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
         </svg>
       ),
-      url: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+      url: `https://t.me/share/url?url=${encodeURIComponent(getShareUrlForPlatform('telegram'))}&text=${encodeURIComponent(shareText)}`,
     },
     {
       id: 'twitter',
@@ -158,7 +201,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.213 5.567zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
         </svg>
       ),
-      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
+      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(getShareUrlForPlatform('twitter'))}`,
     },
     {
       id: 'facebook',
@@ -169,7 +212,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
         </svg>
       ),
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrlForPlatform('facebook'))}`,
     },
     {
       id: 'linkedin',
@@ -180,7 +223,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <path d="M22.23 0H1.77C.8 0 0 .77 0 1.72v20.56C0 23.23.8 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.2 0 22.23 0zM7.12 20.45H3.56V9H7.12v11.45zM5.34 7.43c-1.14 0-2.06-.92-2.06-2.06 0-1.14.92-2.06 2.06-2.06 1.14 0 2.06.92 2.06 2.06 0 1.14-.92 2.06-2.06 2.06zm15.11 13.02h-3.56v-5.6c0-1.34-.03-3.05-1.86-3.05-1.86 0-2.14 1.45-2.14 2.95v5.7h-3.56V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29z" />
         </svg>
       ),
-      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getShareUrlForPlatform('linkedin'))}`,
     },
     {
       id: 'reddit',
@@ -191,7 +234,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <path d="M24 11.5c0-1.65-1.35-3-3-3-.96 0-1.86.48-2.42 1.24-1.64-1-3.85-1.64-6.29-1.72l1.35-4.24 3.71.79c.07.9.84 1.63 1.78 1.63 1 0 1.8-1 1.8-2s-.8-2-1.8-2c-.9 0-1.64.66-1.77 1.51l-4.14-.88c-.23-.05-.47.09-.53.33L9.33 8c-2.49.06-4.75.7-6.42 1.72C2.35 8.98 1.45 8.5 1 8.5c-1.65 0-3 1.35-3 3 0 1.12.63 2.1 1.56 2.62-.06.39-.09.79-.09 1.19 0 3.73 4.25 6.75 9.5 6.75s9.5-3.02 9.5-6.75c0-.4-.03-.8-.09-1.19.93-.52 1.56-1.5 1.56-2.62zm-18-1c.72 0 1.3.58 1.3 1.3s-.58 1.3-1.3 1.3-1.3-.58-1.3-1.3.58-1.3 1.3-1.3zm10.6 5.8c-.83.83-2.4 1.2-4.6 1.2s-3.77-.37-4.6-1.2c-.2-.2-.2-.52 0-.72s.52-.2.72 0c.64.64 1.94.92 3.88.92s3.24-.28 3.88-.92c.2-.2.52-.2.72 0s.2.52 0 .72zm-.4-3.5c.72 0 1.3.58 1.3 1.3s-.58 1.3-1.3 1.3-1.3-.58-1.3-1.3.58-1.3 1.3-1.3z" />
         </svg>
       ),
-      url: `https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(shareText)}`,
+      url: `https://www.reddit.com/submit?url=${encodeURIComponent(getShareUrlForPlatform('reddit'))}&title=${encodeURIComponent(shareText)}`,
     },
     {
       id: 'pinterest',
@@ -202,8 +245,9 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.906 2.17-2.906 1.023 0 1.517.769 1.517 1.686 0 1.02-.648 2.546-.98 3.958-.283 1.192.599 2.161 1.776 2.161 2.128 0 3.765-2.244 3.765-5.48 0-2.861-2.062-4.869-5.005-4.869-3.41 0-5.413 2.561-5.413 5.2 0 1.03.397 2.138.893 2.738.1.12.115.22.085.345-.09.375-.293 1.199-.334 1.363-.053.21-.174.254-.402.149-1.498-.697-2.435-2.887-2.435-4.647 0-3.785 2.75-7.261 7.929-7.261 4.164 0 7.397 2.965 7.397 6.93 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.748-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.36 11.985-11.988C24.005 5.367 18.623 0 12.017 0z" />
         </svg>
       ),
-      url: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${encodeURIComponent(shareText)}`,
+      url: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(getShareUrlForPlatform('pinterest'))}&description=${encodeURIComponent(shareText)}`,
     },
+    /*
     {
       id: 'instagram',
       label: 'Instagram',
@@ -215,6 +259,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
       ),
       url: `https://www.instagram.com/`,
     },
+    */
     {
       id: 'email',
       label: 'Email',
@@ -225,7 +270,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
           <polyline points="22,6 12,13 2,6" />
         </svg>
       ),
-      url: `mailto:?subject=${encodeURIComponent(shareText)}&body=${encodeURIComponent(shareUrl)}`,
+      url: `mailto:?subject=${encodeURIComponent(shareText)}&body=${encodeURIComponent(getShareUrlForPlatform('email'))}`,
     },
   ];
 
@@ -251,94 +296,150 @@ const ShareModal = ({ event, onClose, onShare }) => {
             <X size={20} />
           </button>
 
-          {/* Event image preview */}
-          <div className="share-event-preview">
-            <div className="share-event-image-wrap">
-              <img src={event.image} alt={event.title} />
-              <div className="share-event-image-overlay">
-                <img src={logoTransparent} alt="Blithe" className="share-watermark" />
+          {showInstagramInfo ? (
+            <div className="share-instagram-instruction-container">
+              <div className="instagram-header">
+                <div className="instagram-gradient-circle">
+                  <InstagramIcon size={30} />
+                </div>
+                <h4>Share to Instagram</h4>
+              </div>
+
+              <div className="instagram-copied-alert">
+                <Check size={18} className="check-icon" />
+                <span>Link copied to clipboard!</span>
+              </div>
+
+              <p className="instagram-instructions-text">
+                Instagram does not support direct link sharing from websites. You can share it manually using the copied link:
+              </p>
+
+              <ul className="instagram-steps-list">
+                <li>
+                  <span className="step-num">1</span>
+                  <span>Open Instagram and start creating a <strong>Story</strong>, <strong>Post</strong>, or <strong>Direct Message</strong>.</span>
+                </li>
+                <li>
+                  <span className="step-num">2</span>
+                  <span>In Stories, select the <strong>Link sticker</strong> and paste the copied URL.</span>
+                </li>
+                <li>
+                  <span className="step-num">3</span>
+                  <span>In Posts or DMs, tap and select <strong>Paste</strong>.</span>
+                </li>
+              </ul>
+
+              <div className="instagram-actions">
+                <button
+                  className="instagram-btn-primary"
+                  onClick={() => {
+                    window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+                    if (onShare) onShare();
+                  }}
+                >
+                  <ExternalLink size={16} />
+                  Open Instagram
+                </button>
+                <button
+                  className="instagram-btn-secondary"
+                  onClick={() => setShowInstagramInfo(false)}
+                >
+                  Back to options
+                </button>
               </div>
             </div>
-            <div className="share-event-meta">
-              <span className="share-event-category">{event.category}</span>
-              <h3 className="share-event-title">{event.title}</h3>
-              <p className="share-event-date">{event.date} · {event.time}</p>
-            </div>
-          </div>
-
-          {/* Social share row */}
-          <p className="share-section-label">Share via</p>
-          <div className="share-socials-row">
-            {socials.map(s => (
-              <a
-                key={s.id}
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="share-social-btn"
-                style={{ '--social-color': s.color }}
-                aria-label={`Share on ${s.label}`}
-                onClick={(e) => handleSocialClick(e, s)}
-              >
-                <span className="share-social-icon">{s.icon}</span>
-                <span className="share-social-label">
-                  {copiedSocial === s.id ? 'Copied!' : s.label}
-                </span>
-              </a>
-            ))}
-          </div>
-
-          {/* Copy link */}
-          <button className={`share-copy-btn ${copied ? 'copied' : ''}`} onClick={handleCopy}>
-            {copied ? <Check size={18} /> : <Copy size={18} />}
-            {copied ? 'Link Copied!' : 'Copy Event Link'}
-          </button>
-
-          {/* Divider */}
-          <div className="share-divider"><span>Also available on</span></div>
-
-          {/* App badges */}
-          <div className="share-app-section">
-            <div className="share-app-info">
-              <img src={logoTransparent} alt="Blithe App" className="share-app-logo" />
-              <div>
-                <p className="share-app-name">Blithe</p>
-                <p className="share-app-tagline">Discover events on the go</p>
+          ) : (
+            <>
+              {/* Event image preview */}
+              <div className="share-event-preview">
+                <div className="share-event-image-wrap">
+                  <img src={event.image} alt={event.title} />
+                  <div className="share-event-image-overlay">
+                    <img src={logoTransparent} alt="Blithe" className="share-watermark" />
+                  </div>
+                </div>
+                <div className="share-event-meta">
+                  <span className="share-event-category">{event.category}</span>
+                  <h3 className="share-event-title">{event.title}</h3>
+                  <p className="share-event-date">{event.date} · {event.time}</p>
+                </div>
               </div>
-            </div>
-            <div className="share-app-badges">
-              <a
-                href="https://play.google.com/store/apps/details?id=com.firstlogicmetalab.blith_user_app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="share-badge-btn"
-                aria-label="Get it on Google Play"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
-                </svg>
-                <div>
-                  <span className="badge-sub">Get it on</span>
-                  <span className="badge-main">Google Play</span>
+
+              {/* Social share row */}
+              <p className="share-section-label">Share via</p>
+              <div className="share-socials-row">
+                {socials.map(s => (
+                  <a
+                    key={s.id}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="share-social-btn"
+                    style={{ '--social-color': s.color }}
+                    aria-label={`Share on ${s.label}`}
+                    onClick={(e) => handleSocialClick(e, s)}
+                  >
+                    <span className="share-social-icon">{s.icon}</span>
+                    <span className="share-social-label">
+                      {copiedSocial === s.id ? 'Copied!' : s.label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+
+              {/* Copy link */}
+              <button className={`share-copy-btn ${copied ? 'copied' : ''}`} onClick={() => handleCopy('copy')}>
+                {copied ? <Check size={18} /> : <Copy size={18} />}
+                {copied ? 'Link Copied!' : 'Copy Event Link'}
+              </button>
+
+              {/* Divider */}
+              <div className="share-divider"><span>Also available on</span></div>
+
+              {/* App badges */}
+              <div className="share-app-section">
+                <div className="share-app-info">
+                  <img src={logoTransparent} alt="Blithe App" className="share-app-logo" />
+                  <div>
+                    <p className="share-app-name">Blithe</p>
+                    <p className="share-app-tagline">Discover events on the go</p>
+                  </div>
                 </div>
-              </a>
-              <a
-                href="https://apps.apple.com/in/app/blithe/id6473627877"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="share-badge-btn"
-                aria-label="Download on the App Store"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                </svg>
-                <div>
-                  <span className="badge-sub">Download on the</span>
-                  <span className="badge-main">App Store</span>
+                <div className="share-app-badges">
+                  <a
+                    href="https://play.google.com/store/apps/details?id=com.firstlogicmetalab.blith_user_app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="share-badge-btn"
+                    aria-label="Get it on Google Play"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
+                    </svg>
+                    <div>
+                      <span className="badge-sub">Get it on</span>
+                      <span className="badge-main">Google Play</span>
+                    </div>
+                  </a>
+                  <a
+                    href="https://apps.apple.com/in/app/blithe/id6473627877"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="share-badge-btn"
+                    aria-label="Download on the App Store"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                    </svg>
+                    <div>
+                      <span className="badge-sub">Download on the</span>
+                      <span className="badge-main">App Store</span>
+                    </div>
+                  </a>
                 </div>
-              </a>
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>
@@ -515,7 +616,8 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
   );
 };
 
-
+let lastLoggedEventId = null;
+let lastLoggedEventTime = 0;
 
 const EventDetails = () => {
   const navigate = useNavigate();
@@ -1164,16 +1266,21 @@ const EventDetails = () => {
           });
 
           try {
-            const leadSource = getActiveLeadSource(docSnap.id);
-            logEvent(analytics, 'view_event_page', {
-              event_id: docSnap.id,
-              event_name: data.eventName || "Untitled Event",
-              category_id: data.categoryId || data.category_id || "",
-              category_name: data.category || "Other",
-              enter_timestamp: new Date().toISOString(),
-              platform: 'web',
-              ...(leadSource ? { lead_source: leadSource } : {})
-            });
+            const now = Date.now();
+            if (lastLoggedEventId === docSnap.id && now - lastLoggedEventTime < 1000) {
+              // Skip duplicate log within 1 second for the same event
+            } else {
+              lastLoggedEventId = docSnap.id;
+              lastLoggedEventTime = now;
+              logEvent(analytics, 'view_event_page', {
+                page_name: 'web-event-details-page',
+                event_id: docSnap.id,
+                event_name: data.eventName || "Untitled Event",
+                category_name: data.category || "Other",
+                platform: 'web',
+                ...getLeadSourceProps()
+              });
+            }
           } catch (analyticsErr) {
             console.warn("Failed to log event analytics in EventDetails:", analyticsErr);
           }
@@ -1819,7 +1926,6 @@ const EventDetails = () => {
               </div>
             </div>
 
-
             {/* Terms & Conditions card */}
             <div className="terms-details-card glass">
               <div className="section-header">
@@ -1842,7 +1948,6 @@ const EventDetails = () => {
                 </button>
               )}
             </div>
-
 
           </div>
 

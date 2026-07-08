@@ -8,7 +8,7 @@ import logo from '../../assets/logo.jpeg';
 import './Events.scss';
 import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
-import { getActiveLeadSource } from '../../services/leadService';
+import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 
 
 // Robust multi-fallback IP Geolocation helper
@@ -348,13 +348,23 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return distance;
 };
 
+let lastLandingPageLogTime = 0;
+
 const Events = () => {
   useEffect(() => {
+    const now = Date.now();
+    if (now - lastLandingPageLogTime < 1000) {
+      return;
+    }
+    lastLandingPageLogTime = now;
     try {
       logEvent(analytics, 'view_landing_page', {
         page_name: 'web-landing-page',
+        event_id: 'none',
+        event_name: 'Landing Page',
+        category_name: 'none',
         platform: 'web',
-        enter_timestamp: new Date().toISOString()
+        ...getLeadSourceProps()
       });
     } catch (analyticsErr) {
       console.warn("Failed to log view_landing_page event to Firebase Analytics:", analyticsErr);
@@ -363,14 +373,13 @@ const Events = () => {
 
   const handleEventClick = (event) => {
     try {
-      const leadSource = getActiveLeadSource(event.id);
       logEvent(analytics, 'landing_page_event_click', {
         page_name: 'web-landing-page',
         event_id: event.id,
         event_name: event.title || event.eventName || 'Untitled Event',
         category_name: event.category || 'Other',
         platform: 'web',
-        ...(leadSource ? { lead_source: leadSource } : {})
+        ...getLeadSourceProps()
       });
     } catch (analyticsErr) {
       console.warn("Failed to log event analytics:", analyticsErr);

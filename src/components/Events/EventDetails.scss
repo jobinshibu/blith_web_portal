@@ -424,14 +424,15 @@
 
   // --- Right Sidebar / Event Details Card ---
   .event-info-sidebar {
-    align-self: stretch;
+    position: sticky;
+    top: 6.5rem;
+    align-self: start;
     margin-top: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .event-details-card {
-    position: sticky;
-    top: 0rem;
+    position: relative;
 
     .card-top-row {
       display: flex;
@@ -485,7 +486,7 @@
         align-items: center;
         flex: 1;
         min-width: 0;
-        overflow: hidden;
+        overflow: visible;
       }
 
       .event-tags {
@@ -497,6 +498,8 @@
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
+        padding: 6px 4px;
+        margin: -6px -4px;
 
         // Right-edge fade — clean scroll hint, scoped only to this row
         mask-image: linear-gradient(to right,
@@ -794,7 +797,7 @@
           align-items: center;
           flex: 1;
           min-width: 0;
-          overflow: hidden;
+          overflow: visible;
         }
 
         .event-languages {
@@ -806,6 +809,8 @@
           overflow-y: hidden;
           -webkit-overflow-scrolling: touch;
           scroll-snap-type: x mandatory;
+          padding: 6px 4px;
+          margin: -6px -4px;
 
           mask-image: linear-gradient(to right,
               black 0%,
@@ -2049,6 +2054,161 @@
     border-color: rgba(255, 255, 255, 0.3);
     transform: translateY(-1.5px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+}
+
+// Instagram instruction view inside modal
+.share-instagram-instruction-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.5rem 0.25rem 0;
+
+  .instagram-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+
+    .instagram-gradient-circle {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(225, 48, 108, 0.3);
+
+      svg {
+        width: 30px;
+        height: 30px;
+      }
+    }
+
+    h4 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #111827;
+      margin: 0;
+    }
+  }
+
+  .instagram-copied-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    padding: 0.6rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    width: 100%;
+    justify-content: center;
+
+    .check-icon {
+      color: #10b981;
+      flex-shrink: 0;
+    }
+  }
+
+  .instagram-instructions-text {
+    font-size: 0.85rem;
+    color: #4b5563;
+    line-height: 1.5;
+    margin: 0 0 1.25rem;
+  }
+
+  .instagram-steps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      font-size: 0.82rem;
+      color: #374151;
+      line-height: 1.4;
+
+      .step-num {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        color: #6b7280;
+        font-weight: 700;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      strong {
+        color: #111827;
+      }
+    }
+  }
+
+  .instagram-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      width: 100%;
+    }
+
+    .instagram-btn-primary {
+      background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(225, 48, 108, 0.2);
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(225, 48, 108, 0.3);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+
+    .instagram-btn-secondary {
+      background: #f3f4f6;
+      color: #4b5563;
+
+      &:hover {
+        background: #e5e7eb;
+        color: #1f2937;
+      }
+    }
   }
 }
 

@@ -8,7 +8,7 @@ import { analytics } from '../firebase';
 const detectUrlSource = () => {
   const params = new URLSearchParams(window.location.search);
   const utmSource = params.get('utm_source');
-  const querySource = params.get('source') || params.get('ref');
+  const querySource = params.get('source') || params.get('ref') || params.get('utf');
 
   if (utmSource) {
     return { source: utmSource.toLowerCase(), type: 'utm' };
@@ -69,7 +69,7 @@ export const initLeadTracking = () => {
         sessionStorage.removeItem('blithe_landing_event_id'); // reset landing event limit for new source link
 
         logEvent(analytics, 'lead_source_detected', {
-          lead_source: urlSource.source,
+          source: urlSource.source,
           lead_referrer: document.referrer || 'none',
           lead_type: urlSource.type,
           landing_page: window.location.pathname
@@ -90,7 +90,7 @@ export const initLeadTracking = () => {
         sessionStorage.removeItem('blithe_landing_event_id');
 
         logEvent(analytics, 'lead_source_detected', {
-          lead_source: refSource.source,
+          source: refSource.source,
           lead_referrer: refSource.referrer || 'none',
           lead_type: refSource.type,
           landing_page: window.location.pathname
@@ -136,20 +136,20 @@ export const getActiveLeadSource = (eventId) => {
  */
 export const getLeadSourceProps = () => {
   try {
-    const source = sessionStorage.getItem('blithe_lead_source');
-    if (source) {
-      return {
-        lead_source: source,
-        lead_referrer: sessionStorage.getItem('blithe_lead_referrer') || 'none',
-        lead_type: sessionStorage.getItem('blithe_lead_type') || 'none'
-      };
-    }
+    const source = sessionStorage.getItem('blithe_lead_source') || 'unknown';
+    const referrer = sessionStorage.getItem('blithe_lead_referrer') || 'none';
+    const type = sessionStorage.getItem('blithe_lead_type') || 'unknown';
+    return {
+      source: source,
+      lead_referrer: referrer,
+      lead_type: type
+    };
   } catch (err) {
-    console.warn("Error getting lead source props:", err);
+    console.warn("Error in getLeadSourceProps:", err);
+    return {
+      source: 'unknown',
+      lead_referrer: 'none',
+      lead_type: 'unknown'
+    };
   }
-  return {
-    lead_source: 'direct',
-    lead_referrer: 'none',
-    lead_type: 'none'
-  };
 };
