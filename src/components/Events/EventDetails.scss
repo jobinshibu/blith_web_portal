@@ -255,6 +255,8 @@
       display: -webkit-box;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      overflow-wrap: anywhere;
+      word-break: break-word;
 
       &:not(.expanded) {
         -webkit-line-clamp: 2;
@@ -344,6 +346,7 @@
   // --- Media Carousel Left Column ---
   .media-carousel-area {
     width: 100%;
+    min-width: 0;
 
     .main-carousel-view {
       position: relative;
@@ -429,6 +432,8 @@
     align-self: start;
     margin-top: 0;
     overflow: visible;
+    min-width: 0;
+    width: 100%;
   }
 
   .event-details-card {

@@ -63,7 +63,7 @@ const Footer = () => {
           <h5>More</h5>
           <ul>
             <li><a href="https://blithe.social/#start">Start Hosting</a></li>
-            <li><a href="https://blithe.social/teams">Teams</a></li>
+            <li><a href="https://blithe.social/teams">Team</a></li>
           </ul>
         </div>
 
