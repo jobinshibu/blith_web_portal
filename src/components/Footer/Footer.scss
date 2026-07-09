@@ -1,205 +1,171 @@
-@use '../../styles/variables' as *;
+// Custom variables mapping to the blith-social theme
+$v: #7C3AED;
+$v2: #A78BFA;
+$v3: #EDE9FE;
+$v4: #F5F3FF;
+$ink: #0F0F0F;
+$ink2: #3D3D3D;
+$ink3: #7A7A7A;
+$rule: #E8E8E8;
+$bg: #FFFFFF;
+$off: #FAFAFA;
 
-.footer {
-  background-color: $white;
-  padding: 6rem 0 2rem;
-  border-top: 1px solid $lavender-100;
+.footer-container {
+  background: white;
+  border-top: 1px solid $rule;
+  padding: 60px 6% 32px;
+  font-family: 'Poppins', sans-serif;
 
-  .footer-grid {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 1.5fr;
-    gap: 4rem;
-    margin-bottom: 4rem;
+  a {
+    text-decoration: none;
   }
 }
 
-.footer-brand {
-  .footer-logo {
-    display: block;
-    margin-bottom: 2.5rem; // Increased margin to make room for the scaled image
-
-    .footer-logo-img {
-      height: 13px; 
-      width: auto;
-      object-fit: contain;
-      transform: scale(8.0);
-      transform-origin: left center;
-      mix-blend-mode: multiply; // Removes the white background from the image
-    }
-  }
-
-  p {
-    color: $text-500;
-    line-height: 1.6;
-    font-size: 0.9375rem;
-    margin-bottom: 2rem;
-  }
-
-  .social-links {
-    display: flex;
-    gap: 1rem;
-
-    a {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: $lavender-50;
-      color: $lavender-600;
-      @include flex-center;
-      transition: all 0.2s ease;
-
-      &:hover {
-        background-color: $lavender-600;
-        color: $white;
-        transform: translateY(-3px);
-      }
-    }
-  }
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
+  gap: 40px;
+  padding-bottom: 40px;
+  border-bottom: 1px solid $rule;
+  margin-bottom: 28px;
 }
 
-.footer-links {
-  h4 {
-    font-family: $font-heading;
-    font-size: 1.125rem;
-    color: $text-900;
-    margin-bottom: 1.5rem;
-    font-weight: 700;
-  }
-
-  ul {
-    list-style: none;
-    padding: 0;
-
-    li {
-      margin-bottom: 0.75rem;
-
-      a {
-        color: $text-500;
-        text-decoration: none;
-        font-size: 0.9375rem;
-        transition: color 0.2s ease;
-
-        &:hover {
-          color: $lavender-600;
-        }
-      }
-    }
-  }
+.fg-brand p {
+  font-size: 13px;
+  color: $ink3;
+  margin-top: 12px;
+  line-height: 1.7;
+  max-width: 220px;
 }
 
-.footer-newsletter {
-  h4 {
-    font-family: $font-heading;
-    font-size: 1.125rem;
-    color: $text-900;
-    margin-bottom: 1.5rem;
-    font-weight: 700;
-  }
-
-  p {
-    color: $text-500;
-    font-size: 0.9375rem;
-    margin-bottom: 1.5rem;
-    line-height: 1.5;
-  }
-
-  .newsletter-form {
-    display: flex;
-    gap: 0.5rem;
-
-    input {
-      flex: 1;
-      padding: 0.75rem 1rem;
-      border-radius: $radius-md;
-      border: 1px solid $lavender-100;
-      background-color: $lavender-50;
-      font-family: $font-body;
-      font-size: 0.875rem;
-      transition: all 0.2s ease;
-
-      &:focus {
-        outline: none;
-        border-color: $lavender-400;
-        background-color: $white;
-        box-shadow: 0 0 0 3px rgba($lavender-600, 0.1);
-      }
-    }
-
-    button {
-      background-color: $lavender-600;
-      color: $white;
-      border: none;
-      padding: 0.75rem;
-      border-radius: $radius-md;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      @include flex-center;
-
-      &:hover {
-        background-color: $lavender-500;
-        transform: scale(1.05);
-      }
-    }
-  }
+.fg-col h5 {
+  font-size: 11px;
+  font-weight: 700;
+  color: $ink;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 16px;
+  margin-top: 0;
 }
 
-.footer-bottom {
-  padding-top: 2rem;
-  border-top: 1px solid $lavender-100;
+.fg-col ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 0;
+  margin: 0;
+}
+
+.fg-col a {
+  font-size: 13px;
+  color: $ink3;
+  text-decoration: none;
+  transition: color .2s;
+}
+
+.fg-col a:hover {
+  color: $v;
+}
+
+.footer-btm {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 
-  p {
-    color: $text-500;
-    font-size: 0.875rem;
+.footer-btm p {
+  font-size: 12px;
+  color: $ink3;
+  margin: 0;
+}
+
+.footer-btm-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-btm-links a {
+  font-size: 12px;
+  color: $ink3;
+  text-decoration: none;
+  transition: color .2s;
+}
+
+.footer-btm-links a:hover {
+  color: $v;
+}
+
+/* social icons in footer */
+.social-icons {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.social-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: $v;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all .2s;
+  flex-shrink: 0;
+}
+
+.social-icon:hover {
+  background: #6D28D9;
+  transform: translateY(-2px);
+}
+
+.social-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: #fff;
+}
+
+/* logo reuse */
+.logo-footer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+}
+
+.logo-footer img {
+  height: 100px;
+  width: auto;
+  mix-blend-mode: multiply;
+}
+
+@media(max-width: 960px) {
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .bottom-links {
+  .fg-brand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media(max-width: 768px) {
+  .footer-grid {
     display: flex;
-    gap: 2rem;
-
-    a {
-      color: $text-500;
-      text-decoration: none;
-      font-size: 0.875rem;
-      transition: color 0.2s ease;
-
-      &:hover {
-        color: $lavender-600;
-      }
-    }
+    flex-direction: column;
+    gap: 32px;
   }
-}
 
-@media (max-width: 1024px) {
-  .footer {
-    .footer-grid {
-      grid-template-columns: 1fr 1fr;
-      gap: 3rem;
-    }
+  .footer-grid>* {
+    margin-bottom: 0;
   }
-}
 
-@media (max-width: 640px) {
-  .footer {
-    padding: 4rem 0 2rem;
-
-    .footer-grid {
-      grid-template-columns: 1fr;
-      gap: 2.5rem;
-    }
-
-    .footer-bottom {
-      flex-direction: column;
-      text-align: center;
-      gap: 1.5rem;
-
-      .bottom-links {
-        justify-content: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-      }
-    }
+  .footer-btm {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

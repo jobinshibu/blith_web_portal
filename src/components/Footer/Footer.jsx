@@ -1,78 +1,100 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Mail, MapPin, Phone } from 'lucide-react';
 import logoText from '../../assets/fifablith.png';
 import './Footer.scss';
 
-// Custom SVG Brand Icons since they were removed from Lucide v1.0+
-const FacebookIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-);
-const TwitterIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
-);
-const InstagramIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-);
-const LinkedinIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
-);
-
 const Footer = () => {
   return (
-    <footer className="footer">
-      <div className="container">
-        <div className="footer-grid">
-          <div className="footer-brand">
-            <Link to="/" className="footer-logo">
-              <img src={logoText} alt="Blithe" className="footer-logo-img" />
-            </Link>
-            <p>The risk-free platform for creators to host events and seekers to find experiences based on their mood.</p>
-            <div className="social-links">
-              <a href="#" aria-label="Facebook"><FacebookIcon /></a>
-              <a href="#" aria-label="Twitter"><TwitterIcon /></a>
-              <a href="#" aria-label="Instagram"><InstagramIcon /></a>
-              <a href="#" aria-label="Linkedin"><LinkedinIcon /></a>
-            </div>
-          </div>
+    <footer className="footer-container">
+      <div className="footer-grid">
+        {/* BRAND */}
+        <div className="fg-brand">
+          <Link to="/" className="logo-footer">
+            <img src={logoText} alt="Blithe" style={{ mixBlendMode: 'multiply' }} />
+          </Link>
 
-          <div className="footer-links">
-            <h4>Quick Links</h4>
-            <ul>
-              <li><Link to="/">How it Works</Link></li>
-              <li><Link to="/events">Our Events</Link></li>
-              <li><Link to="/pricing">Pricing</Link></li>
-              <li><Link to="/about">About Us</Link></li>
-            </ul>
-          </div>
+          <p>
+            The risk-free platform for creators to host events and seekers to find experiences based on their mood.
+          </p>
 
-          <div className="footer-links">
-            <h4>Support</h4>
-            <ul>
-              <li><a href="#">Help Center</a></li>
-              <li><a href="#">Safety Center</a></li>
-              <li><a href="#">Community Guidelines</a></li>
-              <li><a href="#">Contact Support</a></li>
-            </ul>
-          </div>
-
-          <div className="footer-newsletter">
-            <h4>Join Our Newsletter</h4>
-            <p>Get the latest updates and exclusive offers delivered to your inbox.</p>
-            <form className="newsletter-form">
-              <input type="email" placeholder="Enter your email" required />
-              <button type="submit" aria-label="Subscribe"><Send size={18} /></button>
-            </form>
+          {/* SOCIAL ICONS (TOP) */}
+          <div className="social-icons">
+            <a href="https://www.facebook.com/profile.php?id=61573572029723" target="_blank" rel="noreferrer" className="social-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+              </svg>
+            </a>
+            <a href="https://in.linkedin.com/company/blithe-social" target="_blank" rel="noreferrer" className="social-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+              </svg>
+            </a>
+            <a href="https://www.instagram.com/blithe.social" target="_blank" rel="noreferrer" className="social-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324z" />
+              </svg>
+            </a>
+            <a href="https://x.com/blithe_social" target="_blank" rel="noreferrer" className="social-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
+            <a href="https://www.youtube.com/@Blithe.Social/shorts" target="_blank" rel="noreferrer" className="social-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M23.5 6.2a2.9 2.9 0 0 0-2-2C19.8 3.7 12 3.7 12 3.7s-7.8 0-9.5.5a2.9 2.9 0 0 0-2 2A30 30 0 0 0 0 12a30 30 0 0 0 .5 5.8 2.9 2.9 0 0 0 2 2c1.7.5 9.5.5 9.5.5s7.8 0 9.5-.5a2.9 2.9 0 0 0 2-2A30 30 0 0 0 24 12a30 30 0 0 0-.5-5.8zM9.7 15.5v-7l6.2 3.5-6.2 3.5z" />
+              </svg>
+            </a>
           </div>
         </div>
 
-        <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} Blithe. All rights reserved.</p>
-          <div className="bottom-links">
-            <a href="#">Privacy Policy</a>
-            <Link to="/terms">Terms of Service</Link>
-            <a href="#">Cookie Policy</a>
-          </div>
+        {/* NAV */}
+        <div className="fg-col">
+          <h5>Explore</h5>
+          <ul>
+            <li><a href="https://blithe.social/#how-it-works">How it Works</a></li>
+            <li><a href="https://blithe.social/#for-creators">For Creators</a></li>
+            <li><a href="https://blithe.social/#discover">Discover</a></li>
+            <li><a href="https://blithe.social/#testimonials">Testimonials</a></li>
+          </ul>
+        </div>
+
+        {/* MORE */}
+        <div className="fg-col">
+          <h5>More</h5>
+          <ul>
+            <li><a href="https://blithe.social/#start">Start Hosting</a></li>
+            <li><a href="https://blithe.social/teams">Teams</a></li>
+          </ul>
+        </div>
+
+        {/* LEGAL */}
+        <div className="fg-col">
+          <h5>Legal</h5>
+          <ul>
+            <li><a href="https://blithe.social/terms-and-conditions.php" target="_blank" rel="noreferrer">Terms</a></li>
+            <li><a href="https://blithe.social/Privacy-Policy.php" target="_blank" rel="noreferrer">Privacy</a></li>
+          </ul>
+        </div>
+
+        {/* SOCIAL LINKS (BOTTOM SECTION - RESTORED) */}
+        <div className="fg-col">
+          <h5>Social</h5>
+          <ul>
+            <li><a href="https://www.facebook.com/profile.php?id=61573572029723" target="_blank" rel="noreferrer">Facebook</a></li>
+            <li><a href="https://in.linkedin.com/company/blithe-social" target="_blank" rel="noreferrer">LinkedIn</a></li>
+            <li><a href="https://www.instagram.com/blithe.social" target="_blank" rel="noreferrer">Instagram</a></li>
+            <li><a href="https://x.com/blithe_social" target="_blank" rel="noreferrer">Twitter</a></li>
+            <li><a href="https://www.youtube.com/@Blithe.Social/shorts" target="_blank" rel="noreferrer">YouTube</a></li>
+          </ul>
+        </div>
+      </div>
+
+      {/* BOTTOM */}
+      <div className="footer-btm">
+        <p>© {new Date().getFullYear()} Blithe. All rights reserved.</p>
+        <div className="footer-btm-links">
+          <a href="https://blithe.social/#how-it-works">Explore</a>
+          <a href="https://blithe.social/#start">Start</a>
         </div>
       </div>
     </footer>
