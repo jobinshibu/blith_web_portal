@@ -47,7 +47,8 @@ const LinkTree = () => {
           // Only show events that are hosted on Blithe (paymentUrl/paymentURl/paymentURL is empty)
           const paymentUrlVal = data.paymentUrl || data.paymentURl || data.paymentURL || "";
           const isBlitheEvent = !paymentUrlVal || paymentUrlVal.trim() === "";
-          return isNotBlocked && isNotExpired && isBlitheEvent;
+          const isNotPrivate = data.isPrivateEvent !== true;
+          return isNotBlocked && isNotExpired && isBlitheEvent && isNotPrivate;
         })
         .sort((a, b) => {
           const dateA = a.eventStartDate ? toDateObj(a.eventStartDate) : new Date();

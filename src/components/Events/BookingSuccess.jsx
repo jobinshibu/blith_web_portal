@@ -363,20 +363,28 @@ const BookingSuccess = () => {
         {/* Compact Animated Confirmation Banner */}
         <div className="success-header-card compact">
           <motion.div 
-            className="success-badge-outer"
+            className={`success-badge-outer ${booking?.status === 'pending' ? 'pending' : ''}`}
             initial={{ scale: 0, rotate: -45 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", damping: 14, stiffness: 180 }}
           >
             <div className="success-badge-inner">
-              <Check size={28} strokeWidth={3.5} className="checkmark-icon" />
+              {booking?.status === 'pending' ? (
+                <Clock size={28} strokeWidth={3.5} className="checkmark-icon" />
+              ) : (
+                <Check size={28} strokeWidth={3.5} className="checkmark-icon" />
+              )}
             </div>
           </motion.div>
           
           <div className="header-text-group">
-            <h1 className="gradient-success-title">Your Booking Confirmed</h1>
+            <h1 className="gradient-success-title">
+              {booking?.status === 'pending' ? 'Booking Request Pending' : 'Your Booking Confirmed'}
+            </h1>
             <p className="success-subtitle">
-              Your tickets are secured. Receipt has been emailed to you.
+              {booking?.status === 'pending' 
+                ? 'Your registration is subject to host approval. We will notify you once approved.' 
+                : 'Your tickets are secured. Receipt has been emailed to you.'}
             </p>
           </div>
         </div>
@@ -458,7 +466,9 @@ const BookingSuccess = () => {
                       {t.ticketName} <span className="pill-qty">x{t.quantity || t.totalQuantity}</span>
                     </span>
                   ))}
-                  <span className="grand-total-pill">Paid: ₹{(booking?.totalPrice || 0).toFixed(2)}</span>
+                  <span className="grand-total-pill">
+                    {booking?.totalPrice && booking.totalPrice > 0 ? `Paid: ₹${booking.totalPrice.toFixed(2)}` : 'Free'}
+                  </span>
                 </div>
               </div>
             )}
@@ -482,8 +492,8 @@ const BookingSuccess = () => {
           {/* RIGHT SECTION: Tear-off action stub */}
           <div className="ticket-stub-section">
             <div className="stub-header">
-              <span className="stub-status-badge">
-                <span className="pulse-dot"></span> Confirmed
+              <span className={`stub-status-badge ${booking?.status === 'pending' ? 'pending' : ''}`}>
+                <span className="pulse-dot"></span> {booking?.status === 'pending' ? 'Pending Approval' : 'Confirmed'}
               </span>
             </div>
 
@@ -567,13 +577,7 @@ const BookingSuccess = () => {
                       <span className="portrait-card-date">{relatedEvent.date}</span>
                       <h3 className="portrait-card-title">{relatedEvent.title}</h3>
                       <p className="portrait-card-location">{relatedEvent.location}</p>
-                      <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <span>
-                          {relatedEvent.price}
-                          {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
-                        </span>
-                        {relatedEvent.priceMessage && <span className="price-message" style={{ color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
-                      </p>
+
                     </div>
                   </Link>
                 </div>

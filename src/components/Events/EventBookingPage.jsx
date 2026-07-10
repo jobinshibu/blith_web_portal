@@ -136,6 +136,7 @@ const EventBookingPage = () => {
   const [quantities, setQuantities] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const [attendee, setAttendee] = useState({ name: '', email: '', phone: '' });
+  const [approvalAnswer, setApprovalAnswer] = useState("");
 
   const lastCheckedEmailRef = useRef('');
   const lastCheckedPhoneRef = useRef('');
@@ -914,6 +915,7 @@ const EventBookingPage = () => {
     attendee.name.trim() !== '' &&
     attendee.email.trim() !== '' &&
     isPhoneValid &&
+    (event?.approvalNeeded && event?.approvalQuestion ? approvalAnswer.trim() !== '' : true) &&
     agreeTerms;
 
   // Helper to block ticket slots for 10 minutes (paid events)
@@ -1095,6 +1097,10 @@ const EventBookingPage = () => {
       searchList: finalBookingSearchList,
       serviceCode: String(event.serviceCode || settings?.serviceCode || ""),
       status: "pending",
+      approvalQuestion: event.approvalQuestion || "",
+      approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+      approvalNeeded: event.approvalNeeded === true,
+      isPrivateEvent: event.isPrivateEvent === true,
       tickets: preparedTickets,
       totalAttendedQuantity: 0,
       totalPrice: Number(total),
@@ -1137,6 +1143,7 @@ const EventBookingPage = () => {
       attendee.name.trim() !== '' &&
       attendee.email.trim() !== '' &&
       isPhoneValid &&
+      (event?.approvalNeeded && event?.approvalQuestion ? approvalAnswer.trim() !== '' : true) &&
       (agreeTerms || bypassTermsCheck);
 
     if (!isFormValid) {
@@ -1364,7 +1371,11 @@ const EventBookingPage = () => {
           priceDetails: formattedPriceDetails,
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
-          status: "confirmed",
+          status: event.approvalNeeded ? "pending" : "confirmed",
+          approvalQuestion: event.approvalQuestion || "",
+          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalNeeded: event.approvalNeeded === true,
+          isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
             category: String(t.category || "generic"),
             price: Number(t.price || 0),
@@ -1408,7 +1419,11 @@ const EventBookingPage = () => {
           razorpayOrderId: String(orderId),
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
-          status: "confirmed",
+          status: event.approvalNeeded ? "pending" : "confirmed",
+          approvalQuestion: event.approvalQuestion || "",
+          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalNeeded: event.approvalNeeded === true,
+          isPrivateEvent: event.isPrivateEvent === true,
           tickets: preparedTickets,
           updatedAt: serverTimestamp(),
           userEmail: String(attendee.email),
@@ -1437,7 +1452,11 @@ const EventBookingPage = () => {
           priceDetails: formattedPriceDetails,
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
-          status: "confirmed",
+          status: event.approvalNeeded ? "pending" : "confirmed",
+          approvalQuestion: event.approvalQuestion || "",
+          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalNeeded: event.approvalNeeded === true,
+          isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
             category: String(t.category || "generic"),
             price: Number(t.price || 0),
@@ -1481,7 +1500,11 @@ const EventBookingPage = () => {
           razorpayOrderId: String(orderId),
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
-          status: "confirmed",
+          status: event.approvalNeeded ? "pending" : "confirmed",
+          approvalQuestion: event.approvalQuestion || "",
+          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalNeeded: event.approvalNeeded === true,
+          isPrivateEvent: event.isPrivateEvent === true,
           tickets: preparedTickets,
           updatedAt: serverTimestamp(),
           userEmail: String(attendee.email),
@@ -1503,341 +1526,508 @@ const EventBookingPage = () => {
             throw new Error("Event not found");
           }
           const eventDbData = eventSnap.data();
-          const dbTickets = eventDbData.tickets || [];
 
-          // 2. Read Availability Document
-          const availSnap = await transaction.get(availabilityRef);
-
-          let ticketsMap = {};
-          let blockedSlots = {};
-
-          if (availSnap.exists()) {
-            const availData = availSnap.data();
-            const ticketsMapDynamic = availData.tickets || {};
-            ticketsMap = { ...ticketsMapDynamic };
-            blockedSlots = { ...(availData.blocked_slots || {}) };
-
-            // Merge missing tickets
-            dbTickets.forEach((t) => {
-              if (ticketsMap[t.ticketName] === undefined) {
-                ticketsMap[t.ticketName] = t.totalSlots || 0;
-              }
-            });
-          } else {
-            // Initialize for the first time
-            dbTickets.forEach((t) => {
-              ticketsMap[t.ticketName] = t.totalSlots || 0;
-            });
-          }
-
-          // Cleanup slot locks from blockedSlots
-          delete blockedSlots[uId];
-
-          // 3. Decrement global and daily slots
-          const updatedGlobalTickets = JSON.parse(JSON.stringify(dbTickets));
-
-          for (const bookingTicket of bookedTickets) {
-            // Decrement Daily
-            const currentDayAvail = ticketsMap[bookingTicket.ticketName] || 0;
-            if (currentDayAvail < bookingTicket.quantity) {
-              throw new Error(`Insufficient slots for ${bookingTicket.ticketName} on this date.`);
-            }
-            ticketsMap[bookingTicket.ticketName] = currentDayAvail - bookingTicket.quantity;
-
-            // Decrement Global
-            const ticketIndex = updatedGlobalTickets.findIndex((t) => t.ticketName === bookingTicket.ticketName);
-            if (ticketIndex !== -1) {
-              const ticket = updatedGlobalTickets[ticketIndex];
-              if ((ticket.remainingSlots || 0) < bookingTicket.quantity) {
-                throw new Error(`Insufficient global slots for ${bookingTicket.ticketName}.`);
-              }
-              updatedGlobalTickets[ticketIndex] = {
-                ...ticket,
-                remainingSlots: (ticket.remainingSlots || 0) - bookingTicket.quantity
-              };
-            } else {
-              throw new Error(`Ticket ${bookingTicket.ticketName} not found in event`);
-            }
-          }
-
-          // 4. Sets and updates
-          transaction.set(userBookingRef, myBookingData);
-          transaction.set(eventBookingRef, eventBookingData);
-
-          const eventUpdates = {
-            tickets: updatedGlobalTickets
-          };
-          const iAmGoing = eventDbData.iAmGoing || [];
-          if (!iAmGoing.includes(uId)) {
-            eventUpdates.iAmGoing = [...iAmGoing, uId];
-          }
-          transaction.update(eventRef, eventUpdates);
-
-          transaction.set(availabilityRef, {
-            tickets: ticketsMap,
-            blocked_slots: blockedSlots,
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-
-          // 5. Notifications
+          // 2. Notifications References
           const userNotiRef = doc(collection(db, "notification"));
           const orgNotiRef = doc(collection(db, "notification"));
 
-          const userNotification = {
-            fromId: eventDbData.oId || "",
-            toId: uId,
-            fromUser: eventDbData.eventName || eventDbData.title || "",
-            toUser: attendee.name,
-            id: userNotiRef.id,
-            navigationId: bId,
-            type: "Ticket Booked",
-            fromOrg: true,
-            toOrg: false,
-            status: 0,
-            date: new Date(),
-            references: userNotiRef,
-            isRead: false,
-            rejectedReason: ""
-          };
+          if (event.approvalNeeded) {
+            // Write user booking and event booking directly (status pending)
+            transaction.set(userBookingRef, myBookingData);
+            transaction.set(eventBookingRef, eventBookingData);
 
-          const orgNotification = {
-            fromId: uId,
-            toId: eventDbData.oId || "",
-            fromUser: attendee.name,
-            toUser: eventDbData.eventName || eventDbData.title || "",
-            id: orgNotiRef.id,
-            navigationId: bId,
-            type: "New Booking",
-            fromOrg: false,
-            toOrg: true,
-            status: 0,
-            date: new Date(),
-            references: orgNotiRef,
-            isRead: false,
-            rejectedReason: ""
-          };
+            // Create notification documents
+            const userNotification = {
+              title: "Booking Pending",
+              body: `Your booking request for '${eventDbData.eventName || eventDbData.title || ''}' is pending approval. You will receive a confirmation once the organizer reviews it.`,
+              fromId: eventDbData.oId || "",
+              toId: uId,
+              fromUser: eventDbData.eventName || eventDbData.title || "",
+              toUser: attendee.name,
+              id: userNotiRef.id,
+              navigationId: bId,
+              type: "Booking Pending",
+              fromOrg: true,
+              toOrg: false,
+              status: 0,
+              date: new Date(),
+              references: userNotiRef,
+              isRead: false,
+              rejectedReason: ""
+            };
 
-          transaction.set(userNotiRef, userNotification);
-          transaction.set(orgNotiRef, orgNotification);
+            const orgNotification = {
+              title: "Booking Request",
+              body: `${attendee.name} requested to book ${eventDbData.eventName || eventDbData.title || ''}`,
+              fromId: uId,
+              toId: eventDbData.oId || "",
+              fromUser: attendee.name,
+              toUser: eventDbData.eventName || eventDbData.title || "",
+              id: orgNotiRef.id,
+              navigationId: bId,
+              type: "Booking Request",
+              fromOrg: false,
+              toOrg: true,
+              status: 0,
+              date: new Date(),
+              references: orgNotiRef,
+              isRead: false,
+              rejectedReason: ""
+            };
 
-          // Update pending booking status to confirmed if it exists
-          if (total > 0 && orderId !== "free") {
-            const pendingBookingDocRef = doc(db, "pendingBookings", orderId);
-            transaction.update(pendingBookingDocRef, { status: "confirmed", paymentStatus: "paid" });
+            transaction.set(userNotiRef, userNotification);
+            transaction.set(orgNotiRef, orgNotification);
+          } else {
+            const dbTickets = eventDbData.tickets || [];
+
+            // 2. Read Availability Document
+            const availSnap = await transaction.get(availabilityRef);
+
+            let ticketsMap = {};
+            let blockedSlots = {};
+
+            if (availSnap.exists()) {
+              const availData = availSnap.data();
+              const ticketsMapDynamic = availData.tickets || {};
+              ticketsMap = { ...ticketsMapDynamic };
+              blockedSlots = { ...(availData.blocked_slots || {}) };
+
+              // Merge missing tickets
+              dbTickets.forEach((t) => {
+                if (ticketsMap[t.ticketName] === undefined) {
+                  ticketsMap[t.ticketName] = t.totalSlots || 0;
+                }
+              });
+            } else {
+              // Initialize for the first time
+              dbTickets.forEach((t) => {
+                ticketsMap[t.ticketName] = t.totalSlots || 0;
+              });
+            }
+
+            // Cleanup slot locks from blockedSlots
+            delete blockedSlots[uId];
+
+            // 3. Decrement global and daily slots
+            const updatedGlobalTickets = JSON.parse(JSON.stringify(dbTickets));
+
+            for (const bookingTicket of bookedTickets) {
+              // Decrement Daily
+              const currentDayAvail = ticketsMap[bookingTicket.ticketName] || 0;
+              if (currentDayAvail < bookingTicket.quantity) {
+                throw new Error(`Insufficient slots for ${bookingTicket.ticketName} on this date.`);
+              }
+              ticketsMap[bookingTicket.ticketName] = currentDayAvail - bookingTicket.quantity;
+
+              // Decrement Global
+              const ticketIndex = updatedGlobalTickets.findIndex((t) => t.ticketName === bookingTicket.ticketName);
+              if (ticketIndex !== -1) {
+                const ticket = updatedGlobalTickets[ticketIndex];
+                if ((ticket.remainingSlots || 0) < bookingTicket.quantity) {
+                  throw new Error(`Insufficient global slots for ${bookingTicket.ticketName}.`);
+                }
+                updatedGlobalTickets[ticketIndex] = {
+                  ...ticket,
+                  remainingSlots: (ticket.remainingSlots || 0) - bookingTicket.quantity
+                };
+              } else {
+                throw new Error(`Ticket ${bookingTicket.ticketName} not found in event`);
+              }
+            }
+
+            // 4. Sets and updates
+            transaction.set(userBookingRef, myBookingData);
+            transaction.set(eventBookingRef, eventBookingData);
+
+            const eventUpdates = {
+              tickets: updatedGlobalTickets
+            };
+            const iAmGoing = eventDbData.iAmGoing || [];
+            if (!iAmGoing.includes(uId)) {
+              eventUpdates.iAmGoing = [...iAmGoing, uId];
+            }
+            transaction.update(eventRef, eventUpdates);
+
+            transaction.set(availabilityRef, {
+              tickets: ticketsMap,
+              blocked_slots: blockedSlots,
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            // 5. Notifications
+            const userNotification = {
+              fromId: eventDbData.oId || "",
+              toId: uId,
+              fromUser: eventDbData.eventName || eventDbData.title || "",
+              toUser: attendee.name,
+              id: userNotiRef.id,
+              navigationId: bId,
+              type: "Ticket Booked",
+              fromOrg: true,
+              toOrg: false,
+              status: 0,
+              date: new Date(),
+              references: userNotiRef,
+              isRead: false,
+              rejectedReason: ""
+            };
+
+            const orgNotification = {
+              fromId: uId,
+              toId: eventDbData.oId || "",
+              fromUser: attendee.name,
+              toUser: eventDbData.eventName || eventDbData.title || "",
+              id: orgNotiRef.id,
+              navigationId: bId,
+              type: "New Booking",
+              fromOrg: false,
+              toOrg: true,
+              status: 0,
+              date: new Date(),
+              references: orgNotiRef,
+              isRead: false,
+              rejectedReason: ""
+            };
+
+            transaction.set(userNotiRef, userNotification);
+            transaction.set(orgNotiRef, orgNotification);
+
+            // Update pending booking status to confirmed if it exists
+            if (total > 0 && orderId !== "free") {
+              const pendingBookingDocRef = doc(db, "pendingBookings", orderId);
+              transaction.update(pendingBookingDocRef, { status: "confirmed", paymentStatus: "paid" });
+            }
           }
         });
 
-        // 6. Send Booking Confirmation Email (after transaction succeeds)
-        if (attendee.email) {
-          try {
-            const formatCalDate = (date) => {
-              if (!date) return '';
-              const d = new Date(date);
-              return d.toISOString().split('.')[0].replace(/[-:]/g, '') + 'Z';
-            };
-
-            const orgStartTime = parseDate(event.eventStartDate);
-            const orgEndTime = event.eventEndDate ? parseDate(event.eventEndDate) : new Date(orgStartTime.getTime() + 2 * 60 * 60 * 1000);
-
-            const finalStart = new Date(
-              selectedDateVal.getFullYear(),
-              selectedDateVal.getMonth(),
-              selectedDateVal.getDate(),
-              orgStartTime.getHours(),
-              orgStartTime.getMinutes()
-            );
-            const finalEnd = new Date(finalStart.getTime() + 2 * 60 * 60 * 1000);
-
-            const startStr = formatCalDate(finalStart);
-            const endStr = formatCalDate(finalEnd);
-
-            const isOnline = event.eventType === 'Online';
-            const eventTitle = encodeURIComponent(event.eventName || event.title || "");
-            const eventLocation = isOnline ? '' : encodeURIComponent(event.location || event.venue || "");
-            const eventDetails = encodeURIComponent(
-              `${isOnline ? `🔗 Join Meeting: ${event.meetingUrl || ''}\n\n` : ''}` +
-              `Booking ID: ${bId}\n` +
-              `Tickets: ${totalTickets}\n` +
-              `${(!isOnline && !(event.location)) ? `Venue: ${event.venue || ''}` : ''}`
-            );
-
-            const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&dates=${startStr}/${endStr}&details=${eventDetails}&location=${eventLocation}`;
-            const outlookCalendarUrl = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${eventTitle}&startdt=${startStr}&enddt=${endStr}&body=${eventDetails}&location=${eventLocation}`;
-
-            const ticketRows = bookedTickets.map((t) => `<tr>
-              <td style="padding:8px;border:1px solid #ddd;">${t.ticketName}</td>
-              <td style="padding:8px;border:1px solid #ddd;text-align:center;">${t.quantity}</td>
-              <td style="padding:8px;border:1px solid #ddd;text-align:right;">₹${(t.price * t.quantity).toFixed(2)}</td>
-            </tr>`).join('');
-
-            const eventDateStr = selectedDateVal.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
-            const bookedDateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
-
-            const timeStr = (event.eventStartDate && event.eventEndDate)
-              ? `${orgStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - ${orgEndTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
-              : '';
-
-            const emailHtml = `
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
-              <div style="background:#6C63FF;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
-                <h1 style="color:#fff;margin:0;">Booking Confirmed!</h1>
-              </div>
-              <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
-                <p style="font-size:16px;">Hi <strong>${attendee.name || 'there'}</strong>,</p>
-                
-                <!-- Calendar Buttons -->
-                <div style="text-align:center;margin:20px 0;padding:15px;background:#f0efff;border-radius:8px;">
-                  <p style="margin-top:0;font-weight:bold;color:#584CF4;">📅 Add to calendar</p>
-                  <a href="${googleCalendarUrl}" style="display:inline-block;padding:10px 15px;margin:5px;background:#fff;color:#4285F4;text-decoration:none;border-radius:5px;border:1px solid #4285F4;font-size:13px;font-weight:bold;">+ Google Calendar</a>
-                  <a href="${outlookCalendarUrl}" style="display:inline-block;padding:10px 15px;margin:5px;background:#fff;color:#0078D4;text-decoration:none;border-radius:5px;border:1px solid #0078D4;font-size:13px;font-weight:bold;">+ Outlook / Office 365</a>
+        // 6. Send Booking Emails (after transaction succeeds)
+        if (event.approvalNeeded) {
+          // Send Pending Confirmation Email to user
+          if (attendee.email) {
+            try {
+              const pendingEmailHtml = `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
+                <div style="background:#FF9900;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
+                  <h1 style="color:#fff;margin:0;">Booking Request Pending!</h1>
                 </div>
-
-                <p>Your booking for <strong>${event.eventName || event.title || ''}</strong> has been confirmed.</p>
-                <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
-                  <table style="width:100%;">
-                    <tr><td style="color:#888;width:120px;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
-                    ${(event.serviceCode || settings?.serviceCode) ? `<tr><td style="color:#888;padding:3px 0;">HSN/SAC</td><td><strong>${event.serviceCode || settings?.serviceCode}</strong></td></tr>` : ''}
-                    <tr><td style="color:#888;padding:3px 0;">Booked Date</td><td><strong>${bookedDateStr}</strong></td></tr>
-                    <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
-                    ${(!isOnline && timeStr) ? `<tr><td style="color:#888;padding:3px 0;">Time</td><td><strong>${timeStr}</strong></td></tr>` : ''}
-                    ${!isOnline ? `<tr><td style="color:#888;padding:3px 0;">Venue</td><td><strong>${event.location || event.venue || ''}</strong></td></tr>` : ''}
-                    ${(isOnline && event.meetingUrl) ? `<tr><td style="color:#888;padding:3px 0;">Meeting Link</td><td><a href="${event.meetingUrl}" style="color:#6C63FF;font-weight:bold;text-decoration:none;">Join Online Meeting</a></td></tr>` : ''}
-                  </table>
+                <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
+                  <p style="font-size:16px;">Hi <strong>${attendee.name || 'there'}</strong>,</p>
+                  <p>Your booking request for <strong>${event.eventName || event.title || ''}</strong> has been received and is pending approval by the organizer.</p>
+                  <p>We will notify you by email as soon as the organizer reviews and updates your booking status.</p>
+                  <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
+                    <table style="width:100%;">
+                      <tr><td style="color:#888;width:120px;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Event Name</td><td><strong>${event.eventName || event.title || ''}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Status</td><td><strong style="color:#FF9900;">Pending Approval</strong></td></tr>
+                    </table>
+                  </div>
+                  <hr style="border:none;border-top:1px solid #eee;margin:10px 0 20px 0;">
+                  <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
+                    Need help? Contact our support team.<br>
+                    <a href="https://www.blithe.social/" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Website</a> | 
+                    <a href="https://www.instagram.com/blithe.social?igsh=MWM4eGw4dnVxYTU0bw%3D%3D" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Instagram</a><br>
+                    Thank you for choosing <strong>Blithe</strong>! 🎶
+                  </p>
                 </div>
+              </div>`;
 
-                <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
-                <table style="width:100%;border-collapse:collapse;margin:10px 0;">
-                  <tr style="background:#f5f5f5;">
-                    <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket</th>
-                    <th style="padding:10px;border:1px solid #ddd;text-align:center;">Qty</th>
-                    <th style="padding:10px;border:1px solid #ddd;text-align:right;">Amount</th>
-                  </tr>
-                  ${ticketRows}
-                </table>
-
-                <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Payment Summary</h3>
-                <table style="width:100%;border-collapse:collapse;margin:10px 0;">
-                  <tr>
-                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Net Amount</td>
-                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${subtotal.toFixed(2)}</td>
-                  </tr>
-                  ${platformFeeVal > 0 ? `
-                  <tr>
-                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Platform Fee</td>
-                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${platformFeeVal.toFixed(2)}</td>
-                  </tr>` : ''}
-                  ${gstAmount > 0 ? `
-                  <tr>
-                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">CGST</td>
-                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
-                  </tr>
-                  <tr>
-                    <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">SGST</td>
-                    <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
-                  </tr>` : ''}
-                  <tr>
-                    <td style="font-size:20px;padding-top:15px;font-weight:bold;color:#333;">Grand Total</td>
-                    <td style="font-size:20px;padding-top:15px;text-align:right;font-weight:bold;color:#6C63FF;">₹${total.toFixed(2)}</td>
-                  </tr>
-                </table>
-
-                <p style="text-align:center;color:#888;font-size:12px;margin:20px 0;">
-                  <em>note: Ticket is sold by the event organiser. Blithe charges a platform service fee .</em>
-                </p>
-                <hr style="border:none;border-top:1px solid #eee;margin:10px 0 20px 0;">
-                <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
-                  Need help? Contact our support team.<br>
-                  <a href="https://www.blithe.social/" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Website</a> | 
-                  <a href="https://www.instagram.com/blithe.social?igsh=MWM4eGw4dnVxYTU0bw%3D%3D" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Instagram</a><br>
-                  Thank you for booking with <strong>Blithe</strong>! 🎶
-                </p>
-              </div>
-            </div>`;
-
-            await setDoc(doc(collection(db, "sendMail")), {
-              date: serverTimestamp(),
-              emailList: [attendee.email],
-              html: emailHtml,
-              status: `Booking Confirmation - ${event.eventName || event.title || ""}`
-            });
-          } catch (mailErr) {
-            console.error("Email sending failure:", mailErr);
+              await setDoc(doc(collection(db, "sendMail")), {
+                date: serverTimestamp(),
+                emailList: [attendee.email],
+                html: pendingEmailHtml,
+                status: `Booking Request Pending - ${event.eventName || event.title || ""}`
+              });
+            } catch (mailErr) {
+              console.error("Pending email sending failure:", mailErr);
+            }
           }
-        }
 
-        // Send notification email to the organizer if allowed
-        if (event.orgBookingEmailAllow && event.organiserMail && event.organiserMail.trim()) {
-          try {
-            const ticketRowsOrg = bookedTickets
-              .map((t) => `<tr>
-                  <td style="padding:8px;border:1px solid #ddd;">${t.ticketName}</td>
-                  <td style="padding:8px;border:1px solid #ddd;text-align:center;">${t.quantity}</td>
-                </tr>`)
-              .join('');
+          // Send notification email to the organizer if allowed
+          if (event.orgBookingEmailAllow && event.organiserMail && event.organiserMail.trim()) {
+            try {
+              const ticketRowsOrg = bookedTickets
+                .map((t) => `<tr>
+                    <td style="padding:8px;border:1px solid #ddd;">${t.ticketName}</td>
+                    <td style="padding:8px;border:1px solid #ddd;text-align:center;">${t.quantity}</td>
+                  </tr>`)
+                .join('');
 
-            const eventDateStr = selectedDateVal.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+              const eventDateStr = selectedDateVal.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
 
-            const orgEmailHtml = `
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
-              <div style="background:#4CAF50;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
-                <h1 style="color:#fff;margin:0;">New Booking Alert</h1>
-              </div>
-              <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
-                <p style="font-size:16px;">Hi Organizer,</p>
-                <p>You have received a new booking for your event: <strong>${event.eventName || event.title || ""}</strong>.</p>
-                
-                <h3 style="border-bottom:2px solid #4CAF50;padding-bottom:5px;margin-top:25px;font-size:18px;">Attendee Details</h3>
-                <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
-                  <table style="width:100%;">
-                    <tr><td style="color:#888;width:120px;padding:3px 0;">Name</td><td><strong>${attendee.name}</strong></td></tr>
-                    <tr><td style="color:#888;padding:3px 0;">Email</td><td><strong>${attendee.email}</strong></td></tr>
-                    <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? attendee.phone : 'N/A'}</strong></td></tr>
-                    <tr><td style="color:#888;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
-                    <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
-                  </table>
+              const orgEmailHtml = `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
+                <div style="background:#FFA500;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
+                  <h1 style="color:#fff;margin:0;">New Booking Request</h1>
                 </div>
+                <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
+                  <p style="font-size:16px;">Hi Organizer,</p>
+                  <p>You have received a new booking request for your private event: <strong>${event.eventName || event.title || ""}</strong>.</p>
+                  
+                  <h3 style="border-bottom:2px solid #FFA500;padding-bottom:5px;margin-top:25px;font-size:18px;">Request Details</h3>
+                  <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
+                    <table style="width:100%;">
+                      <tr><td style="color:#888;width:120px;padding:3px 0;">Name</td><td><strong>${attendee.name}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Email</td><td><strong>${attendee.email}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? attendee.phone : 'N/A'}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
+                      ${event.approvalQuestion ? `<tr><td style="color:#888;padding:3px 0;">Question</td><td><strong>${event.approvalQuestion}</strong></td></tr>` : ''}
+                      ${approvalAnswer ? `<tr><td style="color:#888;padding:3px 0;">Answer</td><td><strong>${approvalAnswer}</strong></td></tr>` : ''}
+                    </table>
+                  </div>
 
-                <h3 style="border-bottom:2px solid #4CAF50;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
-                <table style="width:100%;border-collapse:collapse;margin:10px 0;">
-                  <tr style="background:#f5f5f5;">
-                    <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket Type</th>
-                    <th style="padding:10px;border:1px solid #ddd;text-align:center;">Quantity</th>
-                  </tr>
-                  ${ticketRowsOrg}
-                </table>
+                  <h3 style="border-bottom:2px solid #FFA500;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
+                  <table style="width:100%;border-collapse:collapse;margin:10px 0;">
+                    <tr style="background:#f5f5f5;">
+                      <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket Type</th>
+                      <th style="padding:10px;border:1px solid #ddd;text-align:center;">Quantity</th>
+                    </tr>
+                    ${ticketRowsOrg}
+                  </table>
 
-                <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
-                <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
-                  Thank you for hosting with <strong>Blithe</strong>!
-                </p>
-              </div>
-            </div>`;
+                  <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+                  <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
+                    Please open the app to approve or reject this booking request.<br>
+                    Thank you for hosting with <strong>Blithe</strong>!
+                  </p>
+                </div>
+              </div>`;
 
-            await setDoc(doc(collection(db, "sendMail")), {
-              date: serverTimestamp(),
-              emailList: [event.organiserMail],
-              html: orgEmailHtml,
-              status: `New Booking Alert - ${event.eventName || event.title || ""}`
-            });
-          } catch (orgMailErr) {
-            console.error("Organizer email sending failure:", orgMailErr);
+              await setDoc(doc(collection(db, "sendMail")), {
+                date: serverTimestamp(),
+                emailList: [event.organiserMail],
+                html: orgEmailHtml,
+                status: `New Booking Request - ${event.eventName || event.title || ""}`
+              });
+            } catch (orgMailErr) {
+              console.error("Organizer email sending failure:", orgMailErr);
+            }
           }
+
+          console.log('Successfully created booking request!');
+          const categoryIdentifier = event.categoryId || event.category_id || event.category || "Other";
+          updateUserInterests(uId, categoryIdentifier, 5);
+
+          setAppliedCoupon(null);
+          setCouponSession(null);
+          setCouponReservedUntil(null);
+
+          toast.success('Booking request submitted successfully! Pending approval.');
+          setTimeout(() => {
+            navigate(`/booking-success?bookingId=${bId}&eventId=${event.id}&userId=${uId}`);
+          }, 1500);
+
+        } else {
+          // Send Confirmed Booking Email (after transaction succeeds)
+          if (attendee.email) {
+            try {
+              const formatCalDate = (date) => {
+                if (!date) return '';
+                const d = new Date(date);
+                return d.toISOString().split('.')[0].replace(/[-:]/g, '') + 'Z';
+              };
+
+              const orgStartTime = parseDate(event.eventStartDate);
+              const orgEndTime = event.eventEndDate ? parseDate(event.eventEndDate) : new Date(orgStartTime.getTime() + 2 * 60 * 60 * 1000);
+
+              const finalStart = new Date(
+                selectedDateVal.getFullYear(),
+                selectedDateVal.getMonth(),
+                selectedDateVal.getDate(),
+                orgStartTime.getHours(),
+                orgStartTime.getMinutes()
+              );
+              const finalEnd = new Date(finalStart.getTime() + 2 * 60 * 60 * 1000);
+
+              const startStr = formatCalDate(finalStart);
+              const endStr = formatCalDate(finalEnd);
+
+              const isOnline = event.eventType === 'Online';
+              const eventTitle = encodeURIComponent(event.eventName || event.title || "");
+              const eventLocation = isOnline ? '' : encodeURIComponent(event.location || event.venue || "");
+              const eventDetails = encodeURIComponent(
+                `${isOnline ? `🔗 Join Meeting: ${event.meetingUrl || ''}\n\n` : ''}` +
+                `Booking ID: ${bId}\n` +
+                `Tickets: ${totalTickets}\n` +
+                `${(!isOnline && !(event.location)) ? `Venue: ${event.venue || ''}` : ''}`
+              );
+
+              const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&dates=${startStr}/${endStr}&details=${eventDetails}&location=${eventLocation}`;
+              const outlookCalendarUrl = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${eventTitle}&startdt=${startStr}&enddt=${endStr}&body=${eventDetails}&location=${eventLocation}`;
+
+              const ticketRows = bookedTickets.map((t) => `<tr>
+                <td style="padding:8px;border:1px solid #ddd;">${t.ticketName}</td>
+                <td style="padding:8px;border:1px solid #ddd;text-align:center;">${t.quantity}</td>
+                <td style="padding:8px;border:1px solid #ddd;text-align:right;">₹${(t.price * t.quantity).toFixed(2)}</td>
+              </tr>`).join('');
+
+              const eventDateStr = selectedDateVal.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+              const bookedDateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+
+              const timeStr = (event.eventStartDate && event.eventEndDate)
+                ? `${orgStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - ${orgEndTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+                : '';
+
+              const emailHtml = `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
+                <div style="background:#6C63FF;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
+                  <h1 style="color:#fff;margin:0;">Booking Confirmed!</h1>
+                </div>
+                <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
+                  <p style="font-size:16px;">Hi <strong>${attendee.name || 'there'}</strong>,</p>
+                  
+                  <!-- Calendar Buttons -->
+                  <div style="text-align:center;margin:20px 0;padding:15px;background:#f0efff;border-radius:8px;">
+                    <p style="margin-top:0;font-weight:bold;color:#584CF4;">📅 Add to calendar</p>
+                    <a href="${googleCalendarUrl}" style="display:inline-block;padding:10px 15px;margin:5px;background:#fff;color:#4285F4;text-decoration:none;border-radius:5px;border:1px solid #4285F4;font-size:13px;font-weight:bold;">+ Google Calendar</a>
+                    <a href="${outlookCalendarUrl}" style="display:inline-block;padding:10px 15px;margin:5px;background:#fff;color:#0078D4;text-decoration:none;border-radius:5px;border:1px solid #0078D4;font-size:13px;font-weight:bold;">+ Outlook / Office 365</a>
+                  </div>
+
+                  <p>Your booking for <strong>${event.eventName || event.title || ''}</strong> has been confirmed.</p>
+                  <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
+                    <table style="width:100%;">
+                      <tr><td style="color:#888;width:120px;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
+                      ${(event.serviceCode || settings?.serviceCode) ? `<tr><td style="color:#888;padding:3px 0;">HSN/SAC</td><td><strong>${event.serviceCode || settings?.serviceCode}</strong></td></tr>` : ''}
+                      <tr><td style="color:#888;padding:3px 0;">Booked Date</td><td><strong>${bookedDateStr}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
+                      ${(!isOnline && timeStr) ? `<tr><td style="color:#888;padding:3px 0;">Time</td><td><strong>${timeStr}</strong></td></tr>` : ''}
+                      ${!isOnline ? `<tr><td style="color:#888;padding:3px 0;">Venue</td><td><strong>${event.location || event.venue || ''}</strong></td></tr>` : ''}
+                      ${(isOnline && event.meetingUrl) ? `<tr><td style="color:#888;padding:3px 0;">Meeting Link</td><td><a href="${event.meetingUrl}" style="color:#6C63FF;font-weight:bold;text-decoration:none;">Join Online Meeting</a></td></tr>` : ''}
+                    </table>
+                  </div>
+
+                  <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
+                  <table style="width:100%;border-collapse:collapse;margin:10px 0;">
+                    <tr style="background:#f5f5f5;">
+                      <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket</th>
+                      <th style="padding:10px;border:1px solid #ddd;text-align:center;">Qty</th>
+                      <th style="padding:10px;border:1px solid #ddd;text-align:right;">Amount</th>
+                    </tr>
+                    ${ticketRows}
+                  </table>
+
+                  <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Payment Summary</h3>
+                  <table style="width:100%;border-collapse:collapse;margin:10px 0;">
+                    <tr>
+                      <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Net Amount</td>
+                      <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${subtotal.toFixed(2)}</td>
+                    </tr>
+                    ${platformFeeVal > 0 ? `
+                    <tr>
+                      <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">Platform Fee</td>
+                      <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${platformFeeVal.toFixed(2)}</td>
+                    </tr>` : ''}
+                    ${gstAmount > 0 ? `
+                    <tr>
+                      <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">CGST</td>
+                      <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td style="color:#666;padding:8px 0;border-bottom:1px solid #eee;">SGST</td>
+                      <td style="text-align:right;padding:8px 0;border-bottom:1px solid #eee;">₹${(gstAmount / 2).toFixed(2)}</td>
+                    </tr>` : ''}
+                    <tr>
+                      <td style="font-size:20px;padding-top:15px;font-weight:bold;color:#333;">Grand Total</td>
+                      <td style="font-size:20px;padding-top:15px;text-align:right;font-weight:bold;color:#6C63FF;">₹${total.toFixed(2)}</td>
+                    </tr>
+                  </table>
+
+                  <p style="text-align:center;color:#888;font-size:12px;margin:20px 0;">
+                    <em>note: Ticket is sold by the event organiser. Blithe charges a platform service fee .</em>
+                  </p>
+                  <hr style="border:none;border-top:1px solid #eee;margin:10px 0 20px 0;">
+                  <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
+                    Need help? Contact our support team.<br>
+                    <a href="https://www.blithe.social/" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Website</a> | 
+                    <a href="https://www.instagram.com/blithe.social?igsh=MWM4eGw4dnVxYTU0bw%3D%3D" style="color:#6C63FF;text-decoration:none;margin:0 10px;font-weight:bold;">Instagram</a><br>
+                    Thank you for booking with <strong>Blithe</strong>! 🎶
+                  </p>
+                </div>
+              </div>`;
+
+              await setDoc(doc(collection(db, "sendMail")), {
+                date: serverTimestamp(),
+                emailList: [attendee.email],
+                html: emailHtml,
+                status: `Booking Confirmation - ${event.eventName || event.title || ""}`
+              });
+            } catch (mailErr) {
+              console.error("Email sending failure:", mailErr);
+            }
+          }
+
+          // Send notification email to the organizer if allowed
+          if (event.orgBookingEmailAllow && event.organiserMail && event.organiserMail.trim()) {
+            try {
+              const ticketRowsOrg = bookedTickets
+                .map((t) => `<tr>
+                    <td style="padding:8px;border:1px solid #ddd;">${t.ticketName}</td>
+                    <td style="padding:8px;border:1px solid #ddd;text-align:center;">${t.quantity}</td>
+                  </tr>`)
+                .join('');
+
+              const eventDateStr = selectedDateVal.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+
+              const orgEmailHtml = `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
+                <div style="background:#4CAF50;padding:20px;border-radius:10px 10px 0 0;text-align:center;">
+                  <h1 style="color:#fff;margin:0;">New Booking Alert</h1>
+                </div>
+                <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;">
+                  <p style="font-size:16px;">Hi Organizer,</p>
+                  <p>You have received a new booking for your event: <strong>${event.eventName || event.title || ""}</strong>.</p>
+                  
+                  <h3 style="border-bottom:2px solid #4CAF50;padding-bottom:5px;margin-top:25px;font-size:18px;">Attendee Details</h3>
+                  <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
+                    <table style="width:100%;">
+                      <tr><td style="color:#888;width:120px;padding:3px 0;">Name</td><td><strong>${attendee.name}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Email</td><td><strong>${attendee.email}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? attendee.phone : 'N/A'}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
+                    </table>
+                  </div>
+
+                  <h3 style="border-bottom:2px solid #4CAF50;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
+                  <table style="width:100%;border-collapse:collapse;margin:10px 0;">
+                    <tr style="background:#f5f5f5;">
+                      <th style="padding:10px;border:1px solid #ddd;text-align:left;">Ticket Type</th>
+                      <th style="padding:10px;border:1px solid #ddd;text-align:center;">Quantity</th>
+                    </tr>
+                    ${ticketRowsOrg}
+                  </table>
+
+                  <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+                  <p style="text-align:center;color:#888;font-size:13px;line-height:1.5;">
+                    Thank you for hosting with <strong>Blithe</strong>!
+                  </p>
+                </div>
+              </div>`;
+
+              await setDoc(doc(collection(db, "sendMail")), {
+                date: serverTimestamp(),
+                emailList: [event.organiserMail],
+                html: orgEmailHtml,
+                status: `New Booking Alert - ${event.eventName || event.title || ""}`
+              });
+            } catch (orgMailErr) {
+              console.error("Organizer email sending failure:", orgMailErr);
+            }
+          }
+
+          console.log('Successfully created booking records!');
+          const categoryIdentifier = event.categoryId || event.category_id || event.category || "Other";
+          updateUserInterests(uId, categoryIdentifier, 5);
+
+          setAppliedCoupon(null);
+          setCouponSession(null);
+          setCouponReservedUntil(null);
+
+          toast.success('Booking confirmed successfully!');
+          setTimeout(() => {
+            navigate(`/booking-success?bookingId=${bId}&eventId=${event.id}&userId=${uId}`);
+          }, 1500);
         }
-
-        console.log('Successfully created booking records!');
-        // Update user interests with category score (score = 5 for booking events)
-        const categoryIdentifier = event.categoryId || event.category_id || event.category || "Other";
-        updateUserInterests(uId, categoryIdentifier, 5);
-
-        // Clear coupon state now that it's committed and booking is done
-        setAppliedCoupon(null);
-        setCouponSession(null);
-        setCouponReservedUntil(null);
-        // Keep session storage details to preserve form state if user navigates back
-        toast.success('Booking confirmed successfully!');
-        setTimeout(() => {
-          navigate(`/booking-success?bookingId=${bId}&eventId=${event.id}&userId=${uId}`);
-        }, 1500);
       };
 
       // 2. Process booking flow
@@ -2153,6 +2343,49 @@ const EventBookingPage = () => {
             )}
 
           </div>
+
+          {/* Host Approval Question (if required) */}
+          {event.approvalNeeded && (
+            <div className="section-block approval-details-block glass" style={{ marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
+                <Lock size={20} style={{ color: '#7C3AED' }} />
+                <h3 style={{ margin: 0 }}>Host Approval Required</h3>
+              </div>
+              <p style={{ fontSize: '0.9rem', color: '#4B5563', marginBottom: '1rem', lineHeight: '1.5' }}>
+                This event is private and requires the organizer's approval to join.
+              </p>
+              {event.approvalQuestion && (
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="approvalAnswer" style={{ fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.5rem' }}>
+                    Qus: {event.approvalQuestion} <span className="required-star">*</span>
+                  </label>
+                  <textarea
+                    id="approvalAnswer"
+                    placeholder="Type your answer here..."
+                    value={approvalAnswer}
+                    onChange={(e) => setApprovalAnswer(e.target.value)}
+                    style={{
+                      width: '100%',
+                      minHeight: '100px',
+                      padding: '0.75rem 1rem',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.95rem',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      resize: 'vertical',
+                      backgroundColor: 'rgba(255, 255, 255, 0.5)'
+                    }}
+                  />
+                  {showErrors && !approvalAnswer.trim() && (
+                    <div className="validation-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.85rem', marginTop: '0.4rem' }}>
+                      <Info size={16} /> <span>Please answer the host's question.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Coupons Section — hidden for free events */}
           {tickets.some(t => t.blithePrice && t.blithePrice > 0) && <div className="section-block coupons-block glass">

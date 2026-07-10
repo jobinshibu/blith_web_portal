@@ -37,6 +37,20 @@
   }
 }
 
+@keyframes pulse-dot-orange {
+  0% {
+    box-shadow: 0 0 0 0 rgba(#FF9900, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 5px rgba(#FF9900, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(#FF9900, 0);
+  }
+}
+
 .booking-success-page {
   margin-top: 3rem;
   position: relative;
@@ -107,6 +121,12 @@
       flex-shrink: 0;
       box-shadow: 0 6px 15px rgba(#10B981, 0.12);
       border: 1px solid rgba(#10B981, 0.2);
+
+      &.pending {
+        background: rgba(#FF9900, 0.12);
+        box-shadow: 0 6px 15px rgba(#FF9900, 0.12);
+        border-color: rgba(#FF9900, 0.2);
+      }
     }
 
     .success-badge-inner {
@@ -117,6 +137,11 @@
       @include flex-center;
       color: $white;
       box-shadow: 0 4px 10px rgba(#059669, 0.25);
+
+      .success-badge-outer.pending & {
+        background: linear-gradient(135deg, #FF9900, #E68A00);
+        box-shadow: 0 4px 10px rgba(#E68A00, 0.25);
+      }
     }
 
     .header-text-group {
@@ -483,6 +508,17 @@
         background: rgba(#10B981, 0.1);
         color: #047857;
         border: 1px solid rgba(#10B981, 0.2);
+
+        &.pending {
+          background: rgba(#FF9900, 0.15);
+          color: #D67F00;
+          border-color: rgba(#FF9900, 0.25);
+
+          .pulse-dot {
+            background-color: #FF9900;
+            animation: pulse-dot-orange 2s infinite;
+          }
+        }
 
         .pulse-dot {
           width: 5px;

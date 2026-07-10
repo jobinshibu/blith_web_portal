@@ -1902,7 +1902,7 @@ const EventDetails = () => {
                   onClick={() => navigate(`/events/${event.id}/book`)}
                   disabled={isEventExpired || isSoldOut}
                 >
-                  {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : 'Book Now'}
+                  {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
                 </Button>
                 <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
                   <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
@@ -1986,13 +1986,7 @@ const EventDetails = () => {
                           </span>
                         )}
                       </div>
-                      <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <span>
-                          {relatedEvent.price}
-                          {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
-                        </span>
-                        {relatedEvent.priceMessage && <span className="price-message" style={{ color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
-                      </p>
+
                     </div>
                   </Link>
                 </div>
@@ -2016,7 +2010,7 @@ const EventDetails = () => {
           onClick={() => navigate(`/events/${event.id}/book`)}
           disabled={isEventExpired || isSoldOut}
         >
-          {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : 'Book Now'}
+          {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
         </Button>
       </div>
 

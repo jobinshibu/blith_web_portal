@@ -1,9 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { submitContactMessage } from '../../services/contactService';
 import logoText from '../../assets/fifablith.png';
 import './Footer.scss';
 
 const Footer = () => {
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+  const [contactStatus, setContactStatus] = useState({ type: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleContactChange = (e) => {
+    setContactForm({ ...contactForm, [e.target.name]: e.target.value });
+  };
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setContactStatus({ type: '', message: '' });
+    
+    if (!contactForm.name || !contactForm.email || !contactForm.message) {
+      setContactStatus({ type: 'error', message: 'Please fill in all fields' });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    try {
+      await submitContactMessage(contactForm);
+      setContactStatus({ type: 'success', message: 'Message sent successfully!' });
+      setContactForm({ name: '', email: '', message: '' });
+    } catch (error) {
+      setContactStatus({ type: 'error', message: 'Failed to send message. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <footer className="footer-container">
       <div className="footer-grid">
@@ -86,6 +117,45 @@ const Footer = () => {
             <li><a href="https://x.com/blithe_social" target="_blank" rel="noreferrer">Twitter</a></li>
             <li><a href="https://www.youtube.com/@Blithe.Social/shorts" target="_blank" rel="noreferrer">YouTube</a></li>
           </ul>
+        </div>
+
+        {/* CONTACT US (NEW) */}
+        <div className="fg-col contact-col">
+          <h5>Contact Us</h5>
+          <form className="footer-contact-form" onSubmit={handleContactSubmit}>
+            <input 
+              type="text" 
+              name="name" 
+              placeholder="Your Name" 
+              value={contactForm.name}
+              onChange={handleContactChange}
+              required
+            />
+            <input 
+              type="email" 
+              name="email" 
+              placeholder="Your Email" 
+              value={contactForm.email}
+              onChange={handleContactChange}
+              required
+            />
+            <textarea 
+              name="message" 
+              placeholder="Your Message" 
+              rows="3"
+              value={contactForm.message}
+              onChange={handleContactChange}
+              required
+            ></textarea>
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Sending...' : 'Send Message'}
+            </button>
+            {contactStatus.message && (
+              <p className={`contact-status ${contactStatus.type}`}>
+                {contactStatus.message}
+              </p>
+            )}
+          </form>
         </div>
       </div>
 

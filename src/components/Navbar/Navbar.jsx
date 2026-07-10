@@ -133,10 +133,10 @@ const Navbar = () => {
                 )}
               </button>
               {isProfileOpen && (
-                <ProfileDashboardModal 
-                  isOpen={isProfileOpen} 
-                  onClose={() => setIsProfileOpen(false)} 
-                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }} 
+                <ProfileDashboardModal
+                  isOpen={isProfileOpen}
+                  onClose={() => setIsProfileOpen(false)}
+                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
                 />
               )}
             </div>
@@ -161,10 +161,10 @@ const Navbar = () => {
                 )}
               </button>
               {isProfileOpen && (
-                <ProfileDashboardModal 
-                  isOpen={isProfileOpen} 
-                  onClose={() => setIsProfileOpen(false)} 
-                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }} 
+                <ProfileDashboardModal
+                  isOpen={isProfileOpen}
+                  onClose={() => setIsProfileOpen(false)}
+                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
                 />
               )}
             </div>
@@ -209,8 +209,8 @@ const Navbar = () => {
                   ))}
                   {currentUser && (
                     <motion.div variants={itemVariants} className="mobile-nav-item">
-                      <button 
-                        className="mobile-nav-link discover" 
+                      <button
+                        className="mobile-nav-link discover"
                         onClick={() => {
                           closeMenu();
                           setIsProfileOpen(true);

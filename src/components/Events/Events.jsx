@@ -518,7 +518,8 @@ const Events = () => {
           const endD = toDateObj(data.eventEndDate);
           const isNotExpired = endD ? endD >= new Date() : true;
           const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
-          return isNotBlocked && isNotExpired && hasNoPaymentUrl;
+          const isNotPrivate = data.isPrivateEvent !== true;
+          return isNotBlocked && isNotExpired && hasNoPaymentUrl && isNotPrivate;
         })
         .map(data => {
           // Format date and time
@@ -1201,7 +1202,7 @@ const Events = () => {
                                 <Calendar size={18} className="orange-icon" />
                                 <span>{event.date}</span>
                               </div>
-                              <p className="hero-price">{event.price}</p>
+
 
                               <div className={`hero-actions ${index !== 0 ? 'disabled' : ''}`}>
                                 <Link to={`/events/${event.id}`} onClick={e => {
@@ -1525,10 +1526,7 @@ const Events = () => {
                                     </span>
                                   )}
                                 </div>
-                                <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                  <span>{event.price}</span>
-                                  {event.priceMessage && <span className="price-message" style={{ color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{event.priceMessage}</span>}
-                                </p>
+
                               </div>
                             </Link>
                           </motion.div>
