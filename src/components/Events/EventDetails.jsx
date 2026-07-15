@@ -1121,9 +1121,15 @@ const EventDetails = () => {
           let displayPrice = "Free";
           let isPriceOnwards = false;
           if (data.tickets && data.tickets.length > 0) {
-            const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
-            displayPrice = minPrice > 0 ? `₹${minPrice}` : "Free";
-            isPriceOnwards = minPrice > 0;
+            const paidTickets = data.tickets.filter(t => (t.actualPrice || 0) > 0);
+            if (paidTickets.length > 0) {
+              const minPrice = Math.min(...paidTickets.map(t => t.actualPrice));
+              displayPrice = `₹${minPrice}`;
+              isPriceOnwards = true;
+            } else {
+              displayPrice = "Free";
+              isPriceOnwards = false;
+            }
           } else if (data.price > 0) {
             displayPrice = `₹${data.price}`;
           }
@@ -1156,73 +1162,8 @@ const EventDetails = () => {
             setOrganiser(null);
           }
 
-          // Fetch categories and clusters to determine matching cluster category names
-          let names = [];
-          try {
-            const categoriesSnap = await getDocs(query(collection(db, "eventCategories"), where("deleted", "==", false)));
-            const categoriesList = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          // Cluster category fetching moved to a separate useEffect to speed up initial load
 
-            const clustersSnap = await getDocs(query(collection(db, "cluster_categories"), where("isDeleted", "==", false)));
-            const clustersList = clustersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            const currentEventCategoryDoc = categoriesList.find(
-              cat => cat.categoryName?.toLowerCase() === data.category?.toLowerCase()
-            );
-
-            if (currentEventCategoryDoc) {
-              const associatedClusterIds = new Set();
-
-              // 1. Add cluster IDs from the current category's own clusterId field
-              if (currentEventCategoryDoc.clusterId) {
-                if (Array.isArray(currentEventCategoryDoc.clusterId)) {
-                  currentEventCategoryDoc.clusterId.forEach(id => {
-                    if (id) associatedClusterIds.add(id);
-                  });
-                } else if (typeof currentEventCategoryDoc.clusterId === 'string' && currentEventCategoryDoc.clusterId) {
-                  associatedClusterIds.add(currentEventCategoryDoc.clusterId);
-                }
-              }
-
-              // 2. Add cluster IDs from clusters that list this category's ID in categoryIds
-              clustersList.forEach(cluster => {
-                if (cluster.categoryIds && cluster.categoryIds.includes(currentEventCategoryDoc.id)) {
-                  if (cluster.id) associatedClusterIds.add(cluster.id);
-                  if (cluster.clusterId) associatedClusterIds.add(cluster.clusterId);
-                }
-              });
-
-              // 3. Find all category names that belong to these associated clusters
-              const matchedCategories = new Set();
-              
-              categoriesList.forEach(cat => {
-                // Check if this category's own clusterId matches any associatedClusterIds
-                if (cat.clusterId) {
-                  if (Array.isArray(cat.clusterId)) {
-                    if (cat.clusterId.some(id => associatedClusterIds.has(id))) {
-                      matchedCategories.add(cat.categoryName?.toLowerCase());
-                    }
-                  } else if (typeof cat.clusterId === 'string' && associatedClusterIds.has(cat.clusterId)) {
-                    matchedCategories.add(cat.categoryName?.toLowerCase());
-                  }
-                }
-
-                // Check if this category's ID is in the categoryIds of any associated clusters
-                const isInCategoryIdsOfAssociatedCluster = clustersList.some(cluster => {
-                  const isAssociated = associatedClusterIds.has(cluster.id) || associatedClusterIds.has(cluster.clusterId);
-                  return isAssociated && cluster.categoryIds && cluster.categoryIds.includes(cat.id);
-                });
-
-                if (isInCategoryIdsOfAssociatedCluster) {
-                  matchedCategories.add(cat.categoryName?.toLowerCase());
-                }
-              });
-
-              names = Array.from(matchedCategories).filter(Boolean);
-            }
-          } catch (clusterErr) {
-            console.error("Error determining cluster category names:", clusterErr);
-          }
-          setClusterCategoryNames(names);
 
           const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
 
@@ -1297,6 +1238,74 @@ const EventDetails = () => {
   }, [id]);
 
   useEffect(() => {
+    const fetchClusterCategories = async () => {
+      if (!event || !event.category) return;
+      let names = [];
+      try {
+        const categoriesSnap = await getDocs(query(collection(db, "eventCategories"), where("deleted", "==", false)));
+        const categoriesList = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const clustersSnap = await getDocs(query(collection(db, "cluster_categories"), where("isDeleted", "==", false)));
+        const clustersList = clustersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const currentEventCategoryDoc = categoriesList.find(
+          cat => cat.categoryName?.toLowerCase() === event.category?.toLowerCase()
+        );
+
+        if (currentEventCategoryDoc) {
+          const associatedClusterIds = new Set();
+          
+          if (currentEventCategoryDoc.clusterId) {
+            if (Array.isArray(currentEventCategoryDoc.clusterId)) {
+              currentEventCategoryDoc.clusterId.forEach(id => {
+                if (id) associatedClusterIds.add(id);
+              });
+            } else if (typeof currentEventCategoryDoc.clusterId === 'string' && currentEventCategoryDoc.clusterId) {
+              associatedClusterIds.add(currentEventCategoryDoc.clusterId);
+            }
+          }
+
+          clustersList.forEach(cluster => {
+            if (cluster.categoryIds && cluster.categoryIds.includes(currentEventCategoryDoc.id)) {
+              if (cluster.id) associatedClusterIds.add(cluster.id);
+              if (cluster.clusterId) associatedClusterIds.add(cluster.clusterId);
+            }
+          });
+
+          const matchedCategories = new Set();
+          categoriesList.forEach(cat => {
+            if (cat.clusterId) {
+              if (Array.isArray(cat.clusterId)) {
+                if (cat.clusterId.some(id => associatedClusterIds.has(id))) {
+                  matchedCategories.add(cat.categoryName?.toLowerCase());
+                }
+              } else if (typeof cat.clusterId === 'string' && associatedClusterIds.has(cat.clusterId)) {
+                matchedCategories.add(cat.categoryName?.toLowerCase());
+              }
+            }
+
+            const isInCategoryIdsOfAssociatedCluster = clustersList.some(cluster => {
+              const isAssociated = associatedClusterIds.has(cluster.id) || associatedClusterIds.has(cluster.clusterId);
+              return isAssociated && cluster.categoryIds && cluster.categoryIds.includes(cat.id);
+            });
+
+            if (isInCategoryIdsOfAssociatedCluster) {
+              matchedCategories.add(cat.categoryName?.toLowerCase());
+            }
+          });
+
+          names = Array.from(matchedCategories).filter(Boolean);
+        }
+      } catch (clusterErr) {
+        console.error("Error determining cluster category names:", clusterErr);
+      }
+      setClusterCategoryNames(names);
+    };
+
+    fetchClusterCategories();
+  }, [event?.category]);
+
+  useEffect(() => {
     const fetchRelatedEvents = () => {
       if (!event || !event.raw || !rawEvents || rawEvents.length === 0) return;
       try {
@@ -1322,9 +1331,15 @@ const EventDetails = () => {
               let displayPrice = "Free";
               let isPriceOnwards = false;
               if (data.tickets && data.tickets.length > 0) {
-                const minPrice = Math.min(...data.tickets.map(t => t.actualPrice || 0));
-                displayPrice = minPrice > 0 ? `₹${minPrice}` : "Free";
-                isPriceOnwards = minPrice > 0;
+                const paidTickets = data.tickets.filter(t => (t.actualPrice || 0) > 0);
+                if (paidTickets.length > 0) {
+                  const minPrice = Math.min(...paidTickets.map(t => t.actualPrice));
+                  displayPrice = `₹${minPrice}`;
+                  isPriceOnwards = true;
+                } else {
+                  displayPrice = "Free";
+                  isPriceOnwards = false;
+                }
               } else if (data.price > 0) {
                 displayPrice = `₹${data.price}`;
               }
@@ -1550,6 +1565,16 @@ const EventDetails = () => {
   const isEventExpired = event.eventEndDate
     ? event.eventEndDate.toDate() < today
     : (event.eventStartDate ? event.eventStartDate.toDate() < today : false);
+
+  const isBookingClosed = (() => {
+    if (!event.bookingClosingTime) return false;
+    try {
+      const closingDate = event.bookingClosingTime.toDate ? event.bookingClosingTime.toDate() : new Date(event.bookingClosingTime);
+      return new Date() > closingDate;
+    } catch (e) {
+      return false;
+    }
+  })();
 
   const checkEventSoldOut = (evt) => {
     if (evt.soldOut === true) return true;
@@ -1896,13 +1921,13 @@ const EventDetails = () => {
                   )}
                 </div>
                 <Button
-                  variant={(isEventExpired || isSoldOut) ? "secondary" : "primary"}
+                  variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
                   size="lg"
                   className="book-now-btn"
                   onClick={() => navigate(`/events/${event.id}/book`)}
-                  disabled={isEventExpired || isSoldOut}
+                  disabled={isEventExpired || isSoldOut || isBookingClosed}
                 >
-                  {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
+                  {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
                 </Button>
                 <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
                   <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
@@ -2005,12 +2030,12 @@ const EventDetails = () => {
           {event.priceMessage && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>{event.priceMessage}</span>}
         </div>
         <Button
-          variant={(isEventExpired || isSoldOut) ? "secondary" : "primary"}
+          variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
           size="lg"
           onClick={() => navigate(`/events/${event.id}/book`)}
-          disabled={isEventExpired || isSoldOut}
+          disabled={isEventExpired || isSoldOut || isBookingClosed}
         >
-          {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
+          {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
         </Button>
       </div>
 

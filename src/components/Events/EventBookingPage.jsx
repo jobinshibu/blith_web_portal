@@ -188,8 +188,10 @@ const EventBookingPage = () => {
   }, []);
 
   // Removed real-time save effect to prevent avatar updating letter-by-letter as user types
-  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(true);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [agreeAppTerms, setAgreeAppTerms] = useState(true);
+  const [showAppTermsModal, setShowAppTermsModal] = useState(false);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [bookingId, setBookingId] = useState('');
 
@@ -423,7 +425,7 @@ const EventBookingPage = () => {
     const isEmailValid = emailRegex.test(trimmedEmail);
     const isPhoneValid = /^\d{10}$/.test(trimmedPhone);
 
-    const isAllDetailsEntered = trimmedName !== '' && isEmailValid && isPhoneValid;
+    const isAllDetailsEntered = trimmedName !== '' && isEmailValid && isPhoneValid && agreeAppTerms;
 
     if (isAllDetailsEntered) {
       // If we already successfully looked up this email and phone, don't run it again
@@ -521,7 +523,7 @@ const EventBookingPage = () => {
                   console.warn("Failed to save checkout details to session on phone resolve:", err);
                 }
               } else {
-                if (trimmedName && isEmailValid && isPhoneValid) {
+                if (trimmedName && isEmailValid && isPhoneValid && agreeAppTerms) {
                   console.log(`[User Fetch] User exists by phone: false for phoneNo == ${trimmedPhone}. Instantly creating user...`);
                   const newUid = generateUID();
                   const newDocRef = doc(usersRef, newUid);
@@ -547,7 +549,7 @@ const EventBookingPage = () => {
                     console.warn("Failed to save checkout details to session on instant create:", err);
                   }
                 } else {
-                  console.log(`[User Fetch] Fields not complete yet (Name: "${trimmedName}", Email Valid: ${isEmailValid}, Phone Valid: ${isPhoneValid}). Skipping instant user creation.`);
+                  console.log(`[User Fetch] Fields not complete yet (Name: "${trimmedName}", Email Valid: ${isEmailValid}, Phone Valid: ${isPhoneValid}, AppTerms: ${agreeAppTerms}). Skipping instant user creation.`);
                 }
               }
             } catch (err) {
@@ -572,7 +574,7 @@ const EventBookingPage = () => {
         clearTimeout(timeoutId);
       }
     };
-  }, [attendee.name, attendee.email, attendee.phone]);
+  }, [attendee.name, attendee.email, attendee.phone, agreeAppTerms]);
 
   useEffect(() => {
     if (!resolvedUserId) {
@@ -916,7 +918,7 @@ const EventBookingPage = () => {
     attendee.email.trim() !== '' &&
     isPhoneValid &&
     (event?.approvalNeeded && event?.approvalQuestion ? approvalAnswer.trim() !== '' : true) &&
-    agreeTerms;
+    agreeTerms && agreeAppTerms;
 
   // Helper to block ticket slots for 10 minutes (paid events)
   const blockTicketSlots = async (uId, bookedTickets, dateStr, dbTickets, finalBookingSearchList) => {
@@ -2269,6 +2271,37 @@ const EventBookingPage = () => {
           {/* Attendee Details */}
           <div className="section-block attendee-details-block glass">
             <h3>{isMultiDay ? '3. Contact Information' : '2. Contact Information'}</h3>
+            {!resolvedUserId && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                background: 'linear-gradient(to right, rgba(124, 58, 237, 0.08), rgba(124, 58, 237, 0.01))',
+                borderLeft: '4px solid #7C3AED',
+                padding: '0.8rem 1.25rem',
+                borderRadius: '0 0.5rem 0.5rem 0',
+                marginBottom: '1.5rem',
+                marginTop: '-0.5rem'
+              }}>
+                <div style={{
+                  background: '#F3E8FF',
+                  color: '#7C3AED',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <User size={16} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#1F2937', fontWeight: 600 }}>Be part of something bigger.</h4>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#4B5563', marginTop: '0.1rem' }}>Enter your details to create an account today.</p>
+                </div>
+              </div>
+            )}
 
             <div className="input-group">
               <label htmlFor="name">Full Name <span className="required-star">*</span></label>
@@ -2335,13 +2368,30 @@ const EventBookingPage = () => {
               )}
             </div>
 
+            <div className="terms-checkbox" style={{ marginTop: '0.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                id="appTerms"
+                checked={agreeAppTerms}
+                onChange={(e) => setAgreeAppTerms(e.target.checked)}
+                style={{ width: 'auto', cursor: 'pointer', margin: 0 }}
+              />
+              <label htmlFor="appTerms" style={{ fontSize: '0.85rem', cursor: 'pointer', margin: 0, color: '#4B5563' }}>
+                I agree to the <span onClick={(e) => { e.preventDefault(); setShowAppTermsModal(true); }} style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Terms of Service</span>
+              </label>
+            </div>
+            {showErrors && !agreeAppTerms && (
+              <div className="validation-hint" style={{ marginTop: '-1rem', marginBottom: '1.5rem' }}>
+                <Info size={16} /><span>Please accept the App Terms of Service.</span>
+              </div>
+            )}
+
             {resolvedUserId && fetchedUserName && (
               <div className="user-logged-in-message" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '0.5rem', marginBottom: '1.25rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
                 <CheckCircle size={16} style={{ color: '#10B981', flexShrink: 0 }} />
                 <span>Logged in as {fetchedUserName}</span>
               </div>
             )}
-
           </div>
 
           {/* Host Approval Question (if required) */}
@@ -2777,6 +2827,77 @@ const EventBookingPage = () => {
                   Cancel
                 </button>
                 <button className="terms-agree-btn" onClick={handleAgreeAndProceed}>
+                  Agree & Proceed
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* App Terms and Conditions Modal */}
+      <AnimatePresence>
+        {showAppTermsModal && (
+          <div className="terms-modal-overlay" onClick={() => setShowAppTermsModal(false)}>
+            <motion.div
+              className="terms-modal-card glass"
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button className="close-modal-btn" onClick={() => setShowAppTermsModal(false)}>
+                <X size={20} />
+              </button>
+
+              <div className="terms-modal-header">
+                <FileText size={32} className="terms-modal-icon" />
+                <h2>Terms of Service</h2>
+              </div>
+
+              <div className="terms-modal-body">
+                <p className="terms-modal-desc" style={{ paddingBottom: '1rem' }}>
+                  Please review the terms of service carefully before proceeding.
+                </p>
+                <div className="terms-modal-list" style={{ textAlign: 'left', lineHeight: '1.6', fontSize: '0.9rem', color: '#4B5563' }}>
+                  <p><strong>1. Acceptance of Terms</strong><br />By accessing or using the Blithe app, you agree to comply with and be bound by these Terms of Service. If you do not agree with these terms, please do not use the app.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>2. Use of the App</strong><br />You must be at least 14 years old to use the Blithe app. By using the app, you represent and warrant that you are at least 14 years old.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>3. User Accounts</strong><br />To access certain features, you may need to create a user account. You are responsible for maintaining the confidentiality of your credentials and all activities under your account.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>4. User Conduct</strong><br />When using the Blithe app, you agree not to:<br />
+                    &bull; Violate any applicable laws or regulations.<br />
+                    &bull; Infringe on the rights of others.<br />
+                    &bull; Use the app for any unlawful or unauthorized purpose.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>5. Events and Content</strong><br />You are solely responsible for the events you create and the content you upload. By using the app, you grant Blithe the right to display and promote your events.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>6. Termination of Accounts</strong><br />We reserve the right to terminate or suspend accounts without prior notice if we believe a user has violated these Terms of Service.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>7. Modification of the App</strong><br />We may update, modify, or discontinue features of the app at any time without prior notice.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>8. Limitation of Liability</strong><br />Blithe is not liable for any direct, indirect, incidental, special, or consequential damages arising out of or connected with the use of the app.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>9. Changes to Terms of Service</strong><br />We may update these Terms of Service. Continued use of the app after changes indicates your acceptance of the updated terms.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>10. Governing Law</strong><br />These Terms of Service are governed by and construed in accordance with the laws of Karnataka jurisdiction.</p>
+
+                  <p style={{ marginTop: '1rem' }}><strong>11. Contact Us</strong><br />If you have any questions or concerns about these Terms of Service, please contact us at info@blithe.social.</p>
+
+                  <p style={{ marginTop: '1rem' }}>By using the Blithe app, you agree to the terms outlined in these Terms of Service.</p>
+                </div>
+              </div>
+
+              <div className="terms-modal-footer">
+                <button className="terms-cancel-btn" onClick={() => setShowAppTermsModal(false)}>
+                  Cancel
+                </button>
+                <button className="terms-agree-btn" onClick={() => {
+                  setAgreeAppTerms(true);
+                  setShowAppTermsModal(false);
+                }}>
                   Agree & Proceed
                 </button>
               </div>

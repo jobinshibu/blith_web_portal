@@ -119,6 +119,7 @@ const Navbar = () => {
         <div className="nav-links desktop-only">
           <a href="https://blithe.social/#how-it-works" className="nav-link">How it Works</a>
           <a href="https://blithe.social/#for-creators" className="nav-link">For Creators</a>
+          <a href="https://blithe.social/team" className="nav-link">Team</a>
           <a href="https://blithe.social/#discover" className="nav-link">Discover</a>
           {!isEventsPage && <Link to="/events" className="nav-pill">Explore Events</Link>}
           {currentUser && (
@@ -199,6 +200,7 @@ const Navbar = () => {
                   {[
                     { name: 'How it Works', path: 'https://blithe.social/#how-it-works' },
                     { name: 'For Creators', path: 'https://blithe.social/#for-creators' },
+                    { name: 'Team', path: 'https://blithe.social/team' },
                     { name: 'Discover', path: 'https://blithe.social/#discover', isDiscover: true }
                   ].map((link, i) => (
                     <motion.div key={i} variants={itemVariants} className="mobile-nav-item">
