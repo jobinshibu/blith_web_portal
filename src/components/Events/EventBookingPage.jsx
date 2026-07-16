@@ -530,7 +530,6 @@ const EventBookingPage = () => {
                   const newUserDoc = createDefaultUserObject(newUid, attendee.name, attendee.email, trimmedPhone);
                   await setDoc(newDocRef, newUserDoc);
                   console.log(`[User Fetch] Created user document for UID: ${newUid}`);
-
                   if (!active) return;
                   setResolvedUserId(newUid);
                   setResolvedUserIdForCoupons(newUid);

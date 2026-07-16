@@ -200,22 +200,22 @@ const getCalendarMonths = () => {
   const months = [];
   const startYear = 2026;
   const startMonth = 4; // May (0-indexed)
-  
+
   const today = new Date();
   const currentYear = today.getFullYear();
-  
+
   // Generate months from May 2026 up to 10 years in the future to support future dates (2028, 2029, 2030, etc.)
   const endYear = Math.max(currentYear, 2026) + 10;
-  
+
   let tempYear = startYear;
   let tempMonth = startMonth;
-  
+
   while (tempYear < endYear || (tempYear === endYear && tempMonth <= 11)) {
     const firstDay = new Date(tempYear, tempMonth, 1);
     const name = firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const daysInMonth = new Date(tempYear, tempMonth + 1, 0).getDate();
     const startDayOfWeek = firstDay.getDay();
-    
+
     months.push({
       name,
       monthIndex: tempMonth,
@@ -223,7 +223,7 @@ const getCalendarMonths = () => {
       daysInMonth,
       startDayOfWeek
     });
-    
+
     tempMonth++;
     if (tempMonth > 11) {
       tempMonth = 0;
@@ -367,7 +367,7 @@ const Events = () => {
         ...getLeadSourceProps()
       });
     } catch (analyticsErr) {
-      console.warn("Failed to log view_landing_page event to Firebase Analytics:", analyticsErr);
+      console.warn("Failed to log view_landing_page event:", analyticsErr);
     }
   }, []);
 
@@ -381,6 +381,7 @@ const Events = () => {
         platform: 'web',
         ...getLeadSourceProps()
       });
+
     } catch (analyticsErr) {
       console.warn("Failed to log event analytics:", analyticsErr);
     }

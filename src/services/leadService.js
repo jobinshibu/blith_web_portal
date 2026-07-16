@@ -74,6 +74,7 @@ export const initLeadTracking = () => {
           lead_type: urlSource.type,
           landing_page: window.location.pathname
         });
+
       }
       return;
     }
@@ -95,6 +96,7 @@ export const initLeadTracking = () => {
           lead_type: refSource.type,
           landing_page: window.location.pathname
         });
+
       }
     }
   } catch (err) {

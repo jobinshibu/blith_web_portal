@@ -86,6 +86,37 @@ export const checkPhoneExists = async (phoneNo) => {
 };
 
 /**
+ * Checks if an email already exists in the users collection.
+ * @param {string} email - The email to check
+ * @returns {Promise<boolean>} True if it exists, false otherwise
+ */
+export const checkEmailExists = async (email) => {
+  console.log(`Checking if email ${email} exists in database...`);
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', email));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      console.log(`Email ${email} does not exist in any document.`);
+      return false;
+    }
+
+    // Check if there is at least one active user (not deleted AND not blocked)
+    const hasActiveUser = querySnapshot.docs.some(docSnap => {
+      const data = docSnap.data();
+      return data.deleted !== true && data.block !== true;
+    });
+
+    console.log(`Email ${email} has an active account: ${hasActiveUser}`);
+    return hasActiveUser;
+  } catch (error) {
+    console.error("Error checking email:", error);
+    throw new Error("Failed to check email availability.");
+  }
+};
+
+/**
  * Encodes a latitude and longitude into a geohash string.
  * @param {number} latitude 
  * @param {number} longitude 
@@ -246,6 +277,13 @@ export const registerNewUser = async (userData) => {
   if (phoneExists) {
     console.warn(`Registration failed: Phone number ${phoneNo} already exists`);
     throw new Error("A user with this mobile number already exists.");
+  }
+
+  // 1.5. Check if email already exists
+  const emailExists = await checkEmailExists(email);
+  if (emailExists) {
+    console.warn(`Registration failed: Email ${email} already exists`);
+    throw new Error("A user with this email address already exists.");
   }
 
   // 2. Prepare the new user document data

@@ -1206,6 +1206,8 @@ const EventDetails = () => {
             raw: data
           });
 
+
+
           try {
             const now = Date.now();
             if (lastLoggedEventId === docSnap.id && now - lastLoggedEventTime < 1000) {
