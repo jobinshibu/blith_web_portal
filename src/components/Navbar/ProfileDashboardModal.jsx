@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Phone } from 'lucide-react';
+import { User, Mail, Phone, LogOut } from 'lucide-react';
 import logoTransparent from '../../assets/logo-transparent.png';
 
-const ProfileDashboardModal = ({ isOpen, onClose, user }) => {
+const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
   // Helper to format date
   const formatDate = (dateVal) => {
     if (!dateVal) return 'TBA';
@@ -64,6 +64,35 @@ const ProfileDashboardModal = ({ isOpen, onClose, user }) => {
                   <span className="value">{user?.phone || user?.phoneNo || '—'}</span>
                 </div>
               </div>
+              <button 
+                onClick={onLogout}
+                style={{
+                  marginTop: '1.25rem',
+                  width: '100%',
+                  padding: '0.6rem',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#EF4444',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                }}
+              >
+                <LogOut size={16} />
+                Log Out
+              </button>
             </div>
 
             {/* App Download Info Banner */}

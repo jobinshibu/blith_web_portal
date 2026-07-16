@@ -137,6 +137,7 @@ const Navbar = () => {
                 <ProfileDashboardModal
                   isOpen={isProfileOpen}
                   onClose={() => setIsProfileOpen(false)}
+                  onLogout={handleLogout}
                   user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
                 />
               )}
@@ -165,6 +166,7 @@ const Navbar = () => {
                 <ProfileDashboardModal
                   isOpen={isProfileOpen}
                   onClose={() => setIsProfileOpen(false)}
+                  onLogout={handleLogout}
                   user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
                 />
               )}

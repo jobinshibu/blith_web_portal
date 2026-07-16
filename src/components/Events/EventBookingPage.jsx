@@ -2276,30 +2276,34 @@ const EventBookingPage = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
-                background: 'linear-gradient(to right, rgba(124, 58, 237, 0.08), rgba(124, 58, 237, 0.01))',
-                borderLeft: '4px solid #7C3AED',
-                padding: '0.8rem 1.25rem',
-                borderRadius: '0 0.5rem 0.5rem 0',
-                marginBottom: '1.5rem',
-                marginTop: '-0.5rem'
+                background: '#F9FAFB',
+                border: '1px solid #E5E7EB',
+                padding: '0.75rem 1rem',
+                borderRadius: '0.5rem',
+                marginBottom: '1.5rem'
               }}>
-                <div style={{
-                  background: '#F3E8FF',
-                  color: '#7C3AED',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <User size={16} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#1F2937', fontWeight: 600 }}>Be part of something bigger.</h4>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#4B5563', marginTop: '0.1rem' }}>Enter your details to create an account today.</p>
-                </div>
+                <Info size={18} style={{ color: '#6B7280' }} />
+                <span style={{ fontSize: '0.9rem', color: '#374151', fontWeight: 500 }}>
+                  New here? We'll create an account for you
+                </span>
+              </div>
+            )}
+
+            <div className="terms-checkbox" style={{ marginTop: '0.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                id="appTerms"
+                checked={agreeAppTerms}
+                onChange={(e) => setAgreeAppTerms(e.target.checked)}
+                style={{ width: 'auto', cursor: 'pointer', margin: 0 }}
+              />
+              <label htmlFor="appTerms" style={{ fontSize: '0.85rem', cursor: 'pointer', margin: 0, color: '#4B5563' }}>
+                I agree to the <span onClick={(e) => { e.preventDefault(); setShowAppTermsModal(true); }} style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Terms of Service</span>
+              </label>
+            </div>
+            {showErrors && !agreeAppTerms && (
+              <div className="validation-hint" style={{ marginTop: '-1rem', marginBottom: '1.5rem' }}>
+                <Info size={16} /><span>Please accept the App Terms of Service.</span>
               </div>
             )}
 
@@ -2368,23 +2372,7 @@ const EventBookingPage = () => {
               )}
             </div>
 
-            <div className="terms-checkbox" style={{ marginTop: '0.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                id="appTerms"
-                checked={agreeAppTerms}
-                onChange={(e) => setAgreeAppTerms(e.target.checked)}
-                style={{ width: 'auto', cursor: 'pointer', margin: 0 }}
-              />
-              <label htmlFor="appTerms" style={{ fontSize: '0.85rem', cursor: 'pointer', margin: 0, color: '#4B5563' }}>
-                I agree to the <span onClick={(e) => { e.preventDefault(); setShowAppTermsModal(true); }} style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Terms of Service</span>
-              </label>
-            </div>
-            {showErrors && !agreeAppTerms && (
-              <div className="validation-hint" style={{ marginTop: '-1rem', marginBottom: '1.5rem' }}>
-                <Info size={16} /><span>Please accept the App Terms of Service.</span>
-              </div>
-            )}
+
 
             {resolvedUserId && fetchedUserName && (
               <div className="user-logged-in-message" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '0.5rem', marginBottom: '1.25rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
