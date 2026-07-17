@@ -109,7 +109,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
       let base = window.location.href.split('?')[0];
       if (base.includes('localhost') || base.includes('127.0.0.1')) {
         base = base.replace(/http:\/\/localhost:\d+/, 'https://blithe.social')
-                   .replace(/http:\/\/127.0.0.1:\d+/, 'https://blithe.social');
+          .replace(/http:\/\/127.0.0.1:\d+/, 'https://blithe.social');
       }
       const val = platformId === 'copy' ? 'blithecopy' : platformId;
       return `${base}?utf=${val}&utm_source=${val}`;
@@ -156,7 +156,7 @@ const ShareModal = ({ event, onClose, onShare }) => {
   const handleSocialClick = async (e, s) => {
     if (s.id === 'instagram') {
       e.preventDefault();
-      
+
       // Copy link and show guidance screen directly
       const success = await handleCopy('instagram');
       if (success) {
@@ -798,7 +798,7 @@ const EventDetails = () => {
       // Fallback
       setSettings({
         contactSupport: "+91 98453 47592",
-        email: "hello@blithe.social"
+        email: "hennaahfathima@gmail.com"
       });
     };
     fetchSettings();
@@ -1256,7 +1256,7 @@ const EventDetails = () => {
 
         if (currentEventCategoryDoc) {
           const associatedClusterIds = new Set();
-          
+
           if (currentEventCategoryDoc.clusterId) {
             if (Array.isArray(currentEventCategoryDoc.clusterId)) {
               currentEventCategoryDoc.clusterId.forEach(id => {
@@ -1419,7 +1419,7 @@ const EventDetails = () => {
         });
 
         allActiveEvents.sort((a, b) => b.score - a.score);
-        const topRelated = allActiveEvents.slice(0, 4);
+        const topRelated = allActiveEvents;
         // Sort top related events chronologically (earlier calendar date first), then by proximity (distance)
         topRelated.sort((a, b) => {
           const dateA = a.eventStartDate ? (typeof a.eventStartDate.toDate === 'function' ? a.eventStartDate.toDate() : new Date(a.eventStartDate)) : new Date(0);

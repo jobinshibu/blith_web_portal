@@ -2871,7 +2871,7 @@ const EventBookingPage = () => {
 
                   <p style={{ marginTop: '1rem' }}><strong>10. Governing Law</strong><br />These Terms of Service are governed by and construed in accordance with the laws of Karnataka jurisdiction.</p>
 
-                  <p style={{ marginTop: '1rem' }}><strong>11. Contact Us</strong><br />If you have any questions or concerns about these Terms of Service, please contact us at info@blithe.social.</p>
+                  <p style={{ marginTop: '1rem' }}><strong>11. Contact Us</strong><br />If you have any questions or concerns about these Terms of Service, please contact us at hello@blithe.social</p>
 
                   <p style={{ marginTop: '1rem' }}>By using the Blithe app, you agree to the terms outlined in these Terms of Service.</p>
                 </div>

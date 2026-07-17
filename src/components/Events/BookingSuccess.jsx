@@ -294,7 +294,7 @@ const BookingSuccess = () => {
         }
 
         // Format to standard event card fields
-        const formatted = finalRelated.slice(0, 3).map(e => {
+        const formatted = finalRelated.map(e => {
           const startDateObj = e.eventStartDate ? parseDate(e.eventStartDate) : new Date();
           const endDateObj = e.eventEndDate ? parseDate(e.eventEndDate) : null;
 
