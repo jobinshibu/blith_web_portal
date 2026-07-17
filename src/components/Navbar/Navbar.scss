@@ -330,7 +330,7 @@
   -webkit-backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
-  max-height: 480px;
+  overflow: hidden;
   box-sizing: border-box;
 
   @media (max-width: 768px) {
@@ -339,10 +339,22 @@
   }
 
   @media (max-width: 480px) {
-    right: -10px;
-    width: 250px;
-    padding: 10px;
-    max-height: 380px;
+    // Anchor to right edge of viewport with safe margins
+    position: fixed;
+    top: 68px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-width: 100%;
+    padding: 12px 10px;
+    border-radius: 14px;
+  }
+
+  @media (max-width: 360px) {
+    top: 64px;
+    right: 4px;
+    left: 4px;
+    padding: 10px 8px;
     border-radius: 12px;
   }
 }
@@ -354,15 +366,15 @@
   margin-bottom: 20px;
 
   .profile-avatar-large {
-    width: 60px;
-    height: 60px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     background: linear-gradient(135deg, #7C3AED, #A78BFA);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 700;
     overflow: hidden;
     box-shadow: 0 10px 20px -5px rgba(124, 58, 237, 0.3);
@@ -377,7 +389,7 @@
   .profile-title-group {
     h3 {
       margin: 0;
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 700;
       color: #111827;
       text-align: left;
@@ -385,7 +397,7 @@
 
     p {
       margin: 4px 0 0;
-      font-size: 12px;
+      font-size: 11px;
       color: #6B7280;
       text-align: left;
     }
@@ -398,13 +410,13 @@
     .profile-avatar-large {
       width: 42px;
       height: 42px;
-      font-size: 16px;
+      font-size: 14px;
       flex-shrink: 0;
     }
 
     .profile-title-group {
       h3 {
-        font-size: 14px;
+        font-size: 12px;
       }
 
       p {
@@ -423,7 +435,7 @@
   .tab-nav-item {
     background: none;
     border: none;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: #6B7280;
     padding: 10px 0;
@@ -456,7 +468,7 @@
     gap: 16px;
 
     .tab-nav-item {
-      font-size: 12px;
+      font-size: 11px;
       padding: 8px 0;
     }
   }
@@ -465,17 +477,23 @@
 .profile-tabs-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 250px;
   margin-bottom: 16px;
 
   @media (max-width: 480px) {
-    min-height: 160px;
-    margin-bottom: 10px;
+    min-height: unset;
+    max-height: 65vh;
+    margin-bottom: 8px;
+  }
+
+  @media (max-width: 360px) {
+    max-height: 60vh;
   }
 
   /* Scrollbar styles */
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
 
   &::-webkit-scrollbar-track {
@@ -505,14 +523,15 @@
   @media (max-width: 480px) {
     padding: 10px;
     gap: 10px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     border-radius: 10px;
   }
 
   .detail-item {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0; // allow flex children to shrink
 
     .detail-icon {
       color: #7C3AED;
@@ -524,24 +543,40 @@
       display: flex;
       flex-direction: column;
       align-items: flex-start;
+      min-width: 0; // allow text to wrap within flex child
+      width: 100%;
 
       .label {
-        font-size: 11px;
+        font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: #9CA3AF;
         font-weight: 500;
         margin: 0;
         padding: 0;
+
+        @media (max-width: 480px) {
+          font-size: 9px;
+        }
       }
 
       .value {
-        font-size: 14px;
+        font-size: 12px;
         color: #374151;
         font-weight: 600;
-        word-break: break-all;
+        word-break: break-word;
+        overflow-wrap: anywhere;
         margin: 2px 0 0;
         padding: 0;
+        width: 100%;
+
+        @media (max-width: 480px) {
+          font-size: 11px;
+        }
+
+        @media (max-width: 360px) {
+          font-size: 10px;
+        }
       }
     }
   }
@@ -581,14 +616,14 @@
 
     h4 {
       margin: 0;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 700;
       color: #5B21B6;
     }
 
     p {
       margin: 2px 0 0;
-      font-size: 11px;
+      font-size: 10px;
       color: #6B7280;
       line-height: 1.4;
     }
@@ -652,7 +687,7 @@
   margin-bottom: 16px;
 
   span {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     color: #4B5563;
   }
@@ -662,7 +697,7 @@
     color: #7C3AED;
     border: 1px solid rgba(124, 58, 237, 0.15);
     padding: 6px 12px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     border-radius: 6px;
     cursor: pointer;
@@ -725,7 +760,7 @@
 
       .booking-title {
         margin: 0 0 4px;
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 700;
         color: #111827;
         line-height: 1.4;
@@ -738,7 +773,7 @@
         flex-wrap: wrap;
 
         .meta-item {
-          font-size: 11px;
+          font-size: 10px;
           color: #6B7280;
           display: flex;
           align-items: center;
@@ -754,13 +789,13 @@
         width: 100%;
 
         .tickets-count {
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 500;
           color: #9CA3AF;
         }
 
         .price {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           color: #10B981;
         }
@@ -837,14 +872,14 @@
 
   h5 {
     margin: 0;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     color: #374151;
   }
 
   p {
     margin: 6px 0 0;
-    font-size: 12px;
+    font-size: 11px;
     color: #6B7280;
     max-width: 260px;
     line-height: 1.5;
