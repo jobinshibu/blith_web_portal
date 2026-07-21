@@ -82,10 +82,10 @@ const Footer = () => {
         <div className="fg-col">
           <h5>Explore</h5>
           <ul>
-            <li><a href="https://blithe.social/#how-it-works">How it Works</a></li>
-            <li><a href="https://blithe.social/#for-creators">For Creators</a></li>
-            <li><a href="https://blithe.social/#discover">Discover</a></li>
-            <li><a href="https://blithe.social/#testimonials">Testimonials</a></li>
+            <li><a href="/about.html#how-it-works">How it Works</a></li>
+            <li><a href="/about.html#for-creators">For Creators</a></li>
+            <li><a href="/about.html#discover">Discover</a></li>
+            <li><a href="/about.html#testimonials">Testimonials</a></li>
           </ul>
         </div>
 
@@ -93,8 +93,9 @@ const Footer = () => {
         <div className="fg-col">
           <h5>More</h5>
           <ul>
-            <li><a href="https://blithe.social/#start">Start Hosting</a></li>
-            <li><a href="https://blithe.social/teams">Team</a></li>
+            <li><a href="/about.html">About Us</a></li>
+            <li><a href="/about.html#start">Start Hosting</a></li>
+            <li><a href="/teams">Team</a></li>
           </ul>
         </div>
 
@@ -102,8 +103,8 @@ const Footer = () => {
         <div className="fg-col">
           <h5>Legal</h5>
           <ul>
-            <li><a href="https://blithe.social/terms-and-conditions.php" target="_blank" rel="noreferrer">Terms</a></li>
-            <li><a href="https://blithe.social/Privacy-Policy.php" target="_blank" rel="noreferrer">Privacy</a></li>
+            <li><a href="/terms-and-conditions.php" target="_blank" rel="noreferrer">Terms</a></li>
+            <li><a href="/Privacy-Policy.php" target="_blank" rel="noreferrer">Privacy</a></li>
           </ul>
         </div>
 
@@ -163,8 +164,8 @@ const Footer = () => {
       <div className="footer-btm">
         <p>© {new Date().getFullYear()} Blithe. All rights reserved.</p>
         <div className="footer-btm-links">
-          <a href="https://blithe.social/#how-it-works">Explore</a>
-          <a href="https://blithe.social/#start">Start</a>
+          <a href="/about.html#how-it-works">Explore</a>
+          <a href="/about.html#start">Start</a>
         </div>
       </div>
     </footer>
