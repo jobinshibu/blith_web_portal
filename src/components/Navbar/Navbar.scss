@@ -27,19 +27,17 @@
     z-index: 1001;
 
     .nav-logo-text-img {
-      height: 13px;
+      height: 60px;
       width: auto;
       object-fit: contain;
-      transform: scale(4.0);
-      transform-origin: left center;
       mix-blend-mode: multiply;
 
       @media (max-width: 768px) {
-        transform: scale(2.2);
+        height: 80px;
       }
 
       @media (max-width: 480px) {
-        transform: scale(3.7);
+        height: 90px;
       }
     }
 

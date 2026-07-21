@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText, AlertTriangle } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
@@ -192,6 +192,7 @@ const EventBookingPage = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [agreeAppTerms, setAgreeAppTerms] = useState(true);
   const [showAppTermsModal, setShowAppTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [bookingId, setBookingId] = useState('');
 
@@ -201,23 +202,29 @@ const EventBookingPage = () => {
   const [fetchedUserName, setFetchedUserName] = useState('');
 
   const [termsText, setTermsText] = useState("");
+  const [privacyPolicyText, setPrivacyPolicyText] = useState("");
 
   useEffect(() => {
-    const fetchTerms = async () => {
+    const fetchSettingsDoc = async () => {
       try {
         const docRef = doc(db, 'settings', 'settings');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data && data.terms) {
-            setTermsText(data.terms);
+          if (data) {
+            if (data.terms) {
+              setTermsText(data.terms);
+            }
+            if (data.privacyPolicy) {
+              setPrivacyPolicyText(data.privacyPolicy);
+            }
           }
         }
       } catch (err) {
-        console.error("Error fetching Terms & Conditions:", err);
+        console.error("Error fetching settings document:", err);
       }
     };
-    fetchTerms();
+    fetchSettingsDoc();
   }, []);
 
   const parseTerms = (text) => {
@@ -305,6 +312,37 @@ const EventBookingPage = () => {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+
+          // Check if it's a private event that is expired or deleted
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const parseTimestampToDate = (ts) => {
+            if (!ts) return null;
+            if (ts.toDate) return ts.toDate();
+            if (ts.seconds) return new Date(ts.seconds * 1000);
+            return new Date(ts);
+          };
+          const endDateObjVal = parseTimestampToDate(data.eventEndDate);
+          const startDateObjVal = parseTimestampToDate(data.eventStartDate);
+          const isEventExpired = endDateObjVal
+            ? endDateObjVal < today
+            : (startDateObjVal ? startDateObjVal < today : false);
+
+          const isPrivate = data.isPrivateEvent === true;
+          const isDeleted = data.deleted === true;
+          const isExpired = data.isExpired === true || isEventExpired;
+
+          if (isPrivate && (isDeleted || isExpired)) {
+            setEvent({
+              id: docSnap.id,
+              isPrivateEvent: true,
+              isUnavailablePrivateEvent: true,
+              deleted: isDeleted,
+              isExpired: isExpired
+            });
+            return;
+          }
+
           setEvent({ id: docSnap.id, ...data });
         } else {
           setEvent(null);
@@ -848,7 +886,37 @@ const EventBookingPage = () => {
   }
 
   if (!event) {
-    return <div className="booking-page-loading">Event not found. <Link to="/events">Go back</Link></div>;
+    return (
+      <div className="error-page container">
+        <div className="error-icon-wrapper not-found">
+          <AlertTriangle size={48} />
+        </div>
+        <h2>Event Not Found</h2>
+        <p>
+          The event checkout could not be loaded. This event may have been removed.
+        </p>
+        <Link to="/events" className="back-btn">
+          Explore Other Events
+        </Link>
+      </div>
+    );
+  }
+
+  if (event.isUnavailablePrivateEvent) {
+    return (
+      <div className="error-page container">
+        <div className="error-icon-wrapper">
+          <Lock size={48} />
+        </div>
+        <h2>Checkout Unavailable</h2>
+        <p>
+          Registration for this private event is no longer open because the event has expired or been cancelled.
+        </p>
+        <Link to="/events" className="back-btn">
+          Back to Events
+        </Link>
+      </div>
+    );
   }
 
   const tickets = event.tickets || [];
@@ -1145,7 +1213,8 @@ const EventBookingPage = () => {
       attendee.email.trim() !== '' &&
       isPhoneValid &&
       (event?.approvalNeeded && event?.approvalQuestion ? approvalAnswer.trim() !== '' : true) &&
-      (agreeTerms || bypassTermsCheck);
+      (agreeTerms || bypassTermsCheck) &&
+      agreeAppTerms;
 
     if (!isFormValid) {
       setShowErrors(true);
@@ -2297,12 +2366,12 @@ const EventBookingPage = () => {
                 style={{ width: 'auto', cursor: 'pointer', margin: 0 }}
               />
               <label htmlFor="appTerms" style={{ fontSize: '0.85rem', cursor: 'pointer', margin: 0, color: '#4B5563' }}>
-                I agree to the <span onClick={(e) => { e.preventDefault(); setShowAppTermsModal(true); }} style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Terms of Service</span>
+                I agree to the <span onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ color: '#7C3AED', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Privacy Policy</span>
               </label>
             </div>
             {showErrors && !agreeAppTerms && (
               <div className="validation-hint" style={{ marginTop: '-1rem', marginBottom: '1.5rem' }}>
-                <Info size={16} /><span>Please accept the App Terms of Service.</span>
+                <Info size={16} /><span>Please accept the Privacy Policy.</span>
               </div>
             )}
 
@@ -2884,6 +2953,52 @@ const EventBookingPage = () => {
                 <button className="terms-agree-btn" onClick={() => {
                   setAgreeAppTerms(true);
                   setShowAppTermsModal(false);
+                }}>
+                  Agree & Proceed
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Privacy Policy Modal */}
+      <AnimatePresence>
+        {showPrivacyModal && (
+          <div className="terms-modal-overlay" onClick={() => setShowPrivacyModal(false)}>
+            <motion.div
+              className="terms-modal-card glass"
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button className="close-modal-btn" onClick={() => setShowPrivacyModal(false)}>
+                <X size={20} />
+              </button>
+
+              <div className="terms-modal-header">
+                <FileText size={32} className="terms-modal-icon" />
+                <h2>Privacy Policy</h2>
+              </div>
+
+              <div className="terms-modal-body">
+                <p className="terms-modal-desc" style={{ paddingBottom: '1rem' }}>
+                  Please review the privacy policy carefully before proceeding.
+                </p>
+                <div className="terms-modal-list" style={{ textAlign: 'left', lineHeight: '1.6', fontSize: '0.9rem', color: '#4B5563', whiteSpace: 'pre-wrap' }}>
+                  {privacyPolicyText || "Loading privacy policy..."}
+                </div>
+              </div>
+
+              <div className="terms-modal-footer">
+                <button className="terms-cancel-btn" onClick={() => setShowPrivacyModal(false)}>
+                  Cancel
+                </button>
+                <button className="terms-agree-btn" onClick={() => {
+                  setAgreeAppTerms(true);
+                  setShowPrivacyModal(false);
                 }}>
                   Agree & Proceed
                 </button>

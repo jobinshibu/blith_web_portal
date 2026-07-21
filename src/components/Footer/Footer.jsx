@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { submitContactMessage } from '../../services/contactService';
-import logoText from '../../assets/fifablith.png';
+import logoText from '../../assets/logo-text.png';
 import './Footer.scss';
 
 const Footer = () => {
@@ -26,10 +26,10 @@ const Footer = () => {
     
     try {
       await submitContactMessage(contactForm);
-      setContactStatus({ type: 'success', message: 'Message sent successfully!' });
+      setContactStatus({ type: 'success', message: 'Message sent successfully! Please check your email.' });
       setContactForm({ name: '', email: '', message: '' });
     } catch (error) {
-      setContactStatus({ type: 'error', message: 'Failed to send message. Please try again.' });
+      setContactStatus({ type: 'error', message: error.message || 'Failed to send message. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }

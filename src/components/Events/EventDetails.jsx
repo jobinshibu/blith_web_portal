@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { db, analytics } from '../../firebase';
@@ -798,7 +798,7 @@ const EventDetails = () => {
       // Fallback
       setSettings({
         contactSupport: "+91 98453 47592",
-        email: "hennaahfathima@gmail.com"
+        email: "hello@blithe.social"
       });
     };
     fetchSettings();
@@ -1095,6 +1095,37 @@ const EventDetails = () => {
 
         if (docSnap.exists()) {
           const data = docSnap.data();
+
+          // Check if it's a private event that is expired or deleted
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const parseTimestampToDate = (ts) => {
+            if (!ts) return null;
+            if (ts.toDate) return ts.toDate();
+            if (ts.seconds) return new Date(ts.seconds * 1000);
+            return new Date(ts);
+          };
+          const endDateObjVal = parseTimestampToDate(data.eventEndDate);
+          const startDateObjVal = parseTimestampToDate(data.eventStartDate);
+          const isEventExpired = endDateObjVal
+            ? endDateObjVal < today
+            : (startDateObjVal ? startDateObjVal < today : false);
+
+          const isPrivate = data.isPrivateEvent === true;
+          const isDeleted = data.deleted === true;
+          const isExpired = data.isExpired === true || isEventExpired;
+
+          if (isPrivate && (isDeleted || isExpired)) {
+            setEvent({
+              id: docSnap.id,
+              isPrivateEvent: true,
+              isUnavailablePrivateEvent: true,
+              deleted: isDeleted,
+              isExpired: isExpired
+            });
+            setLoading(false);
+            return;
+          }
 
           // Format date and time
           const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
@@ -1556,8 +1587,33 @@ const EventDetails = () => {
   if (!event) {
     return (
       <div className="error-page container">
-        <h2>Event not found</h2>
-        <button onClick={() => navigate('/events')} className="back-link">Back to Events</button>
+        <div className="error-icon-wrapper not-found">
+          <AlertTriangle size={48} />
+        </div>
+        <h2>Event Not Found</h2>
+        <p>
+          We couldn't find the event you are looking for. It may have been removed, or the link is incorrect.
+        </p>
+        <button onClick={() => navigate('/events')} className="back-btn">
+          Explore Other Events
+        </button>
+      </div>
+    );
+  }
+
+  if (event.isUnavailablePrivateEvent) {
+    return (
+      <div className="error-page container">
+        <div className="error-icon-wrapper">
+          <Lock size={48} />
+        </div>
+        <h2>Private Event Unavailable</h2>
+        <p>
+          This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer.
+        </p>
+        <button onClick={() => navigate('/events')} className="back-btn">
+          Back to Events
+        </button>
       </div>
     );
   }

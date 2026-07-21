@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import logoText from '../../assets/fifablith.png';
+import logoText from '../../assets/logo-text.png';
 import ProfileDashboardModal from './ProfileDashboardModal';
 import './Navbar.scss';
 
@@ -237,7 +237,7 @@ const Navbar = () => {
                     <FacebookIcon />
                   </div>
                   <div className="contact-info">
-                    <p>hello@blithe.com</p>
+                    <p>hello@blithe.social</p>
                     <p>© 2026 Blithe Studio</p>
                   </div>
                 </div>

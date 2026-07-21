@@ -5,7 +5,7 @@ import { fetchEventsThunk } from '../../store/eventsSlice';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import logo from '../../assets/logo.jpeg';
-import logoText from '../../assets/fifablithe.png';
+import logoText from '../../assets/logo-text.png';
 import './LinkTree.scss';
 
 const LinkTree = () => {
@@ -145,7 +145,7 @@ const LinkTree = () => {
           transition={{ duration: 1, delay: 0.8 }}
         >
           <Link to="/">
-            <img src={logoText} alt="Go Blithe" style={{ height: '32px' }} />
+            <img src={logoText} alt="Go Blithe" style={{ height: '80px' }} />
           </Link>
         </motion.div>
       </div>
