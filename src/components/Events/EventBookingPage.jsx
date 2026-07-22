@@ -2346,18 +2346,18 @@ const EventBookingPage = () => {
                 gap: '0.75rem',
                 background: '#F9FAFB',
                 border: '1px solid #E5E7EB',
-                padding: '0.75rem 1rem',
+                padding: '0.6rem 0.85rem',
                 borderRadius: '0.5rem',
-                marginBottom: '1.5rem'
+                marginBottom: '1rem'
               }}>
                 <Info size={18} style={{ color: '#6B7280' }} />
-                <span style={{ fontSize: '0.9rem', color: '#374151', fontWeight: 500 }}>
+                <span style={{ fontSize: '0.88rem', color: '#374151', fontWeight: 500 }}>
                   New here? We'll create an account for you
                 </span>
               </div>
             )}
 
-            <div className="terms-checkbox" style={{ marginTop: '0.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="terms-checkbox" style={{ marginTop: '0.25rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
                 type="checkbox"
                 id="appTerms"
@@ -2370,7 +2370,7 @@ const EventBookingPage = () => {
               </label>
             </div>
             {showErrors && !agreeAppTerms && (
-              <div className="validation-hint" style={{ marginTop: '-1rem', marginBottom: '1.5rem' }}>
+              <div className="validation-hint" style={{ marginTop: '-0.75rem', marginBottom: '1rem' }}>
                 <Info size={16} /><span>Please accept the Privacy Policy.</span>
               </div>
             )}
@@ -2386,58 +2386,60 @@ const EventBookingPage = () => {
               )}
             </div>
 
-            <div className="input-group">
-              <label htmlFor="email">Email Address <span className="required-star">*</span></label>
-              <div className="input-wrapper">
-                <Mail size={18} className="input-icon" />
-                <input
-                  type="email"
-                  id="email"
-                  placeholder="e.g. rahul@example.com"
-                  value={attendee.email}
-                  onChange={(e) => {
-                    const newEmail = e.target.value;
-                    setAttendee(prev => {
-                      if (resolvedUserId) {
-                        setResolvedUserId(null);
-                        setResolvedUserIdForCoupons(null);
-                      }
-                      return { ...prev, email: newEmail };
-                    });
-                  }}
-                />
+            <div className="input-row-two-col">
+              <div className="input-group">
+                <label htmlFor="email">Email Address <span className="required-star">*</span></label>
+                <div className="input-wrapper">
+                  <Mail size={18} className="input-icon" />
+                  <input
+                    type="email"
+                    id="email"
+                    placeholder="e.g. rahul@example.com"
+                    value={attendee.email}
+                    onChange={(e) => {
+                      const newEmail = e.target.value;
+                      setAttendee(prev => {
+                        if (resolvedUserId) {
+                          setResolvedUserId(null);
+                          setResolvedUserIdForCoupons(null);
+                        }
+                        return { ...prev, email: newEmail };
+                      });
+                    }}
+                  />
+                </div>
+                {((showErrors || (attendee.name.trim() !== '' && isPhoneValid)) && !attendee.email.trim()) && (
+                  <div className="validation-hint"><Info size={16} /><span>Please enter your email.</span></div>
+                )}
               </div>
-              {((showErrors || (attendee.name.trim() !== '' && isPhoneValid)) && !attendee.email.trim()) && (
-                <div className="validation-hint"><Info size={16} /><span>Please enter your email.</span></div>
-              )}
-            </div>
 
-            <div className="input-group">
-              <label htmlFor="phone">Phone Number <span className="required-star">*</span></label>
-              <div className="input-wrapper">
-                <Phone size={18} className="input-icon" />
-                <span className="phone-prefix" style={{ position: 'absolute', left: '2.5rem', color: '#6B7280', fontWeight: 500, fontSize: '0.95rem', userSelect: 'none' }}>+91</span>
-                <input
-                  type="tel"
-                  id="phone"
-                  placeholder="9876543210"
-                  style={{ paddingLeft: '4.75rem' }}
-                  value={attendee.phone}
-                  onChange={(e) => {
-                    const newPhone = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    setAttendee(prev => {
-                      if (resolvedUserId) {
-                        setResolvedUserId(null);
-                        setResolvedUserIdForCoupons(null);
-                      }
-                      return { ...prev, phone: newPhone };
-                    });
-                  }}
-                />
+              <div className="input-group">
+                <label htmlFor="phone">Phone Number <span className="required-star">*</span></label>
+                <div className="input-wrapper">
+                  <Phone size={18} className="input-icon" />
+                  <span className="phone-prefix" style={{ position: 'absolute', left: '2.5rem', color: '#6B7280', fontWeight: 500, fontSize: '0.95rem', userSelect: 'none' }}>+91</span>
+                  <input
+                    type="tel"
+                    id="phone"
+                    placeholder="9876543210"
+                    style={{ paddingLeft: '4.75rem' }}
+                    value={attendee.phone}
+                    onChange={(e) => {
+                      const newPhone = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setAttendee(prev => {
+                        if (resolvedUserId) {
+                          setResolvedUserId(null);
+                          setResolvedUserIdForCoupons(null);
+                        }
+                        return { ...prev, phone: newPhone };
+                      });
+                    }}
+                  />
+                </div>
+                {((showErrors || (attendee.name.trim() !== '' && isEmailValid)) && !isPhoneValid) && (
+                  <div className="validation-hint"><Info size={16} /><span>Please provide a valid 10-digit phone number.</span></div>
+                )}
               </div>
-              {((showErrors || (attendee.name.trim() !== '' && isEmailValid)) && !isPhoneValid) && (
-                <div className="validation-hint"><Info size={16} /><span>Please provide a valid 10-digit phone number.</span></div>
-              )}
             </div>
 
 
@@ -2452,17 +2454,17 @@ const EventBookingPage = () => {
 
           {/* Host Approval Question (if required) */}
           {event.approvalNeeded && (
-            <div className="section-block approval-details-block glass" style={{ marginTop: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
+            <div className="section-block approval-details-block glass" style={{ marginTop: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.85rem' }}>
                 <Lock size={20} style={{ color: '#7C3AED' }} />
                 <h3 style={{ margin: 0 }}>Host Approval Required</h3>
               </div>
-              <p style={{ fontSize: '0.9rem', color: '#4B5563', marginBottom: '1rem', lineHeight: '1.5' }}>
+              <p style={{ fontSize: '0.9rem', color: '#4B5563', marginBottom: '0.75rem', lineHeight: '1.5' }}>
                 This event is private and requires the organizer's approval to join.
               </p>
               {event.approvalQuestion && (
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="approvalAnswer" style={{ fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.5rem' }}>
+                  <label htmlFor="approvalAnswer" style={{ fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.35rem' }}>
                     Qus: {event.approvalQuestion} <span className="required-star">*</span>
                   </label>
                   <textarea
@@ -2472,11 +2474,11 @@ const EventBookingPage = () => {
                     onChange={(e) => setApprovalAnswer(e.target.value)}
                     style={{
                       width: '100%',
-                      minHeight: '100px',
-                      padding: '0.75rem 1rem',
+                      minHeight: '90px',
+                      padding: '0.6rem 0.85rem',
                       border: '1px solid rgba(0, 0, 0, 0.1)',
                       borderRadius: '0.5rem',
-                      fontSize: '0.95rem',
+                      fontSize: '0.9rem',
                       fontFamily: 'inherit',
                       outline: 'none',
                       resize: 'vertical',
@@ -2484,7 +2486,7 @@ const EventBookingPage = () => {
                     }}
                   />
                   {showErrors && !approvalAnswer.trim() && (
-                    <div className="validation-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.85rem', marginTop: '0.4rem' }}>
+                    <div className="validation-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.85rem', marginTop: '0.35rem' }}>
                       <Info size={16} /> <span>Please answer the host's question.</span>
                     </div>
                   )}
