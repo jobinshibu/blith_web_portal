@@ -2350,8 +2350,8 @@ const EventBookingPage = () => {
                 borderRadius: '0.5rem',
                 marginBottom: '1rem'
               }}>
-                <Info size={18} style={{ color: '#6B7280' }} />
-                <span style={{ fontSize: '0.88rem', color: '#374151', fontWeight: 500 }}>
+                <Info size={18} style={{ color: '#7C3AED' }} />
+                <span style={{ fontSize: '0.88rem', color: 'black', fontWeight: 500 }}>
                   New here? We'll create an account for you
                 </span>
               </div>
