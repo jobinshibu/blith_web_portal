@@ -64,7 +64,7 @@ const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
                   <span className="value">{user?.phone || user?.phoneNo || '—'}</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={onLogout}
                 style={{
                   marginTop: '1.25rem',
@@ -100,7 +100,7 @@ const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
               <div className="app-download-header">
                 <img src={logoTransparent} alt="Blithe App" className="app-logo" />
                 <div>
-                  <h4>To see more info, download</h4>
+                  <h4>To see more info, download Blithe</h4>
                   {/* <p>Scan tickets, browse offline, & receive instant event alerts.</p> */}
                 </div>
               </div>

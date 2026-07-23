@@ -66,10 +66,11 @@
       text-decoration: none;
       padding: 8px 14px;
       border-radius: 6px;
-      transition: color .2s;
+      transition: color .2s, background .2s;
 
       &:hover {
-        color: $lavender-600;
+        color: #0F0F0F;
+        background: rgba(0, 0, 0, 0.04);
       }
     }
 

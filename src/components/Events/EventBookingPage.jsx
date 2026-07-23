@@ -188,7 +188,7 @@ const EventBookingPage = () => {
   }, []);
 
   // Removed real-time save effect to prevent avatar updating letter-by-letter as user types
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [agreeAppTerms, setAgreeAppTerms] = useState(true);
   const [showAppTermsModal, setShowAppTermsModal] = useState(false);

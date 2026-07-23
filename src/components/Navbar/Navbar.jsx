@@ -117,11 +117,11 @@ const Navbar = () => {
         </a>
 
         <div className="nav-links desktop-only">
-          <a href="/about.html" className="nav-link">About Us</a>
           <a href="/about.html#how-it-works" className="nav-link">How it Works</a>
           <a href="/about.html#for-creators" className="nav-link">For Creators</a>
-          <a href="/teams" className="nav-link">Team</a>
           <a href="/about.html#discover" className="nav-link">Discover</a>
+          <a href="/teams" className="nav-link">Team</a>
+          <a href="/about.html" className="nav-link">About Us</a>
           {!isEventsPage && <Link to="/events" className="nav-pill">Explore Events</Link>}
           {currentUser && (
             <div className="nav-profile-wrapper">
@@ -201,11 +201,11 @@ const Navbar = () => {
               <div className="mobile-nav-links">
                 <div className="links-center">
                   {[
-                    { name: 'About Us', path: '/about.html' },
                     { name: 'How it Works', path: '/about.html#how-it-works' },
                     { name: 'For Creators', path: '/about.html#for-creators' },
+                    { name: 'Discover', path: '/about.html#discover', isDiscover: true },
                     { name: 'Team', path: '/teams' },
-                    { name: 'Discover', path: '/about.html#discover', isDiscover: true }
+                    { name: 'About Us', path: '/about.html' }
                   ].map((link, i) => (
                     <motion.div key={i} variants={itemVariants} className="mobile-nav-item">
                       <a href={link.path} className={`mobile-nav-link ${link.isDiscover ? 'discover' : ''}`} onClick={closeMenu}>
