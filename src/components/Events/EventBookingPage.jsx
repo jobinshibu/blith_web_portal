@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText, AlertTriangle } from 'lucide-react';
@@ -136,7 +136,33 @@ const EventBookingPage = () => {
   const [quantities, setQuantities] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const [attendee, setAttendee] = useState({ name: '', email: '', phone: '' });
-  const [approvalAnswer, setApprovalAnswer] = useState("");
+  const [approvalAnswers, setApprovalAnswers] = useState({});
+
+  const approvalQuestionsList = useMemo(() => {
+    if (!event?.approvalQuestion) return [];
+    if (Array.isArray(event.approvalQuestion)) {
+      return event.approvalQuestion
+        .map(q => (typeof q === 'string' ? q : String(q || '')))
+        .filter(q => q.trim() !== '');
+    }
+    if (typeof event.approvalQuestion === 'string' && event.approvalQuestion.trim() !== '') {
+      return [event.approvalQuestion.trim()];
+    }
+    return [];
+  }, [event?.approvalQuestion]);
+
+  const areApprovalAnswersValid = useMemo(() => {
+    if (approvalQuestionsList.length === 0) return true;
+    return approvalQuestionsList.every((_, idx) => (approvalAnswers[idx] || '').trim() !== '');
+  }, [approvalQuestionsList, approvalAnswers]);
+
+  const getFormattedApprovalAnswer = useCallback((eventObj, qList, answersMap) => {
+    if (!eventObj?.approvalQuestion) return Array.isArray(eventObj?.approvalQuestion) ? [] : '';
+    if (Array.isArray(eventObj.approvalQuestion)) {
+      return qList.map((_, idx) => (answersMap[idx] || '').trim());
+    }
+    return (answersMap[0] || '').trim();
+  }, []);
 
   const lastCheckedEmailRef = useRef('');
   const lastCheckedPhoneRef = useRef('');
@@ -984,7 +1010,7 @@ const EventBookingPage = () => {
     attendee.name.trim() !== '' &&
     attendee.email.trim() !== '' &&
     isPhoneValid &&
-    (event?.approvalNeeded && event?.approvalQuestion ? approvalAnswer.trim() !== '' : true) &&
+    areApprovalAnswersValid &&
     agreeTerms && agreeAppTerms;
 
   // Helper to block ticket slots for 10 minutes (paid events)
@@ -1166,8 +1192,8 @@ const EventBookingPage = () => {
       searchList: finalBookingSearchList,
       serviceCode: String(event.serviceCode || settings?.serviceCode || ""),
       status: "pending",
-      approvalQuestion: event.approvalQuestion || "",
-      approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+      approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
+      approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
       approvalNeeded: event.approvalNeeded === true,
       isPrivateEvent: event.isPrivateEvent === true,
       tickets: preparedTickets,
@@ -1212,7 +1238,7 @@ const EventBookingPage = () => {
       attendee.name.trim() !== '' &&
       attendee.email.trim() !== '' &&
       isPhoneValid &&
-      (event?.approvalNeeded && event?.approvalQuestion ? approvalAnswer.trim() !== '' : true) &&
+      areApprovalAnswersValid &&
       (agreeTerms || bypassTermsCheck) &&
       agreeAppTerms;
 
@@ -1442,8 +1468,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || "",
-          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
+          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
@@ -1490,8 +1516,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || "",
-          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
+          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: preparedTickets,
@@ -1523,8 +1549,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || "",
-          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
+          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
@@ -1571,8 +1597,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || "",
-          approvalAnswer: event.approvalQuestion ? approvalAnswer : "",
+          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
+          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: preparedTickets,
@@ -1841,8 +1867,10 @@ const EventBookingPage = () => {
                       <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? attendee.phone : 'N/A'}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
-                      ${event.approvalQuestion ? `<tr><td style="color:#888;padding:3px 0;">Question</td><td><strong>${event.approvalQuestion}</strong></td></tr>` : ''}
-                      ${approvalAnswer ? `<tr><td style="color:#888;padding:3px 0;">Answer</td><td><strong>${approvalAnswer}</strong></td></tr>` : ''}
+                      ${approvalQuestionsList.length > 0 ? approvalQuestionsList.map((q, idx) => `
+                        <tr><td style="color:#888;padding:3px 0;">${approvalQuestionsList.length > 1 ? `Question ${idx + 1}` : 'Question'}</td><td><strong>${q}</strong></td></tr>
+                        <tr><td style="color:#888;padding:3px 0;">${approvalQuestionsList.length > 1 ? `Answer ${idx + 1}` : 'Answer'}</td><td><strong>${approvalAnswers[idx] || ''}</strong></td></tr>
+                      `).join('') : ''}
                     </table>
                   </div>
 
@@ -2452,46 +2480,58 @@ const EventBookingPage = () => {
             )}
           </div>
 
-          {/* Host Approval Question (if required) */}
-          {event.approvalNeeded && (
+          {/* Host Approval / Organizer Questions Section */}
+          {(event.approvalNeeded || approvalQuestionsList.length > 0) && (
             <div className="section-block approval-details-block glass" style={{ marginTop: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.85rem' }}>
-                <Lock size={20} style={{ color: '#7C3AED' }} />
-                <h3 style={{ margin: 0 }}>Host Approval Required</h3>
+                {event.approvalNeeded ? (
+                  <Lock size={20} style={{ color: '#7C3AED' }} />
+                ) : (
+                  <FileText size={20} style={{ color: '#7C3AED' }} />
+                )}
+                <h3 style={{ margin: 0 }}>
+                  {event.approvalNeeded ? 'Host Approval Required' : 'Additional Information'}
+                </h3>
               </div>
               <p style={{ fontSize: '0.9rem', color: '#4B5563', marginBottom: '0.75rem', lineHeight: '1.5' }}>
-                This event is private and requires the organizer's approval to join.
+                {event.approvalNeeded
+                  ? "This event is private and requires the organizer's approval to join."
+                  : 'Please answer the host question(s) below to complete your booking.'}
               </p>
-              {event.approvalQuestion && (
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="approvalAnswer" style={{ fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.35rem' }}>
-                    Qus: {event.approvalQuestion} <span className="required-star">*</span>
-                  </label>
-                  <textarea
-                    id="approvalAnswer"
-                    placeholder="Type your answer here..."
-                    value={approvalAnswer}
-                    onChange={(e) => setApprovalAnswer(e.target.value)}
-                    style={{
-                      width: '100%',
-                      minHeight: '90px',
-                      padding: '0.6rem 0.85rem',
-                      border: '1px solid rgba(0, 0, 0, 0.1)',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.9rem',
-                      fontFamily: 'inherit',
-                      outline: 'none',
-                      resize: 'vertical',
-                      backgroundColor: 'rgba(255, 255, 255, 0.5)'
-                    }}
-                  />
-                  {showErrors && !approvalAnswer.trim() && (
-                    <div className="validation-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.85rem', marginTop: '0.35rem' }}>
-                      <Info size={16} /> <span>Please answer the host's question.</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              {approvalQuestionsList.length > 0 && approvalQuestionsList.map((q, idx) => {
+                const ans = approvalAnswers[idx] || "";
+                const isMissing = showErrors && !ans.trim();
+                return (
+                  <div key={idx} className="input-group" style={{ marginBottom: idx === approvalQuestionsList.length - 1 ? 0 : '1rem' }}>
+                    <label htmlFor={`approvalAnswer_${idx}`} style={{ fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.35rem' }}>
+                      {approvalQuestionsList.length > 1 ? `Q${idx + 1}: ${q}` : `Qus: ${q}`} <span className="required-star">*</span>
+                    </label>
+                    <textarea
+                      id={`approvalAnswer_${idx}`}
+                      placeholder="Type your answer here..."
+                      value={ans}
+                      onChange={(e) => setApprovalAnswers(prev => ({ ...prev, [idx]: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        minHeight: '80px',
+                        padding: '0.6rem 0.85rem',
+                        border: isMissing ? '1px solid #EF4444' : '1px solid rgba(0, 0, 0, 0.1)',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.9rem',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        resize: 'vertical',
+                        backgroundColor: 'rgba(255, 255, 255, 0.5)'
+                      }}
+                    />
+                    {isMissing && (
+                      <div className="validation-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.85rem', marginTop: '0.35rem' }}>
+                        <Info size={16} /> <span>Please answer this question.</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
