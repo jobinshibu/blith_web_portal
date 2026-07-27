@@ -9,6 +9,7 @@ import './Events.scss';
 import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
+import { DUMMY_TEST_EVENT } from '../../utils/dummyEvent';
 
 
 // Robust multi-fallback IP Geolocation helper
@@ -256,7 +257,7 @@ const CategoryCard = ({ cat, isSelected, onClick }) => {
         }}
       >
         <div className="category-icon-box">
-          <IconComponent size={18} strokeWidth={2.5} />
+          <IconComponent size={16} strokeWidth={2.5} />
         </div>
         <span className="category-card-title">
           {cat.label}
@@ -429,6 +430,51 @@ const Events = () => {
   const calendarRef = useRef(null);
   const searchSectionRef = useRef(null);
   const sentinelRef = useRef(null);
+
+  // Category slider & Filter bar overflow scroll refs and state (for mobile)
+  const categorySliderRef = useRef(null);
+  const [showCategoryScrollBtn, setShowCategoryScrollBtn] = useState(false);
+  const [isCategoryScrollAtEnd, setIsCategoryScrollAtEnd] = useState(false);
+
+  const checkCategoryOverflow = () => {
+    if (categorySliderRef.current) {
+      const { scrollWidth, clientWidth, scrollLeft } = categorySliderRef.current;
+      setShowCategoryScrollBtn(scrollWidth > clientWidth);
+      setIsCategoryScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
+    }
+  };
+
+  const handleCategoryScroll = () => {
+    if (categorySliderRef.current) {
+      if (isCategoryScrollAtEnd) {
+        categorySliderRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        categorySliderRef.current.scrollBy({ left: 150, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const filterBarRef = useRef(null);
+  const [showFilterScrollBtn, setShowFilterScrollBtn] = useState(false);
+  const [isFilterScrollAtEnd, setIsFilterScrollAtEnd] = useState(false);
+
+  const checkFilterOverflow = () => {
+    if (filterBarRef.current) {
+      const { scrollWidth, clientWidth, scrollLeft } = filterBarRef.current;
+      setShowFilterScrollBtn(scrollWidth > clientWidth);
+      setIsFilterScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
+    }
+  };
+
+  const handleFilterScroll = () => {
+    if (filterBarRef.current) {
+      if (isFilterScrollAtEnd) {
+        filterBarRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        filterBarRef.current.scrollBy({ left: 150, behavior: 'smooth' });
+      }
+    }
+  };
 
   // Scroll search bar to top when user starts typing
   useEffect(() => {
@@ -633,7 +679,23 @@ const Events = () => {
         return dateA - dateB;
       });
 
-      setEvents(eventsData);
+      const dummyTestCard = {
+        id: 'dummy-pixel-test',
+        title: 'Meta Pixel Test Event 🚀',
+        image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
+        date: '30 Jul - 02 Aug',
+        time: '06:00 PM',
+        location: 'Virtual Test Venue, Bengaluru',
+        venue: 'Virtual Test Venue',
+        price: '₹499 onwards',
+        category: 'Tech & Innovation',
+        promoted: true,
+        soldOut: false,
+        distance: null,
+        raw: DUMMY_TEST_EVENT
+      };
+
+      setEvents([dummyTestCard, ...eventsData]);
     } catch (err) {
       console.error("Error processing events in Redux cache: ", err);
     }
@@ -697,6 +759,51 @@ const Events = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Monitor category slider & filter bar overflow for mobile scroll arrows
+  useEffect(() => {
+    checkCategoryOverflow();
+    const t1 = setTimeout(checkCategoryOverflow, 100);
+    const t2 = setTimeout(checkCategoryOverflow, 400);
+    const t3 = setTimeout(checkCategoryOverflow, 1000);
+
+    let observer;
+    if (categorySliderRef.current && typeof window !== 'undefined' && window.ResizeObserver) {
+      observer = new ResizeObserver(() => checkCategoryOverflow());
+      observer.observe(categorySliderRef.current);
+    }
+
+    window.addEventListener('resize', checkCategoryOverflow);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      if (observer) observer.disconnect();
+      window.removeEventListener('resize', checkCategoryOverflow);
+    };
+  }, [exploreCategories]);
+
+  useEffect(() => {
+    checkFilterOverflow();
+    const t1 = setTimeout(checkFilterOverflow, 100);
+    const t2 = setTimeout(checkFilterOverflow, 400);
+    const t3 = setTimeout(checkFilterOverflow, 1000);
+
+    let observer;
+    if (filterBarRef.current && typeof window !== 'undefined' && window.ResizeObserver) {
+      observer = new ResizeObserver(() => checkFilterOverflow());
+      observer.observe(filterBarRef.current);
+    }
+
+    window.addEventListener('resize', checkFilterOverflow);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      if (observer) observer.disconnect();
+      window.removeEventListener('resize', checkFilterOverflow);
+    };
+  }, [startDate, endDate, isNearbyFilterActive, searchQuery, events]);
 
   // Filter promoted events for the carousel
   const promotedEvents = events.filter(e => e.promoted);
@@ -1297,7 +1404,7 @@ const Events = () => {
 
               {/* Mobile Swipeable Slider Layout */}
               <div className="category-slider-mobile">
-                <div className="category-slider">
+                <div className="category-slider" ref={categorySliderRef} onScroll={checkCategoryOverflow}>
                   {exploreCategories
                     .slice()
                     .sort((a, b) => {
@@ -1314,160 +1421,181 @@ const Events = () => {
                       />
                     ))}
                 </div>
+                {showCategoryScrollBtn && (
+                  <button
+                    type="button"
+                    className="tags-scroll-btn category-scroll-btn-mobile"
+                    aria-label={isCategoryScrollAtEnd ? "Scroll Categories Left" : "Scroll Categories Right"}
+                    onClick={handleCategoryScroll}
+                  >
+                    {isCategoryScrollAtEnd ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+                  </button>
+                )}
               </div>
             </section>
 
             {/* All Events Section */}
             <section className="all-events-section">
-
               {/* Interactive Filter Pills Bar */}
-              <div className="filters-bar">
-                {/* Custom Date Range Picker Container */}
-                <div
-                  className="date-picker-container"
-                  ref={calendarRef}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    className={`filter-btn-toggle date-range-picker-btn ${isCalendarOpen ? 'active' : ''} ${startDate ? 'has-date' : ''}`}
-                    onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              <div className="filters-bar-wrapper">
+                <div className="filters-bar" ref={filterBarRef} onScroll={checkFilterOverflow}>
+                  {/* Custom Date Range Picker Container */}
+                  <div
+                    className="date-picker-container"
+                    ref={calendarRef}
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
-                    <Calendar size={16} />
-                    <span>
-                      {startDate ? (
-                        `${formatDateShort(startDate)}${endDate ? ` - ${formatDateShort(endDate)}` : ''}`
-                      ) : (
-                        'Select Dates'
-                      )}
-                    </span>
-                    <ChevronDown size={14} className={`chevron-icon ${isCalendarOpen ? 'rotated' : ''}`} />
-                  </button>
+                    <button
+                      type="button"
+                      className={`filter-btn-toggle date-range-picker-btn ${isCalendarOpen ? 'active' : ''} ${startDate ? 'has-date' : ''}`}
+                      onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                    >
+                      <Calendar size={16} />
+                      <span>
+                        {startDate ? (
+                          `${formatDateShort(startDate)}${endDate ? ` - ${formatDateShort(endDate)}` : ''}`
+                        ) : (
+                          'Select Dates'
+                        )}
+                      </span>
+                      <ChevronDown size={14} className={`chevron-icon ${isCalendarOpen ? 'rotated' : ''}`} />
+                    </button>
 
-                  {/* Custom Dropdown Calendar */}
-                  {isCalendarOpen && (
-                    <div className="calendar-dropdown-card glass">
-                      <div className="calendar-header">
-                        <button
-                          type="button"
-                          className="month-nav-btn"
-                          onClick={() => setCurrentMonthIndex(prev => Math.max(0, prev - 1))}
-                          disabled={currentMonthIndex === 0}
-                          style={currentMonthIndex === 0 ? { opacity: 0.3, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
-                        >
-                          <ChevronLeft size={18} />
-                        </button>
-                        <span className="month-year-label">
-                          {CALENDAR_MONTHS[currentMonthIndex].name}
-                        </span>
-                        <button
-                          type="button"
-                          className="month-nav-btn"
-                          onClick={() => setCurrentMonthIndex(prev => Math.min(CALENDAR_MONTHS.length - 1, prev + 1))}
-                          disabled={currentMonthIndex === CALENDAR_MONTHS.length - 1}
-                          style={currentMonthIndex === CALENDAR_MONTHS.length - 1 ? { opacity: 0.3, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
-                        >
-                          <ChevronRight size={18} />
-                        </button>
-                      </div>
-
-                      <div className="calendar-weekdays">
-                        <span>Su</span>
-                        <span>Mo</span>
-                        <span>Tu</span>
-                        <span>We</span>
-                        <span>Th</span>
-                        <span>Fr</span>
-                        <span>Sa</span>
-                      </div>
-
-                      <div className="calendar-days-grid">
-                        {renderCalendarDays()}
-                      </div>
-
-                      {(startDate || endDate) && (
-                        <div className="calendar-footer">
+                    {/* Custom Dropdown Calendar */}
+                    {isCalendarOpen && (
+                      <div className="calendar-dropdown-card glass">
+                        <div className="calendar-header">
                           <button
                             type="button"
-                            className="calendar-reset-btn"
-                            onClick={handleClearFilters}
+                            className="month-nav-btn"
+                            onClick={() => setCurrentMonthIndex(prev => Math.max(0, prev - 1))}
+                            disabled={currentMonthIndex === 0}
+                            style={currentMonthIndex === 0 ? { opacity: 0.3, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
                           >
-                            Reset Range
+                            <ChevronLeft size={18} />
+                          </button>
+                          <span className="month-year-label">
+                            {CALENDAR_MONTHS[currentMonthIndex].name}
+                          </span>
+                          <button
+                            type="button"
+                            className="month-nav-btn"
+                            onClick={() => setCurrentMonthIndex(prev => Math.min(CALENDAR_MONTHS.length - 1, prev + 1))}
+                            disabled={currentMonthIndex === CALENDAR_MONTHS.length - 1}
+                            style={currentMonthIndex === CALENDAR_MONTHS.length - 1 ? { opacity: 0.3, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
+                          >
+                            <ChevronRight size={18} />
                           </button>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
 
-                {/* Quick Filtering Pills */}
-                <div className="quick-filter-pills">
-                  <button
-                    type="button"
-                    className={`filter-pill ${isPillActive('Today') ? 'active' : ''}`}
-                    onClick={() => handleQuickDateSelect('Today')}
-                  >
-                    Today
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-pill ${isPillActive('Tomorrow') ? 'active' : ''}`}
-                    onClick={() => handleQuickDateSelect('Tomorrow')}
-                  >
-                    Tomorrow
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-pill ${isPillActive('This Weekend') ? 'active' : ''}`}
-                    onClick={() => handleQuickDateSelect('This Weekend')}
-                  >
-                    This Weekend
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-pill ${isNearbyFilterActive ? 'active' : ''}`}
-                    onClick={handleNearbyClick}
-                    disabled={isLocating}
-                  >
-                    {isLocating ? 'Locating...' : 'Nearby'}
-                  </button>
-                  {isNearbyFilterActive && userLocation?.type === 'approximate' && (
+                        <div className="calendar-weekdays">
+                          <span>Su</span>
+                          <span>Mo</span>
+                          <span>Tu</span>
+                          <span>We</span>
+                          <span>Th</span>
+                          <span>Fr</span>
+                          <span>Sa</span>
+                        </div>
+
+                        <div className="calendar-days-grid">
+                          {renderCalendarDays()}
+                        </div>
+
+                        {(startDate || endDate) && (
+                          <div className="calendar-footer">
+                            <button
+                              type="button"
+                              className="calendar-reset-btn"
+                              onClick={handleClearFilters}
+                            >
+                              Reset Range
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick Filtering Pills */}
+                  <div className="quick-filter-pills">
                     <button
                       type="button"
-                      className="approx-info-indicator"
-                      onClick={() => setShowLocationModal(true)}
-                      title="Using approximate location. Click to enable precise GPS."
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#7C3AED',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        marginLeft: '-4px',
-                        transition: 'transform 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      className={`filter-pill ${isPillActive('Today') ? 'active' : ''}`}
+                      onClick={() => handleQuickDateSelect('Today')}
                     >
-                      <Info size={16} />
+                      Today
                     </button>
-                  )}
-                  {locationError && <span className="location-error" style={{ color: 'red', fontSize: '0.8rem', marginLeft: '0.5rem' }}>{locationError}</span>}
-
-                  {/* Clear Filters Indicator */}
-                  {(searchQuery || startDate || endDate || isNearbyFilterActive) && (
                     <button
                       type="button"
-                      className="clear-all-pill"
-                      onClick={handleClearFilters}
+                      className={`filter-pill ${isPillActive('Tomorrow') ? 'active' : ''}`}
+                      onClick={() => handleQuickDateSelect('Tomorrow')}
                     >
-                      Clear All
+                      Tomorrow
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      className={`filter-pill ${isPillActive('This Weekend') ? 'active' : ''}`}
+                      onClick={() => handleQuickDateSelect('This Weekend')}
+                    >
+                      This Weekend
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${isNearbyFilterActive ? 'active' : ''}`}
+                      onClick={handleNearbyClick}
+                      disabled={isLocating}
+                    >
+                      {isLocating ? 'Locating...' : 'Nearby'}
+                    </button>
+                    {isNearbyFilterActive && userLocation?.type === 'approximate' && (
+                      <button
+                        type="button"
+                        className="approx-info-indicator"
+                        onClick={() => setShowLocationModal(true)}
+                        title="Using approximate location. Click to enable precise GPS."
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#7C3AED',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          marginLeft: '-4px',
+                          transition: 'transform 0.2s'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                      >
+                        <Info size={16} />
+                      </button>
+                    )}
+                    {locationError && <span className="location-error" style={{ color: 'red', fontSize: '0.8rem', marginLeft: '0.5rem' }}>{locationError}</span>}
+
+                    {/* Clear Filters Indicator */}
+                    {(searchQuery || startDate || endDate || isNearbyFilterActive) && (
+                      <button
+                        type="button"
+                        className="clear-all-pill"
+                        onClick={handleClearFilters}
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {showFilterScrollBtn && (
+                  <button
+                    type="button"
+                    className="tags-scroll-btn filter-scroll-btn-mobile"
+                    aria-label={isFilterScrollAtEnd ? "Scroll Filters Left" : "Scroll Filters Right"}
+                    onClick={handleFilterScroll}
+                  >
+                    {isFilterScrollAtEnd ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+                  </button>
+                )}
               </div>
 
               {/* Events Portrait Grid */}

@@ -9,7 +9,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { updateUserInterests } from '../../services/userService';
+import { DUMMY_TEST_EVENT } from '../../utils/dummyEvent';
+import { trackPixelViewContent, trackPixelInitiateCheckout, trackPixelPurchase, trackPixelCustom, isPixelLoaded } from '../../utils/pixel';
 import Button from '../Button/Button';
+import toast from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
 import logoTransparent from '../../assets/logo-transparent.png';
 import './EventDetails.scss';
@@ -1090,10 +1093,19 @@ const EventDetails = () => {
     const fetchEvent = async () => {
       setLoading(true);
       try {
-        let docRef = doc(db, "event", id);
-        let docSnap = await getDoc(docRef);
+        const isDummyRequested = id === 'dummy-pixel-test' || id === 'dummy' || id === 'test-event' || id === 'test' || id?.toLowerCase().includes('dummy') || id?.toLowerCase().includes('test');
+        
+        let docSnap = null;
+        if (!isDummyRequested) {
+          try {
+            let docRef = doc(db, "event", id);
+            docSnap = await getDoc(docRef);
+          } catch (err) {
+            console.warn("Error getting Firestore doc:", err);
+          }
+        }
 
-        if (docSnap.exists()) {
+        if (docSnap && docSnap.exists()) {
           const data = docSnap.data();
 
           // Check if it's a private event that is expired or deleted
@@ -1193,9 +1205,6 @@ const EventDetails = () => {
             setOrganiser(null);
           }
 
-          // Cluster category fetching moved to a separate useEffect to speed up initial load
-
-
           const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
 
           let languageVal = "";
@@ -1207,7 +1216,7 @@ const EventDetails = () => {
             languageVal = Array.isArray(data.eventLanguage) ? data.eventLanguage.join(', ') : String(data.eventLanguage);
           }
 
-          setEvent({
+          const loadedEventObj = {
             id: docSnap.id,
             promoted: isFeatured,
             title: data.eventName || "Untitled Event",
@@ -1235,14 +1244,15 @@ const EventDetails = () => {
             soldOut: data.soldOut || false,
             language: languageVal,
             raw: data
-          });
+          };
 
-
+          setEvent(loadedEventObj);
+          trackPixelViewContent(loadedEventObj);
 
           try {
             const now = Date.now();
             if (lastLoggedEventId === docSnap.id && now - lastLoggedEventTime < 1000) {
-              // Skip duplicate log within 1 second for the same event
+              // Skip duplicate log
             } else {
               lastLoggedEventId = docSnap.id;
               lastLoggedEventTime = now;
@@ -1259,14 +1269,38 @@ const EventDetails = () => {
             console.warn("Failed to log event analytics in EventDetails:", analyticsErr);
           }
         } else {
-          console.log("No such event found with ID:", id);
+          // Fallback to DUMMY_TEST_EVENT for pixel testing or if event requested is dummy
+          console.log("Loading DUMMY_TEST_EVENT for Meta Pixel test flow.");
+          const dummyObj = {
+            ...DUMMY_TEST_EVENT,
+            date: 'Thu, 30 Jul 2026 - Sun, 2 Aug 2026',
+            time: '06:00 PM - 10:00 PM',
+            raw: DUMMY_TEST_EVENT
+          };
+          setEvent(dummyObj);
+          setOrganiser({
+            name: 'Blithe Tech Team',
+            image: logoTransparent,
+            about: 'Official Blithe Developer Team'
+          });
+          trackPixelViewContent(dummyObj);
         }
       } catch (error) {
         console.error("Error fetching event details: ", error);
+        // Load dummy fallback on error as well
+        const dummyObj = {
+          ...DUMMY_TEST_EVENT,
+          date: 'Thu, 30 Jul 2026',
+          time: '06:00 PM',
+          raw: DUMMY_TEST_EVENT
+        };
+        setEvent(dummyObj);
+        trackPixelViewContent(dummyObj);
       } finally {
         setLoading(false);
       }
     };
+    fetchEvent();
     fetchEvent();
   }, [id]);
 
@@ -1667,6 +1701,85 @@ const EventDetails = () => {
       </div>
 
       <div className="container main-content">
+        {/* Meta Pixel Test Banner */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(24, 119, 242, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%)',
+          border: '1.5px solid rgba(24, 119, 242, 0.3)',
+          borderRadius: '16px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.04)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>🎯</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#1877F2', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Meta Pixel Test Panel (ID: 1933447620923074)
+                  <span style={{ fontSize: '0.75rem', background: isPixelLoaded() ? '#22c55e' : '#f59e0b', color: '#fff', padding: '0.2rem 0.55rem', borderRadius: '12px', fontWeight: 600 }}>
+                    {isPixelLoaded() ? 'Pixel Active ✅' : 'Script Loading'}
+                  </span>
+                </h3>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                  Test Meta Pixel event triggers on this dummy event. Use Meta Pixel Helper browser extension to verify.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+            <button
+              onClick={() => {
+                trackPixelViewContent(event);
+                toast.success('🎯 Fired Meta Pixel Event: ViewContent');
+              }}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#1877F2', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              👁️ Fire ViewContent
+            </button>
+
+            <button
+              onClick={() => {
+                trackPixelInitiateCheckout(event, 499, 1);
+                toast.success('🛒 Fired Meta Pixel Event: InitiateCheckout');
+              }}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#7C3AED', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              🛒 Fire InitiateCheckout
+            </button>
+
+            <button
+              onClick={() => {
+                trackPixelPurchase('TEST-BVB1001', 524, event?.title || 'Dummy Test Event', 1);
+                toast.success('💳 Fired Meta Pixel Event: Purchase');
+              }}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#16a34a', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              🎉 Fire Purchase
+            </button>
+
+            <button
+              onClick={() => {
+                trackPixelCustom('TestDummyEventClick', { test_time: new Date().toISOString() });
+                toast.success('⚡ Fired Custom Event: TestDummyEventClick');
+              }}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#0284c7', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              ⚡ Custom Event
+            </button>
+
+            <button
+              onClick={() => navigate('/events/dummy-pixel-test/book')}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#f59e0b', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', marginLeft: 'auto' }}
+            >
+              🚀 Test Booking Flow →
+            </button>
+          </div>
+        </div>
+
         <div className="content-grid">
           {/* Left Column: Premium media carousel */}
           <div className="media-carousel-area">
@@ -1855,13 +1968,13 @@ const EventDetails = () => {
 
               <div className="info-list">
                 <div className="info-item desktop-date-time">
-                  <div className="icon-box"><Calendar size={20} className="icon" /></div>
+                  <div className="icon-box"><Calendar size={205} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.date}</p>
                   </div>
                 </div>
                 <div className="info-item desktop-date-time">
-                  <div className="icon-box"><Clock size={20} className="icon" /></div>
+                  <div className="icon-box"><Clock size={205} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.time}</p>
                   </div>
@@ -1869,7 +1982,7 @@ const EventDetails = () => {
 
                 {event.eventType !== 'Online' && (
                   <div className="info-item">
-                    <div className="icon-box"><MapPin size={20} className="icon" /></div>
+                    <div className="icon-box"><MapPin size={205} className="icon" /></div>
                     <div className="text-content">
                       <p className="val">
                         {event.venue}
@@ -1893,7 +2006,7 @@ const EventDetails = () => {
                 )}
 
                 <div className="info-item mobile-only-item">
-                  <div className="icon-box"><Ticket size={20} className="icon" /></div>
+                  <div className="icon-box"><Ticket size={205} className="icon" /></div>
                   <div className="text-content">
                     <p className="val">{event.eventType} Event</p>
                   </div>
@@ -1901,7 +2014,7 @@ const EventDetails = () => {
 
                 {event.language && (
                   <div className="languages-row">
-                    <div className="icon-box"><Languages size={20} className="icon" /></div>
+                    <div className="icon-box"><Languages size={205} className="icon" /></div>
                     <div className="languages-wrapper">
                       <div className="event-languages" ref={languagesRef} onScroll={checkLanguagesOverflow}>
                         {event.language.split(',').map(l => l.trim()).filter(Boolean).map((lang, idx) => (

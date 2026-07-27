@@ -17,7 +17,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 6%;
+  padding: 0 6% 0 0;
 
   .logo {
     display: flex;
@@ -154,7 +154,7 @@
   .menu-header {
     height: 64px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-    padding: 0 6%;
+    padding: 0 6% 0 0;
     display: flex;
     justify-content: space-between;
     align-items: center;

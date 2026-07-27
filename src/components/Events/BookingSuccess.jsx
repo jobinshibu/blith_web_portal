@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import logoTransparent from '../../assets/logo-transparent.png';
+import { DUMMY_TEST_EVENT } from '../../utils/dummyEvent';
+import { trackPixelPurchase } from '../../utils/pixel';
 import './BookingSuccess.scss';
 
 const BookingSuccess = () => {
@@ -89,6 +91,13 @@ const BookingSuccess = () => {
   useEffect(() => {
     if (!eventId) return;
 
+    const isDummy = eventId === 'dummy-pixel-test' || eventId === 'dummy' || eventId === 'test-event' || eventId?.toLowerCase().includes('dummy');
+
+    if (isDummy) {
+      setEventDetails(DUMMY_TEST_EVENT);
+      return;
+    }
+
     const fetchEvent = async () => {
       try {
         const eventRef = doc(db, 'event', eventId);
@@ -97,7 +106,6 @@ const BookingSuccess = () => {
           const data = snap.data();
           setEventDetails({ id: snap.id, ...data });
 
-          // Fetch categories and clusters to determine matching cluster category names
           let names = [];
           try {
             const categoriesSnap = await getDocs(query(collection(db, "eventCategories"), where("deleted", "==", false)));
@@ -112,8 +120,6 @@ const BookingSuccess = () => {
 
             if (currentEventCategoryDoc) {
               const associatedClusterIds = new Set();
-
-              // 1. Add cluster IDs from the current category's own clusterId field
               if (currentEventCategoryDoc.clusterId) {
                 if (Array.isArray(currentEventCategoryDoc.clusterId)) {
                   currentEventCategoryDoc.clusterId.forEach(id => {
@@ -124,7 +130,6 @@ const BookingSuccess = () => {
                 }
               }
 
-              // 2. Add cluster IDs from clusters that list this category's ID in categoryIds
               clustersList.forEach(cluster => {
                 if (cluster.categoryIds && cluster.categoryIds.includes(currentEventCategoryDoc.id)) {
                   if (cluster.id) associatedClusterIds.add(cluster.id);
@@ -132,11 +137,8 @@ const BookingSuccess = () => {
                 }
               });
 
-              // 3. Find all category names that belong to these associated clusters
               const matchedCategories = new Set();
-              
               categoriesList.forEach(cat => {
-                // Check if this category's own clusterId matches any associatedClusterIds
                 if (cat.clusterId) {
                   if (Array.isArray(cat.clusterId)) {
                     if (cat.clusterId.some(id => associatedClusterIds.has(id))) {
@@ -147,7 +149,6 @@ const BookingSuccess = () => {
                   }
                 }
 
-                // Check if this category's ID is in the categoryIds of any associated clusters
                 const isInCategoryIdsOfAssociatedCluster = clustersList.some(cluster => {
                   const isAssociated = associatedClusterIds.has(cluster.id) || associatedClusterIds.has(cluster.clusterId);
                   return isAssociated && cluster.categoryIds && cluster.categoryIds.includes(cat.id);
@@ -164,17 +165,42 @@ const BookingSuccess = () => {
             console.error("Error determining cluster category names in BookingSuccess:", clusterErr);
           }
           setClusterCategoryNames(names);
+        } else {
+          setEventDetails(DUMMY_TEST_EVENT);
         }
       } catch (err) {
         console.error("Error fetching event details:", err);
+        setEventDetails(DUMMY_TEST_EVENT);
       }
     };
 
     fetchEvent();
   }, [eventId]);
 
-  // Poll Booking details
+  // Poll Booking details & Trigger Purchase Meta Pixel Event
   useEffect(() => {
+    if (bookingId?.startsWith('TEST-') || eventId === 'dummy-pixel-test' || eventId === 'dummy') {
+      const dummyBooking = {
+        bookingId: bookingId || 'TEST-BVB10001',
+        eventName: 'Meta Pixel Integration Test Event 🚀',
+        totalQuantity: 1,
+        totalPrice: 524,
+        totalAmount: 524,
+        status: 'confirmed',
+        userName: 'Meta Pixel Tester',
+        userEmail: 'tester@blithe.social',
+        userPhone: '+91 98765 43210',
+        createdAt: new Date(),
+        tickets: [
+          { ticketName: 'VIP Meta Pixel Tester Pass', price: 499, quantity: 1 }
+        ]
+      };
+      setBooking(dummyBooking);
+      setLoading(false);
+      trackPixelPurchase(bookingId || 'TEST-BVB10001', 524, 'Meta Pixel Test Event 🚀', 1);
+      return;
+    }
+
     if (!bookingId || !userId) {
       setLoading(false);
       return;
@@ -190,13 +216,14 @@ const BookingSuccess = () => {
 
         if (bookingSnap.exists()) {
           if (isMounted) {
-            setBooking(bookingSnap.data());
+            const bData = bookingSnap.data();
+            setBooking(bData);
             setLoading(false);
             clearInterval(intervalId);
+            trackPixelPurchase(bookingId, bData.totalPrice || bData.totalAmount || 0, bData.eventName || 'Event Booking', bData.totalQuantity || 1);
           }
         } else {
           setPollCount(prev => {
-            // Poll for max 15 seconds (10 attempts * 1.5s)
             if (prev >= 10) {
               clearInterval(intervalId);
               if (isMounted) {

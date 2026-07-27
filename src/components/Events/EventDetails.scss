@@ -797,6 +797,13 @@
           }
         }
 
+        @media (max-width: 768px) {
+          .icon-box {
+            width: 15px;
+            height: 15px;
+          }
+        }
+
         .languages-wrapper {
           display: inline-flex;
           align-items: center;
@@ -1261,6 +1268,10 @@
 
 @media (max-width: 768px) {
   .event-details-page {
+    .card-top-row {
+      margin-bottom: 4 !important;
+    }
+
     .content-grid {
       display: flex;
       flex-direction: column;
@@ -1317,6 +1328,10 @@
 @media (max-width: 768px) {
   .event-details-page {
     padding-bottom: 6rem; // space for fixed bottom bar
+
+    .event-tags-wrapper {
+      margin-left: 4px;
+    }
 
     // Header actions overlay
     .details-header-bar {
@@ -1437,7 +1452,7 @@
       }
 
       .event-title {
-        font-size: 1.5rem;
+        font-size: 18px;
         margin-bottom: 1rem;
         color: $text-900;
       }
@@ -1466,13 +1481,13 @@
 
       .info-list .info-item {
         gap: 0.75rem;
-        margin-bottom: 0.4rem;
+        margin-bottom: 0rem;
 
         .icon-box {
           background: rgba($lavender-100, 0.5);
           border-radius: 12px;
-          width: 40px;
-          height: 40px;
+          width: 15px !important;
+          height: 15px !important;
 
           .icon {
             color: $lavender-600;
@@ -1482,7 +1497,7 @@
         .val {
           color: $text-900;
           font-weight: 600;
-          font-size: 1rem;
+          font-size: 12px;
           margin-bottom: 0.15rem;
         }
 

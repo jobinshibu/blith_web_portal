@@ -27,8 +27,39 @@
 
   @media (max-width: 768px) {
     padding: 0px 12px !important;
+
     &.no-banner {
       padding: 65px 12px !important;
+    }
+  }
+}
+
+// Common Mobile Scroll Button (Same design as hashtag arrow in EventDetails)
+.tags-scroll-btn {
+  display: none; // Hide on PC
+
+  @media (max-width: 768px) {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid $lavender-200;
+    background: $white;
+    color: $lavender-600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    padding: 0;
+    flex-shrink: 0;
+
+    &:hover {
+      background: $lavender-600;
+      color: $white;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba($lavender-600, 0.2);
+      border-color: $lavender-600;
     }
   }
 }
@@ -361,6 +392,7 @@
     align-items: center;
     padding: 0.95rem 1.75rem;
     border-radius: 2rem;
+    border: 1px solid #7C3AED;
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
 
     // Promotes the element to its own GPU composite layer for maximum frame rates
@@ -626,12 +658,12 @@
 
     .category-card-title {
       font-size: 0.9rem;
-      font-weight: 700;
+      font-weight: 600;
       letter-spacing: 0.01em;
       line-height: 1;
 
       @media (max-width: 768px) {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         font-weight: 600;
       }
     }
@@ -644,12 +676,12 @@
       opacity: 0.95;
 
       svg {
-        width: 20px !important;
-        height: 20px !important;
+        width: 16px !important;
+        height: 16px !important;
 
         @media (max-width: 768px) {
-          width: 16px !important;
-          height: 16px !important;
+          width: 14px !important;
+          height: 14px !important;
         }
       }
     }
@@ -725,14 +757,18 @@
     display: none; // HIDE on PC
 
     @media (max-width: 768px) {
-      display: block; // SHOW on mobile
+      display: flex; // SHOW on mobile
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
       width: 100%;
-      max-width: 100vw;
-      overflow: hidden;
       box-sizing: border-box;
+      margin-bottom: 1.5rem;
 
       .category-slider {
-        padding: 10px 0 0px 0px !important;
+        flex: 1;
+        min-width: 0;
+        padding: 0.5rem 0 !important;
       }
     }
   }
@@ -770,6 +806,57 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+  }
+
+  // Filters Pill Bar Wrapper
+  .filters-bar-wrapper {
+    position: relative;
+    z-index: 200;
+    width: 100%;
+    margin-bottom: 2.25rem;
+
+    @media (max-width: 768px) {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+
+      .filters-bar {
+        flex: 1;
+        min-width: 0;
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  // Common Mobile Scroll Button (Same design as hashtag arrow in EventDetails)
+  .tags-scroll-btn {
+    display: none; // Hide on PC
+
+    @media (max-width: 768px) {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid $lavender-200;
+      background: $white;
+      color: $lavender-600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      padding: 0;
+      flex-shrink: 0;
+
+      &:hover {
+        background: $lavender-600;
+        color: $white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba($lavender-600, 0.2);
+        border-color: $lavender-600;
+      }
+    }
   }
 
   // Filters Pill Bar
@@ -1429,8 +1516,8 @@
 @media (max-width: 768px) {
   .hero-carousel-section {
     height: auto; // STRICT fixed height for stacked mobile layout
-    padding: 3.25rem 0 1rem; // Significantly reduced padding on phone to fit without scroll
-    margin-bottom: 1.5rem;
+    padding: 3.25rem 0 0rem; // Significantly reduced padding on phone to fit without scroll
+    margin-bottom: 13px;
 
     .hero-grid {
       grid-template-columns: 1fr;
@@ -1483,6 +1570,10 @@
     }
   }
 
+  .filters-bar {
+    margin-bottom: 0 !important;
+  }
+
   // 2. Search Section on Mobile
   .search-section {
     margin-bottom: 10px;
@@ -1518,18 +1609,19 @@
 
   // 3. Explore Section (Category Slider) on Mobile
   .explore-section {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0px;
+
 
     .category-slider-mobile {
-      margin: 0 -1rem;
-      padding: 0 1rem 1rem 1rem; // Reduced bottom padding
+      margin: 0 !important;
+      padding: 0; // Reduced bottom padding
 
       .category-card-wrapper {
         border-radius: 2rem;
       }
 
       .category-card {
-        padding: 0.6rem 1rem;
+        padding: 0.5rem 1rem;
         border-radius: 2rem;
 
         .category-card-title {
@@ -1538,8 +1630,8 @@
 
         .category-icon-box {
           svg {
-            width: 16px !important;
-            height: 16px !important;
+            width: 14px !important;
+            height: 14px !important;
           }
         }
       }
