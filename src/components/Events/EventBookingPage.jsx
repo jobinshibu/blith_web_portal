@@ -157,9 +157,15 @@ const EventBookingPage = () => {
   }, [approvalQuestionsList, approvalAnswers]);
 
   const getFormattedApprovalAnswer = useCallback((eventObj, qList, answersMap) => {
-    if (!eventObj?.approvalQuestion) return Array.isArray(eventObj?.approvalQuestion) ? [] : '';
+    if (!eventObj?.approvalQuestion) return Array.isArray(eventObj?.approvalQuestion) ? {} : '';
     if (Array.isArray(eventObj.approvalQuestion)) {
-      return qList.map((_, idx) => (answersMap[idx] || '').trim());
+      const answerMap = {};
+      qList.forEach((q, idx) => {
+        if (q) {
+          answerMap[q] = (answersMap[idx] || '').trim();
+        }
+      });
+      return answerMap;
     }
     return (answersMap[0] || '').trim();
   }, []);
@@ -1992,6 +1998,13 @@ const EventBookingPage = () => {
                       ${!isOnline ? `<tr><td style="color:#888;padding:3px 0;">Venue</td><td><strong>${event.location || event.venue || ''}</strong></td></tr>` : ''}
                       ${(isOnline && event.meetingUrl) ? `<tr><td style="color:#888;padding:3px 0;">Meeting Link</td><td><a href="${event.meetingUrl}" style="color:#6C63FF;font-weight:bold;text-decoration:none;">Join Online Meeting</a></td></tr>` : ''}
                     </table>
+                  </div>
+
+                  <!-- Booking QR Code -->
+                  <div style="text-align:center;margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;border:1px dashed #6C63FF;">
+                    <p style="margin-top:0;font-weight:bold;color:#6C63FF;font-size:15px;">🎟️ Your Entry Pass QR Code</p>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${bId}" alt="Booking QR Code" style="width:150px;height:150px;display:block;margin:10px auto;" />
+                    <p style="margin-bottom:0;font-size:12px;color:#888;">Scan this QR code at the event entrance.</p>
                   </div>
 
                   <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
