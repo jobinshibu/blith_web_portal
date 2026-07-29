@@ -633,7 +633,6 @@ const EventDetails = () => {
   const [showAboutBtn, setShowAboutBtn] = useState(false);
   const [showOrgAboutBtn, setShowOrgAboutBtn] = useState(false);
   const [showTermsBtn, setShowTermsBtn] = useState(false);
-  const [dbTAndC, setDbTAndC] = useState("");
   const [organiser, setOrganiser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [userLocation, setUserLocation] = useState(() => {
@@ -804,25 +803,6 @@ const EventDetails = () => {
       });
     };
     fetchSettings();
-  }, []);
-
-  // Fetch dynamic terms and conditions from settings/event document
-  useEffect(() => {
-    const fetchTAndC = async () => {
-      try {
-        const docRef = doc(db, "settings", "event");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data && data.tAndC) {
-            setDbTAndC(data.tAndC);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching terms and conditions from /settings/event:", err);
-      }
-    };
-    fetchTAndC();
   }, []);
 
   // Fetch attendees for the event
@@ -1086,7 +1066,7 @@ const EventDetails = () => {
       window.removeEventListener('resize', checkOverflow);
       clearTimeout(timeoutId);
     };
-  }, [event, organiser, isAboutExpanded, isOrgAboutExpanded, isTermsExpanded, dbTAndC]);
+  }, [event, organiser, isAboutExpanded, isOrgAboutExpanded, isTermsExpanded]);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -1880,8 +1860,9 @@ const EventDetails = () => {
                       <p className="val">
                         {event.venue}
                         {distance !== null && (
-                          <span className="venue-distance" style={{ marginLeft: '8px', color: '#7C3AED', fontWeight: 700, fontSize: '0.85rem' }}>
-                            ({distance < 1 ? `${Math.round(distance * 1000)}m` : `${Math.round(distance)} km`} away)
+                          <span className="venue-distance" style={{ color: '#7C3AED', fontWeight: 700, fontSize: '0.85rem' }}>
+                            <span className="dist-desktop"> ({distance < 1 ? `${Math.round(distance * 1000)}m` : `${Math.round(distance)} km`} away)</span>
+                            <span className="dist-mobile"> • {distance < 1 ? `${Math.round(distance * 1000)}m` : `${Math.round(distance)} km`} away</span>
                           </span>
                         )}
                       </p>
@@ -2026,7 +2007,7 @@ const EventDetails = () => {
               </div>
               <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsRef}>
                 <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
-                  {dbTAndC || event.termsAndConditions}
+                  {event.termsAndConditions}
                 </p>
               </div>
               {showTermsBtn && (
