@@ -9,7 +9,7 @@ import './Events.scss';
 import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
-import { DUMMY_TEST_EVENT } from '../../utils/dummyEvent';
+import { trackHomeLandingPageView } from '../../utils/pixel';
 
 
 // Robust multi-fallback IP Geolocation helper
@@ -271,7 +271,7 @@ const parseEventDateRange = (dateStr, year = 2026) => {
   const monthMap = {
     "jan": 0, "feb": 1, "mar": 2, "apr": 3, "may": 4, "jun": 5,
     "jul": 6, "aug": 7, "sep": 8, "oct": 9, "nov": 10, "dec": 11,
-    "january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
+    "january": 0, "february": 1, "march": 2, "april": 3, "june": 5,
     "july": 6, "august": 7, "september": 8, "october": 9, "november": 10, "december": 11
   };
 
@@ -359,6 +359,7 @@ const Events = () => {
     }
     lastLandingPageLogTime = now;
     try {
+      trackHomeLandingPageView();
       logEvent(analytics, 'view_landing_page', {
         page_name: 'web-landing-page',
         event_id: 'none',
@@ -679,23 +680,7 @@ const Events = () => {
         return dateA - dateB;
       });
 
-      const dummyTestCard = {
-        id: 'dummy-pixel-test',
-        title: 'Meta Pixel Test Event 🚀',
-        image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
-        date: '30 Jul - 02 Aug',
-        time: '06:00 PM',
-        location: 'Virtual Test Venue, Bengaluru',
-        venue: 'Virtual Test Venue',
-        price: '₹499 onwards',
-        category: 'Tech & Innovation',
-        promoted: true,
-        soldOut: false,
-        distance: null,
-        raw: DUMMY_TEST_EVENT
-      };
-
-      setEvents([dummyTestCard, ...eventsData]);
+      setEvents(eventsData);
     } catch (err) {
       console.error("Error processing events in Redux cache: ", err);
     }

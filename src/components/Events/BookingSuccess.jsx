@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import logoTransparent from '../../assets/logo-transparent.png';
-import { DUMMY_TEST_EVENT } from '../../utils/dummyEvent';
 import { trackPixelPurchase } from '../../utils/pixel';
 import './BookingSuccess.scss';
 
@@ -91,13 +90,6 @@ const BookingSuccess = () => {
   useEffect(() => {
     if (!eventId) return;
 
-    const isDummy = eventId === 'dummy-pixel-test' || eventId === 'dummy' || eventId === 'test-event' || eventId?.toLowerCase().includes('dummy');
-
-    if (isDummy) {
-      setEventDetails(DUMMY_TEST_EVENT);
-      return;
-    }
-
     const fetchEvent = async () => {
       try {
         const eventRef = doc(db, 'event', eventId);
@@ -165,12 +157,9 @@ const BookingSuccess = () => {
             console.error("Error determining cluster category names in BookingSuccess:", clusterErr);
           }
           setClusterCategoryNames(names);
-        } else {
-          setEventDetails(DUMMY_TEST_EVENT);
         }
       } catch (err) {
         console.error("Error fetching event details:", err);
-        setEventDetails(DUMMY_TEST_EVENT);
       }
     };
 
@@ -179,28 +168,6 @@ const BookingSuccess = () => {
 
   // Poll Booking details & Trigger Purchase Meta Pixel Event
   useEffect(() => {
-    if (bookingId?.startsWith('TEST-') || eventId === 'dummy-pixel-test' || eventId === 'dummy') {
-      const dummyBooking = {
-        bookingId: bookingId || 'TEST-BVB10001',
-        eventName: 'Meta Pixel Integration Test Event 🚀',
-        totalQuantity: 1,
-        totalPrice: 524,
-        totalAmount: 524,
-        status: 'confirmed',
-        userName: 'Meta Pixel Tester',
-        userEmail: 'tester@blithe.social',
-        userPhone: '+91 98765 43210',
-        createdAt: new Date(),
-        tickets: [
-          { ticketName: 'VIP Meta Pixel Tester Pass', price: 499, quantity: 1 }
-        ]
-      };
-      setBooking(dummyBooking);
-      setLoading(false);
-      trackPixelPurchase(bookingId || 'TEST-BVB10001', 524, 'Meta Pixel Test Event 🚀', 1);
-      return;
-    }
-
     if (!bookingId || !userId) {
       setLoading(false);
       return;

@@ -219,26 +219,53 @@ $off: #FAFAFA;
 @media(max-width: 960px) {
   .footer-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 32px 24px;
   }
 
   .fg-brand {
     grid-column: 1 / -1;
   }
+
+  .contact-col {
+    grid-column: 1 / -1;
+  }
 }
 
 @media(max-width: 768px) {
-  .footer-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
+  .footer-container {
+    padding: 32px 20px 24px;
   }
 
-  .footer-grid>* {
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 20px;
+    margin-bottom: 24px;
+    padding-bottom: 32px;
+  }
+
+  .fg-brand {
+    grid-column: 1 / -1;
     margin-bottom: 0;
+
+    .logo-footer,
+    p {
+      display: none;
+    }
+
+    .social-icons {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+  }
+
+  .contact-col {
+    grid-column: 1 / -1;
   }
 
   .footer-btm {
     flex-direction: column;
     align-items: flex-start;
+    gap: 12px;
   }
 }
