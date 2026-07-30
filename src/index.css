@@ -176,6 +176,13 @@ button {
   font-weight: 800;
   color: var(--lavender-600);
   letter-spacing: -0.025em;
+  margin-left: 3%;
+}
+
+@media (max-width: 768px) {
+  .logo {
+    margin-left: 1%;
+  }
 }
 
 .nav-links {
