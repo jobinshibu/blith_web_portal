@@ -585,10 +585,6 @@
       display: none; // Hidden on desktop
     }
 
-    .dist-mobile {
-      display: none; // Hidden on desktop, shown on mobile
-    }
-
     .category-badge {
       display: inline-block;
       align-self: flex-start; // prevent stretching inside flex tags-column
@@ -1415,7 +1411,7 @@
       width: 100vw !important;
       max-width: none !important;
       height: auto !important;
-      aspect-ratio: 16 / 10 !important; // Optimized mobile hero aspect ratio to leave ample space for info card
+      aspect-ratio: 387 / 484 !important;
       max-height: none;
       margin-left: calc(-50vw + 50%) !important;
       border-radius: 0 !important;
@@ -1430,7 +1426,6 @@
       }
     }
 
-    // Mobile Top Event Card - Ultra-compact layout displaying Category, Title, Date, Time, Location immediately above the fold
     .event-details-card {
       order: 2;
       width: 100vw !important;
@@ -1438,182 +1433,89 @@
       box-sizing: border-box;
       position: relative;
       z-index: 10;
-      margin-top: -2.5rem !important; // Overlap sticky hero banner
+      margin-top: -3rem !important; // Overlap sticky carousel
 
-      background: rgba($white, 0.96);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 1.75rem 1.75rem 0 0;
-      padding: 1.25rem 1.25rem 1.1rem !important; // Reduced top/bottom padding to fit all key info before scrolling
+      background: rgba($white, 0.95);
+      border-radius: 2rem 2rem 0 0;
+      padding: 2.5rem 1.5rem 2rem;
       border: none;
       box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
 
       &::before {
         content: '';
         position: absolute;
-        top: 8px;
+        top: 12px;
         left: 50%;
         transform: translateX(-50%);
-        width: 36px;
+        width: 40px;
         height: 4px;
         background: rgba($text-500, 0.3);
         border-radius: 4px;
       }
 
-      .card-top-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.35rem !important;
-
-        .category-badge {
-          display: inline-block;
-          margin-bottom: 0;
-          padding: 0.3rem 0.75rem;
-          font-size: 0.7rem;
-          font-weight: 700;
-          border-radius: 2rem;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          background: rgba($lavender-100, 0.6);
-          color: $lavender-600;
-          border: none;
-        }
-
-        .share-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: rgba($lavender-100, 0.5);
-          color: $lavender-600;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-      }
-
-      // Hide additional sections from initial top card so only Category, Title, Date, Time, Location show above fold (Rule 8)
-      .hashtags-row {
-        display: none !important;
-      }
-
-      .mobile-only-item {
-        display: none !important;
-      }
-
-      .languages-row {
-        display: none !important;
-      }
-
-      .attendees-going-section {
-        display: none !important;
-      }
-
       .event-title {
-        font-size: 1.15rem !important;
-        font-weight: 800 !important;
-        line-height: 1.25 !important;
-        color: $text-900 !important;
-        margin-top: 0.35rem !important;
-        margin-bottom: 0.5rem !important; // Compact bottom margin below title
+        font-size: 18px;
+        margin-bottom: 1rem;
+        color: $text-900;
       }
 
       .mobile-date-highlight {
-        display: none !important;
+        display: block;
+        color: $lavender-600;
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
       }
 
-      // Render compact Date, Time, and Location rows sequentially
-      .info-list {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0.35rem !important; // Compact vertical spacing between Category -> Title -> Date -> Time -> Location
-        margin-bottom: 0 !important;
+      .desktop-date-time {
+        display: none; // Hide desktop individual date/time
+      }
 
-        .desktop-date-time {
-          display: flex !important; // Show date and time compact rows on mobile
-          align-items: center !important;
-          gap: 0.55rem !important;
+      .mobile-only-item {
+        display: flex; // Show mobile combined schedule
+      }
+
+      .category-badge {
+        background: rgba($lavender-100, 0.5);
+        color: $lavender-600;
+        border: none;
+      }
+
+      .info-list .info-item {
+        gap: 0.75rem;
+        margin-bottom: 0rem;
+
+        .icon-box {
+          background: rgba($lavender-100, 0.5);
+          border-radius: 12px;
+          width: 15px !important;
+          height: 15px !important;
+
+          .icon {
+            color: $lavender-600;
+          }
         }
 
-        .info-item {
-          display: flex !important;
-          align-items: center !important;
-          gap: 0.55rem !important;
-          margin-bottom: 0 !important;
-          min-height: 24px !important;
+        .val {
+          color: $text-900;
+          font-weight: 600;
+          font-size: 12px;
+          margin-bottom: 0.15rem;
+        }
 
-          .icon-box {
-            background: rgba(124, 58, 237, 0.08) !important;
-            border-radius: 6px !important;
-            width: 24px !important;
-            height: 24px !important;
-            min-width: 24px !important;
-            flex-shrink: 0 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
+        .sub {
+          color: $text-500;
+          font-size: 0.85rem;
+        }
 
-            .icon {
-              color: #7C3AED !important;
-              width: 14px !important;
-              height: 14px !important;
-              flex-shrink: 0 !important;
-            }
-
-            svg {
-              width: 14px !important;
-              height: 14px !important;
-              color: #7C3AED !important;
-            }
-          }
-
-          .text-content {
-            flex: 1 !important;
-            min-width: 0 !important;
-            display: flex !important;
-            align-items: center !important;
-          }
-
-          .val {
-            color: #111827 !important;
-            font-weight: 600 !important;
-            font-size: 0.85rem !important;
-            line-height: 1.3 !important;
-            margin: 0 !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            max-width: 100% !important;
-          }
-
-          .sub {
-            display: none !important; // Hide sub address to fit venue on single compact row with ellipsis
-          }
-
-          .map-icon-btn {
-            display: none !important; // Hide map button on mobile so venue text can span full width
-          }
-
-          .venue-distance {
-            font-size: 0.85rem !important;
-            font-weight: 600 !important;
-            color: #7C3AED !important;
-            margin-left: 0 !important;
-
-            .dist-desktop {
-              display: none !important;
-            }
-
-            .dist-mobile {
-              display: inline !important;
-            }
-          }
+        .chevron {
+          display: block;
+          color: $text-500;
         }
       }
 
       .guarantee {
-        display: none !important;
+        display: none;
       }
     }
 
@@ -1702,28 +1604,26 @@
     }
 
     .event-info-sidebar {
-      padding-bottom: 5.5rem; // Adjusted padding for lower mobile bottom bar height
+      padding-bottom: 8rem; // Prevent content from hiding behind the fixed bar
     }
 
     .terms-details-card {
-      padding-bottom: 5.5rem; // For mobile layout specifically
+      padding-bottom: 8rem; // For mobile layout specifically
     }
 
-    // Compact Mobile Bottom Booking Bar (Saves ~18-20px height)
     .mobile-fixed-booking-bar {
-      display: flex !important;
+      display: flex;
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
       background: rgba($white, 0.98);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(10px);
       border-top: 1px solid $lavender-100;
       z-index: 100;
       justify-content: space-between;
       align-items: center;
-      padding: 0.45rem 1.25rem !important; // Decreased vertical padding to save height
+      padding: 1rem 1.5rem;
       box-shadow: 0 -4px 20px rgba($lavender-600, 0.1);
 
       .price-row {
@@ -1735,43 +1635,31 @@
         border: none;
 
         .amount {
-          color: $text-900 !important;
-          font-size: 1.05rem !important; // Slightly reduced price font size
-          font-weight: 800 !important;
-          line-height: 1 !important;
+          color: $text-900;
+          font-size: 1.25rem;
+          font-weight: 700;
+          line-height: 1;
         }
 
         .amount-sub {
-          font-size: 0.72rem !important; // Slightly reduced sub text size
-          color: $text-500 !important;
-          margin-top: 0.1rem !important;
-        }
-
-        .price-message {
-          font-size: 0.68rem !important;
-          color: #EF4444 !important;
-          font-weight: 800 !important;
-          margin-top: 1px !important;
+          font-size: 0.8rem;
+          color: $text-500;
+          margin-top: 0.2rem;
         }
       }
 
-      .action-buttons,
-      .book-now-btn,
-      button {
-        height: 38px !important; // Reduced button height
-        min-height: 38px !important;
-        padding: 0 1.25rem !important;
-        font-size: 0.88rem !important; // Slightly reduced button font size
-        font-weight: 800 !important;
-        border-radius: 8px !important; // Slightly reduced border radius
-        border: none !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25) !important;
+      .action-buttons {
+        gap: 0;
 
-        svg {
-          display: none;
+        .book-now-btn {
+          border-radius: 0.5rem;
+          padding: 0.75rem 1.5rem;
+          font-weight: 700;
+          border: none;
+
+          svg {
+            display: none;
+          }
         }
       }
     }
