@@ -370,12 +370,14 @@ const EventBookingPage = () => {
           const isPrivate = data.isPrivateEvent === true;
           const isDeleted = data.deleted === true;
           const isExpired = data.isExpired === true || isEventExpired;
+          const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
 
-          if (isPrivate && (isDeleted || isExpired)) {
+          if (isBlocked || isDeleted || (isPrivate && isExpired)) {
             setEvent({
               id: docSnap.id,
-              isPrivateEvent: true,
-              isUnavailablePrivateEvent: true,
+              isPrivateEvent: isPrivate,
+              isUnavailablePrivateEvent: isPrivate && isExpired,
+              isBlocked: isBlocked,
               deleted: isDeleted,
               isExpired: isExpired
             });
@@ -1645,6 +1647,9 @@ const EventBookingPage = () => {
             throw new Error("Event not found");
           }
           const eventDbData = eventSnap.data();
+          if (eventDbData.block === true || eventDbData.blocked === true || eventDbData.isBlocked === true || eventDbData.deleted === true) {
+            throw new Error("This event has been blocked or removed, and is no longer available for booking.");
+          }
 
           // 2. Notifications References
           const userNotiRef = doc(collection(db, "notification"));
@@ -2299,6 +2304,44 @@ const EventBookingPage = () => {
       setIsVerifyingUser(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center' }}>
+        <motion.img
+          src={logo}
+          alt="Loading..."
+          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)' }}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading checkout...</h2>
+      </div>
+    );
+  }
+
+  if (!event || event.isBlocked || event.deleted || event.isUnavailablePrivateEvent) {
+    return (
+      <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1rem', textAlign: 'center', padding: '2rem' }}>
+        <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '50%', color: '#EF4444' }}>
+          <AlertTriangle size={48} />
+        </div>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827' }}>
+          {event?.isBlocked ? "Event Unavailable" : event?.deleted ? "Event Removed" : "Event Unavailable"}
+        </h2>
+        <p style={{ color: '#6B7280', maxWidth: '400px' }}>
+          {event?.isBlocked
+            ? "This event has been blocked or disabled by the organizer and is no longer available for booking."
+            : event?.deleted
+            ? "This event has been removed by the organizer."
+            : "The event you are trying to book is no longer active or available."}
+        </p>
+        <button onClick={() => navigate('/events')} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+          Explore Other Events
+        </button>
+      </div>
+    );
+  }
 
   const displayDate = selectedDate ? selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
   const displayTime = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

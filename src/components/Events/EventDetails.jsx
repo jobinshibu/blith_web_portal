@@ -1104,12 +1104,14 @@ const EventDetails = () => {
           const isPrivate = data.isPrivateEvent === true;
           const isDeleted = data.deleted === true;
           const isExpired = data.isExpired === true || isEventExpired;
+          const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
 
-          if (isPrivate && (isDeleted || isExpired)) {
+          if (isBlocked || isDeleted || (isPrivate && isExpired)) {
             setEvent({
               id: docSnap.id,
-              isPrivateEvent: true,
-              isUnavailablePrivateEvent: true,
+              isPrivateEvent: isPrivate,
+              isUnavailablePrivateEvent: isPrivate && isExpired,
+              isBlocked: isBlocked,
               deleted: isDeleted,
               isExpired: isExpired
             });
@@ -1588,15 +1590,19 @@ const EventDetails = () => {
     );
   }
 
-  if (event.isUnavailablePrivateEvent) {
+  if (event.isBlocked || event.deleted || event.isUnavailablePrivateEvent) {
     return (
       <div className="error-page container">
         <div className="error-icon-wrapper">
           <Lock size={48} />
         </div>
-        <h2>Private Event Unavailable</h2>
+        <h2>{event.isBlocked ? "Event Unavailable" : event.deleted ? "Event Removed" : "Private Event Unavailable"}</h2>
         <p>
-          This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer.
+          {event.isBlocked
+            ? "This event is currently blocked and unavailable for viewing or booking."
+            : event.deleted
+            ? "This event has been removed by the organizer."
+            : "This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer."}
         </p>
         <button onClick={() => navigate('/events')} className="back-btn">
           Back to Events
