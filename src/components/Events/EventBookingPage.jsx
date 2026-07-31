@@ -71,11 +71,11 @@ const generateBookingId = () => {
 };
 
 // Generate search prefixes list for bookings
-const generateBookingSearchList = (userName, eventName, bookingId, eventId) => {
+const generateBookingSearchList = (userName, eventName, bookingId, eventId, userEmail = '', userPhone = '') => {
   const searchKeywords = new Set();
   const addPrefixes = (text) => {
     if (!text) return;
-    const lower = text.toLowerCase();
+    const lower = String(text).toLowerCase();
     let cur = '';
     for (let i = 0; i < lower.length; i++) {
       cur += lower[i];
@@ -87,6 +87,8 @@ const generateBookingSearchList = (userName, eventName, bookingId, eventId) => {
   addPrefixes(eventName);
   addPrefixes(bookingId);
   addPrefixes(eventId);
+  addPrefixes(userEmail);
+  addPrefixes(userPhone);
 
   return Array.from(searchKeywords);
 };
@@ -1416,7 +1418,9 @@ const EventBookingPage = () => {
         attendee.name,
         event.eventName || event.title || "",
         "",
-        event.id
+        event.id,
+        attendee.email,
+        attendee.phone
       );
 
       // Transaction-based Booking Confirmation Logic
@@ -1439,7 +1443,9 @@ const EventBookingPage = () => {
           attendee.name,
           event.eventName || event.title || "",
           bId,
-          event.id
+          event.id,
+          attendee.email,
+          attendee.phone
         );
 
         // Prepare booked tickets with matching properties
@@ -2555,56 +2561,53 @@ const EventBookingPage = () => {
 
           {/* Host Approval / Organizer Questions Section */}
           {(event.approvalNeeded || approvalQuestionsList.length > 0) && (
-            <div className="section-block approval-details-block glass" style={{ marginTop: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.85rem' }}>
+            <div className="section-block approval-details-block glass">
+              <div className="approval-block-header">
                 {event.approvalNeeded ? (
-                  <Lock size={20} style={{ color: '#7C3AED' }} />
+                  <Lock size={18} className="header-icon" />
                 ) : (
-                  <FileText size={20} style={{ color: '#7C3AED' }} />
+                  <FileText size={18} className="header-icon" />
                 )}
-                <h3 style={{ margin: 0 }}>
+                <h3>
                   {event.approvalNeeded ? 'Host Approval Required' : 'Additional Information'}
                 </h3>
               </div>
-              <p style={{ fontSize: '0.9rem', color: '#4B5563', marginBottom: '0.75rem', lineHeight: '1.5' }}>
+              <p className="approval-block-subtitle">
                 {event.approvalNeeded
                   ? "This event is private and requires the organizer's approval to join."
                   : 'Please answer the host question(s) below to complete your booking.'}
               </p>
-              {approvalQuestionsList.length > 0 && approvalQuestionsList.map((q, idx) => {
-                const ans = approvalAnswers[idx] || "";
-                const isMissing = showErrors && !ans.trim();
-                return (
-                  <div key={idx} className="input-group" style={{ marginBottom: idx === approvalQuestionsList.length - 1 ? 0 : '1rem' }}>
-                    <label htmlFor={`approvalAnswer_${idx}`} style={{ fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.35rem' }}>
-                      {approvalQuestionsList.length > 1 ? `Q${idx + 1}: ${q}` : `Qus: ${q}`} <span className="required-star">*</span>
-                    </label>
-                    <textarea
-                      id={`approvalAnswer_${idx}`}
-                      placeholder="Type your answer here..."
-                      value={ans}
-                      onChange={(e) => setApprovalAnswers(prev => ({ ...prev, [idx]: e.target.value }))}
-                      style={{
-                        width: '100%',
-                        minHeight: '80px',
-                        padding: '0.6rem 0.85rem',
-                        border: isMissing ? '1px solid #EF4444' : '1px solid rgba(0, 0, 0, 0.1)',
-                        borderRadius: '0.5rem',
-                        fontSize: '0.9rem',
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        resize: 'vertical',
-                        backgroundColor: 'rgba(255, 255, 255, 0.5)'
-                      }}
-                    />
-                    {isMissing && (
-                      <div className="validation-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.85rem', marginTop: '0.35rem' }}>
-                        <Info size={16} /> <span>Please answer this question.</span>
+              {approvalQuestionsList.length > 0 && (
+                <div className="approval-questions-grid">
+                  {approvalQuestionsList.map((q, idx) => {
+                    const ans = approvalAnswers[idx] || "";
+                    const isMissing = showErrors && !ans.trim();
+                    const isOddLast = idx === approvalQuestionsList.length - 1 && approvalQuestionsList.length % 2 !== 0;
+                    return (
+                      <div key={idx} className={`input-group approval-input-group ${isOddLast ? 'full-width' : ''} ${isMissing ? 'has-error' : ''}`}>
+                        <label htmlFor={`approvalAnswer_${idx}`}>
+                          <span className="q-badge">{approvalQuestionsList.length > 1 ? `Question ${idx + 1}` : `Question`}</span>
+                          <span className="q-text">{q}</span>
+                          <span className="required-star">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id={`approvalAnswer_${idx}`}
+                          placeholder="Type your answer here..."
+                          value={ans}
+                          onChange={(e) => setApprovalAnswers(prev => ({ ...prev, [idx]: e.target.value }))}
+                          className="approval-input-field"
+                        />
+                        {isMissing && (
+                          <div className="validation-hint">
+                            <Info size={14} /> <span>Please answer this question.</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

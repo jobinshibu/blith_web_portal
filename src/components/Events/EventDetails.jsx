@@ -503,11 +503,11 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                   {/* Overlapping avatars row — same design as going-section */}
                   <div className="modal-attendees-pill">
                     <div className="attendee-avatars">
-                      {attendeesList.slice(0, 6).map((att, idx) => (
+                      {attendeesList.slice(0, 4).map((att, idx) => (
                         <div
                           key={idx}
                           className="attendee-avatar-wrapper"
-                          style={{ zIndex: attendeesList.length - idx }}
+                          style={{ zIndex: 4 - idx }}
                           title={att.userName || 'Attendee'}
                         >
                           {att.userProfileImage ? (
@@ -521,14 +521,9 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                           )}
                         </div>
                       ))}
-                      {attendeesList.length > 6 && (
-                        <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 0 }}>
-                          <span>+{attendeesList.length - 6}</span>
-                        </div>
-                      )}
                     </div>
                     <span className="attendees-count-text">
-                      <span className="highlight-count">{totalCount}</span>{' '}
+                      <span className="highlight-count">{totalCount >= 4 ? '4+' : totalCount}</span>{' '}
                       {totalCount === 1 ? 'person is' : 'people are'} going
                     </span>
                   </div>
@@ -1933,27 +1928,22 @@ const EventDetails = () => {
               {attendeesCount >= 4 && (
                 <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
                   <div className="attendee-avatars">
-                    <>
-                      {attendeesList.slice(0, 3).map((att, idx) => (
-                        <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
-                          {att.userProfileImage ? (
-                            <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
-                          ) : (
-                            <img
-                              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
-                              alt={att.userName || 'Attendee'}
-                              className="attendee-avatar-img dicebear-avatar"
-                            />
-                          )}
-                        </div>
-                      ))}
-                      <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 1 }}>
-                        <span>+{attendeesCount - 3}</span>
+                    {attendeesList.slice(0, 4).map((att, idx) => (
+                      <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
+                        {att.userProfileImage ? (
+                          <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
+                        ) : (
+                          <img
+                            src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                            alt={att.userName || 'Attendee'}
+                            className="attendee-avatar-img dicebear-avatar"
+                          />
+                        )}
                       </div>
-                    </>
+                    ))}
                   </div>
                   <span className="attendees-count-text">
-                    <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
+                    <span className="highlight-count">4+</span> people are going
                   </span>
                 </div>
               )}

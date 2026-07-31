@@ -6,6 +6,7 @@ import Events from './components/Events/Events'
 import EventDetails from './components/Events/EventDetails'
 import EventBookingPage from './components/Events/EventBookingPage'
 import BookingSuccess from './components/Events/BookingSuccess'
+import TicketView from './components/Events/TicketView'
 import LinkTree from './components/LinkTree/LinkTree'
 import Terms from './components/Terms/Terms'
 import Footer from './components/Footer/Footer'
@@ -16,6 +17,8 @@ import './styles/main.scss'
 function App() {
   const location = useLocation();
   const isLinkTree = location.pathname === '/blithelink' || location.pathname === '/events/blithelink';
+  const isTicketView = location.pathname.startsWith('/ticketView') || location.pathname.startsWith('/events/ticketView');
+  const isStandalone = isLinkTree || isTicketView;
 
   React.useEffect(() => {
     initLeadTracking();
@@ -25,22 +28,24 @@ function App() {
     <div className="app-container">
       <Toaster position="top-center" reverseOrder={false} />
       <ScrollToTop />
-      {!isLinkTree && <Navbar />}
+      {!isStandalone && <Navbar />}
       <main>
         <Routes>
           <Route path="/" element={<Events />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/blithelink" element={<LinkTree />} />
           <Route path="/events/booking-success" element={<BookingSuccess />} />
+          <Route path="/events/ticketView/:eventId/:bookingId" element={<TicketView />} />
           <Route path="/events/terms" element={<Terms />} />
           <Route path="/events/:id" element={<EventDetails />} />
           <Route path="/events/:id/book" element={<EventBookingPage />} />
+          <Route path="/ticketView/:eventId/:bookingId" element={<TicketView />} />
           <Route path="/booking-success" element={<BookingSuccess />} />
           <Route path="/blithelink" element={<LinkTree />} />
           <Route path="/terms" element={<Terms />} />
         </Routes>
       </main>
-      {!isLinkTree && <Footer />}
+      {!isStandalone && <Footer />}
     </div>
   )
 }
