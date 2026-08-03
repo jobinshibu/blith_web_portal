@@ -1081,20 +1081,33 @@ const EventDetails = () => {
         if (docSnap && docSnap.exists()) {
           const data = docSnap.data();
 
-          // Check if it's a private event that is expired or deleted
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          // UPDATED: Expired event validation
           const parseTimestampToDate = (ts) => {
             if (!ts) return null;
-            if (ts.toDate) return ts.toDate();
+            if (typeof ts.toDate === 'function') return ts.toDate();
             if (ts.seconds) return new Date(ts.seconds * 1000);
-            return new Date(ts);
+            if (ts instanceof Date) return ts;
+            const d = new Date(ts);
+            return isNaN(d.getTime()) ? null : d;
           };
-          const endDateObjVal = parseTimestampToDate(data.eventEndDate);
-          const startDateObjVal = parseTimestampToDate(data.eventStartDate);
-          const isEventExpired = endDateObjVal
-            ? endDateObjVal < today
-            : (startDateObjVal ? startDateObjVal < today : false);
+
+          // UPDATED: Expired event validation
+          const checkIsEventExpiredData = (evtData) => {
+            if (!evtData) return false;
+            if (evtData.isExpired === true) return true;
+            const now = new Date();
+            const endDate = parseTimestampToDate(evtData.eventEndDate);
+            const startDate = parseTimestampToDate(evtData.eventStartDate);
+            if (endDate) {
+              return endDate < now;
+            }
+            if (startDate) {
+              return startDate < now;
+            }
+            return false;
+          };
+
+          const isEventExpired = checkIsEventExpiredData(data);
 
           const isPrivate = data.isPrivateEvent === true;
           const isDeleted = data.deleted === true;
@@ -1217,6 +1230,7 @@ const EventDetails = () => {
             eventStartDate: data.eventStartDate || null,
             eventEndDate: data.eventEndDate || null,
             soldOut: data.soldOut || false,
+            isExpired: isExpired, // UPDATED: Expired event validation
             language: languageVal,
             raw: data
           };
@@ -1606,11 +1620,28 @@ const EventDetails = () => {
     );
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isEventExpired = event.eventEndDate
-    ? event.eventEndDate.toDate() < today
-    : (event.eventStartDate ? event.eventStartDate.toDate() < today : false);
+  // UPDATED: Expired event validation
+  const checkIsEventExpired = (evt) => {
+    if (!evt) return false;
+    if (evt.isExpired === true) return true;
+    const now = new Date();
+    const parseTs = (ts) => {
+      if (!ts) return null;
+      if (typeof ts.toDate === 'function') return ts.toDate();
+      if (ts.seconds) return new Date(ts.seconds * 1000);
+      if (ts instanceof Date) return ts;
+      const d = new Date(ts);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    const endDate = parseTs(evt.eventEndDate);
+    const startDate = parseTs(evt.eventStartDate);
+    if (endDate) return endDate < now;
+    if (startDate) return startDate < now;
+    return false;
+  };
+
+  // UPDATED: Expired event validation
+  const isEventExpired = event ? (event.isExpired === true || checkIsEventExpired(event) || checkIsEventExpired(event.raw)) : false;
 
   const isBookingClosed = (() => {
     if (!event.bookingClosingTime) return false;
@@ -1633,8 +1664,7 @@ const EventDetails = () => {
         if (t.endDate) {
           const ticketEndDate = t.endDate.seconds ? t.endDate.toDate() : new Date(t.endDate);
           const tDate = new Date(ticketEndDate);
-          tDate.setHours(0, 0, 0, 0);
-          if (tDate < today) {
+          if (tDate < new Date()) { // UPDATED: Expired event validation
             isNotExpired = false;
           }
         }
@@ -1808,6 +1838,21 @@ const EventDetails = () => {
             <div className="event-details-card glass">
               <div className="card-top-row">
                 <span className="category-badge">{event.category}</span>
+                {/* UPDATED: Expired event validation */}
+                {isEventExpired && (
+                  <span className="expired-badge" style={{
+                    backgroundColor: '#EF4444',
+                    color: '#FFFFFF',
+                    padding: '0.25rem 0.6rem',
+                    borderRadius: '2rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}>
+                    Event Expired
+                  </span>
+                )}
                 <button
                   className="share-btn"
                   aria-label="Share Event"
@@ -1963,17 +2008,42 @@ const EventDetails = () => {
                     </div>
                   )}
                 </div>
+                {/* UPDATED: Expired event validation */}
+                {isEventExpired && (
+                  <div className="expired-event-banner" style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '8px',
+                    padding: '0.75rem 1rem',
+                    marginTop: '0.75rem',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: '#DC2626',
+                    fontWeight: 600,
+                    fontSize: '0.9rem'
+                  }}>
+                    <AlertTriangle size={18} style={{ color: '#DC2626', flexShrink: 0 }} />
+                    <span>Event Expired: Booking is no longer available.</span>
+                  </div>
+                )}
                 <Button
                   variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
                   size="lg"
                   className="book-now-btn"
                   onClick={() => {
+                    // UPDATED: Expired event validation
+                    if (isEventExpired) {
+                      toast.error("This event has expired and booking is closed.");
+                      return;
+                    }
                     trackClickCheckoutNow(event);
                     navigate(`/events/${event.id}/book`);
                   }}
                   disabled={isEventExpired || isSoldOut || isBookingClosed}
                 >
-                  {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
+                  {isEventExpired ? 'Event Expired' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
                 </Button>
                 <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
                   <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
@@ -2074,17 +2144,24 @@ const EventDetails = () => {
             {event.isPriceOnwards && <span className="amount-sub" style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 500, marginLeft: '4px' }}>onwards</span>}
           </div>
           {event.priceMessage && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>{event.priceMessage}</span>}
+          {/* UPDATED: Expired event validation */}
+          {isEventExpired && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Event Expired</span>}
         </div>
         <Button
           variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
           size="lg"
           onClick={() => {
+            // UPDATED: Expired event validation
+            if (isEventExpired) {
+              toast.error("This event has expired and booking is closed.");
+              return;
+            }
             trackClickCheckoutNow(event);
             navigate(`/events/${event.id}/book`);
           }}
           disabled={isEventExpired || isSoldOut || isBookingClosed}
         >
-          {isEventExpired ? 'Event Ended' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
+          {isEventExpired ? 'Event Expired' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
         </Button>
       </div>
 

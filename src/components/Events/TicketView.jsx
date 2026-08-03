@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
 import { doc, getDoc, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { motion } from 'framer-motion';
+import html2canvas from 'html2canvas';
+import { QRCodeSVG } from 'qrcode.react';
 
 import {
   Copy,
@@ -219,24 +221,111 @@ const TicketView = () => {
   };
 
   const handleShareTicket = async () => {
-    const shareData = {
-      title: eventName || 'Blithe Pass',
-      text: `Check out my ticket for ${eventName || 'event'} on Blithe!`,
-      url: window.location.href,
-    };
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Ticket link copied to clipboard!");
-      }
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Ticket link copied to clipboard!");
-      }
+    if (!ticketRef.current) {
+      toast.error("Ticket element not ready.");
+      return;
     }
+
+    const toastId = toast.loading("Generating ticket image...");
+
+    try {
+      // Convert external image elements inside ticket element to Base64 to prevent CORS canvas taint
+      const imgElements = Array.from(ticketRef.current.querySelectorAll('img'));
+      const originalSrcs = imgElements.map((img) => img.src);
+
+      await Promise.all(
+        imgElements.map(async (img) => {
+          if (img.src && !img.src.startsWith('data:')) {
+            try {
+              const res = await fetch(img.src, { mode: 'cors' });
+              const blob = await res.blob();
+              await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  if (reader.result) img.src = reader.result;
+                  resolve();
+                };
+                reader.onerror = () => resolve();
+                reader.readAsDataURL(blob);
+              });
+            } catch (e) {
+              // Ignore fetch error, keep original src
+            }
+          }
+        })
+      );
+
+      const canvas = await html2canvas(ticketRef.current, {
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#0B0B0E',
+        scale: 2,
+        logging: false
+      });
+
+      // Restore original img srcs
+      imgElements.forEach((img, i) => {
+        img.src = originalSrcs[i];
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          toast.error("Failed to export image.", { id: toastId });
+          return;
+        }
+
+        const fileName = `Blithe-Ticket-${bookingId || 'Pass'}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: eventName || 'Blithe Pass',
+              text: `Here is my entry ticket for ${eventName || 'this event'}!\n${window.location.href}`,
+              files: [file]
+            });
+            toast.dismiss(toastId);
+          } catch (err) {
+            if (err.name !== 'AbortError') {
+              downloadFile(file);
+              toast.success("Ticket image downloaded!", { id: toastId });
+            } else {
+              toast.dismiss(toastId);
+            }
+          }
+        } else if (navigator.share) {
+          try {
+            await navigator.share({
+              title: eventName || 'Blithe Pass',
+              text: `Here is my entry ticket for ${eventName || 'this event'}!`,
+              url: window.location.href
+            });
+            toast.dismiss(toastId);
+          } catch (err) {
+            if (err.name !== 'AbortError') {
+              downloadFile(file);
+              toast.success("Ticket image downloaded!", { id: toastId });
+            } else {
+              toast.dismiss(toastId);
+            }
+          }
+        } else {
+          downloadFile(file);
+          toast.success("Ticket image downloaded!", { id: toastId });
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error("Error generating ticket image:", err);
+      toast.error("Could not capture ticket image.", { id: toastId });
+    }
+  };
+
+  const downloadFile = (file) => {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(file);
+    link.download = file.name;
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   // Compute data values safely
@@ -458,11 +547,14 @@ const TicketView = () => {
                 {/* Entry QR Box */}
                 <div className="qr-wrapper">
                   <div className="qr-card">
-                    <img
-                      src={qrDataUrl}
-                      alt={`QR Code for Booking ${bookingId}`}
-                      className="qr-image"
-                      loading="eager"
+                    <QRCodeSVG
+                      value={bookingId || 'ticket'}
+                      size={140}
+                      bgColor="#FFFFFF"
+                      fgColor="#000000"
+                      level="H"
+                      includeMargin={false}
+                      style={{ width: '100%', height: '100%' }}
                     />
                   </div>
                   <span className="scan-text">Scan at Entrance</span>
