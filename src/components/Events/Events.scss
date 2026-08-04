@@ -79,7 +79,10 @@
   }
 
   @media (max-width: 768px) {
-    margin-top: -4rem;
+    margin-top: 0;
+    max-width: 100%;
+    width: 100%;
+    overflow: hidden;
   }
 
   .hero-card-stack {
@@ -94,7 +97,10 @@
     @media (max-width: 768px) {
       height: 47vh !important;
       border-radius: 12px !important;
-      margin-top: 79px !important;
+      margin-top: 47px !important;
+      max-width: 94% !important;
+      width: 100% !important;
+      overflow: hidden !important;
     }
   }
 
@@ -371,7 +377,7 @@
 
 // 2. Search Section
 .search-section {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 
   @keyframes borderFlow {
     0% {
@@ -392,7 +398,7 @@
     @include glass-panel;
     display: flex;
     align-items: center;
-    padding: 0.95rem 1.75rem;
+    padding: 0.5rem 1.25rem;
     border-radius: 2rem;
     border: 1px solid #7C3AED;
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
@@ -457,9 +463,9 @@
       position: relative;
       z-index: 2;
       color: #6B7280;
-      font-size: 1.35rem;
+      font-size: 1.15rem;
       font-weight: 700;
-      margin-right: 0.75rem;
+      margin-right: 0.5rem;
       line-height: 1;
       user-select: none;
       transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
@@ -474,7 +480,7 @@
       border: none;
       background: transparent;
       outline: none;
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       color: $text-900;
       font-family: $font-body;
 
@@ -598,7 +604,7 @@
     }
 
     &.selected {
-      transform: translateY(-4px) scale(1.02);
+      transform: translateY(-2px) scale(1.02);
 
       @media (max-width: 768px) {
         transform: translateY(-2px) scale(1.02);
@@ -621,12 +627,12 @@
     position: relative;
     width: auto;
     border-radius: 2rem;
-    padding: 0.65rem 1.25rem;
+    padding: 0.4rem 0.95rem;
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--cat-bg);
     border: 1px solid var(--cat-border);
@@ -639,15 +645,15 @@
     }
 
     @media (max-width: 768px) {
-      padding: 0.5rem 1rem;
-      gap: 0.4rem;
+      padding: 0.35rem 0.8rem;
+      gap: 0.35rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
       border: 1px solid var(--cat-border);
     }
 
     &:hover,
     &:active {
-      transform: translateY(-2px);
+      transform: translateY(-1.5px);
 
       .category-icon-box {
         transform: scale(1.12) rotate(5deg);
@@ -659,13 +665,13 @@
     }
 
     .category-card-title {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 600;
       letter-spacing: 0.01em;
       line-height: 1;
 
       @media (max-width: 768px) {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 600;
       }
     }
@@ -692,11 +698,11 @@
   .category-grid-pc-wrapper {
     display: flex;
     align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1rem; // Reduced gap
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
 
     @media (max-width: 1024px) {
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     @media (max-width: 768px) {
@@ -707,13 +713,14 @@
       flex: 1;
       display: flex;
       flex-wrap: wrap;
-      gap: 1rem;
+      gap: 0.6rem;
       align-items: center;
-      padding-top: 8px !important;
+      padding-top: 6px !important;
+      padding-bottom: 2px !important;
+      margin-top: 0;
       overflow: hidden;
-      max-height: 52px; // Fits exactly one row with hover padding
+      max-height: 38px; // Fits row 1 + top hover headroom while keeping row 2 hidden
       transition: max-height 0.4s cubic-bezier(0.1, 0, 0.2, 1);
-      padding-bottom: 6px; // Slack for hover shadow/transform
     }
 
     &.expanded .category-grid-pc {
@@ -724,8 +731,8 @@
       align-self: flex-start;
       margin-top: 2px; // Align vertically with pills
       flex-shrink: 0;
-      width: 40px;
-      height: 40px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: 1px solid #111827;
       background: #111827;
@@ -765,7 +772,7 @@
       gap: 0.5rem;
       width: 100%;
       box-sizing: border-box;
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.75rem;
 
 
 
@@ -817,7 +824,7 @@
     position: relative;
     z-index: 200;
     width: 100%;
-    margin-bottom: 2.25rem;
+    margin-bottom: 0.75rem;
 
     @media (max-width: 768px) {
       display: flex;
@@ -870,10 +877,10 @@
   .filters-bar {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 2.25rem;
+    gap: 0.5rem;
+    margin-bottom: 0;
     overflow-x: auto;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
     scrollbar-width: none;
 
     &::-webkit-scrollbar {
@@ -1053,14 +1060,14 @@
     .filter-btn-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1.25rem;
+      gap: 0.4rem;
+      padding: 0.45rem 0.95rem;
       border-radius: 2rem;
       border: 1px solid rgba(0, 0, 0, 0.08);
       background-color: $white;
       color: $text-900;
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
       transition: all 0.3s ease;
       cursor: pointer;
@@ -1100,20 +1107,20 @@
     .quick-filter-pills {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.4rem;
     }
 
     .filter-pill {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0.65rem 1.25rem;
+      padding: 0.45rem 0.95rem;
       border-radius: 2rem;
       border: 1px solid rgba(0, 0, 0, 0.08);
       background-color: $white;
       color: $text-700;
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
       transition: all 0.25s ease;
       cursor: pointer;
@@ -1136,8 +1143,8 @@
     .clear-all-pill {
       display: inline-flex;
       align-items: center;
-      padding: 0.65rem 1.25rem;
-      font-size: 0.9rem;
+      padding: 0.45rem 0.95rem;
+      font-size: 0.85rem;
       font-weight: 700;
       color: #E05A47;
       cursor: pointer;
@@ -1155,8 +1162,8 @@
       .filter-btn-toggle,
       .filter-pill,
       .clear-all-pill {
-        padding: 0.5rem 1rem;
-        font-size: 0.8rem;
+        padding: 0.35rem 0.8rem;
+        font-size: 0.78rem;
 
         svg {
           width: 14px;
@@ -1522,8 +1529,13 @@
 
 @media (max-width: 768px) {
   .hero-carousel-section {
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box;
     height: auto; // STRICT fixed height for stacked mobile layout
-    padding: 3.25rem 0 0rem; // Significantly reduced padding on phone to fit without scroll
+    padding: 1rem 0 0rem;
+    margin-top: 0 !important;
     margin-bottom: 13px;
 
     .hero-grid {
@@ -1583,10 +1595,10 @@
 
   // 2. Search Section on Mobile
   .search-section {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 
     .search-bar-wrapper {
-      padding: 0.65rem 1.15rem;
+      padding: 0.45rem 1rem;
       border-radius: 1.5rem;
 
       .hashtag-prefix {

@@ -13,6 +13,7 @@ import {
   User,
   Ticket as TicketIcon,
   Calendar,
+  Clock,
   Compass,
   MapPin,
   ShieldCheck,
@@ -68,6 +69,47 @@ const TicketView = () => {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  // Format time: e.g., "12:00 AM - 03:00 PM"
+  const formatTime = (bookingObj, eventObj) => {
+    const explicitTimeVal = 
+      bookingObj?.eventTime || 
+      bookingObj?.time || 
+      eventObj?.eventTime || 
+      eventObj?.time || 
+      eventObj?.startTime || 
+      eventObj?.eventStartTime;
+
+    if (explicitTimeVal && typeof explicitTimeVal === 'string' && explicitTimeVal.trim() !== '') {
+      return explicitTimeVal.trim();
+    }
+
+    const startDateVal = eventObj?.eventStartDate || bookingObj?.eventDate;
+    const startDateObj = parseDate(startDateVal);
+    if (!startDateObj) return null;
+
+    const startFormatted = startDateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    if (eventObj?.eventEndDate) {
+      const endDateObj = parseDate(eventObj.eventEndDate);
+      if (endDateObj) {
+        const endFormatted = endDateObj.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        if (startFormatted !== endFormatted) {
+          return `${startFormatted} - ${endFormatted}`;
+        }
+      }
+    }
+
+    return startFormatted;
   };
 
   // Optimized Firestore fetching with instant eventId lookups
@@ -342,7 +384,8 @@ const TicketView = () => {
   const ticketHolderName = booking?.userName || userData?.fullName || userData?.name || userData?.displayName || 'Ticket Holder';
   const ticketHolderImage = booking?.userProfileImage || userData?.profilePic || userData?.photoURL || null;
 
-  const eventDateStr = formatDate(booking?.eventDate || eventDetails?.eventStartDate);
+  const eventDateStr = formatDate(eventDetails?.eventStartDate || booking?.eventDate);
+  const eventTimeStr = formatTime(booking, eventDetails);
   const bookedDateStr = formatDate(booking?.createdDate || booking?.bookingDate || new Date());
 
   const quantityCount = Number(booking?.totalQuantity || (booking?.tickets ? booking.tickets.reduce((acc, curr) => acc + (Number(curr.quantity) || Number(curr.totalQuantity) || 1), 0) : 1));
@@ -485,10 +528,19 @@ const TicketView = () => {
                     </div>
                   )}
 
-                  <div className="secondary-date-block">
-                    <Calendar size={13} className="date-icon" />
-                    <span className="date-lbl">EVENT DATE:</span>
-                    <span className="date-val">{eventDateStr}</span>
+                  <div className="secondary-date-time-block">
+                    <div className="meta-item">
+                      <Calendar size={13} className="date-icon" />
+                      <span className="date-lbl">EVENT DATE:</span>
+                      <span className="date-val">{eventDateStr}</span>
+                    </div>
+                    {eventTimeStr && (
+                      <div className="meta-item">
+                        <Clock size={13} className="date-icon" />
+                        <span className="date-lbl">TIME:</span>
+                        <span className="date-val">{eventTimeStr}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

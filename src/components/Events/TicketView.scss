@@ -573,14 +573,22 @@
           }
         }
 
-        /* SECONDARY DATE BLOCK (Subdued, Clean Below Venue) */
+        /* SECONDARY DATE & TIME BLOCK (Subdued, Clean Below Venue) */
+        .secondary-date-time-block,
         .secondary-date-block {
           display: flex;
           align-items: center;
-          gap: 6px;
+          flex-wrap: wrap;
+          gap: 10px;
           font-size: 0.74rem;
           color: #9CA3AF;
           padding-left: 2px;
+
+          .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
 
           .date-icon {
             color: #6B7280;
@@ -600,14 +608,18 @@
             font-weight: 700;
             color: #E5E7EB;
             font-size: 11px;
-
           }
 
           @media (min-width: 768px) {
             font-size: 0.88rem;
+            gap: 14px;
 
             .date-lbl {
               font-size: 0.68rem;
+            }
+
+            .date-val {
+              font-size: 0.85rem;
             }
           }
         }
@@ -810,19 +822,22 @@
           padding: 5px;
           border-radius: 12px;
           box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+          width: 90px;
+          height: 90px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
 
+          svg,
           .qr-image {
-            width: 95px;
-            height: 95px;
+            width: 100% !important;
+            height: 100% !important;
             display: block;
-
-            @media (min-width: 768px) {
-              width: 150px;
-              height: 150px;
-            }
           }
 
           @media (min-width: 768px) {
+            width: 140px;
+            height: 140px;
             padding: 8px;
             border-radius: 16px;
           }
@@ -864,15 +879,20 @@
             align-items: center;
             justify-content: space-between;
             font-size: 0.74rem;
+            min-width: 0;
 
             .type-left {
               display: flex;
               flex-direction: column;
               gap: 1px;
+              min-width: 0;
 
               .name {
                 font-weight: 700;
                 color: #FFFFFF;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
               }
 
               .attended-tag {
@@ -880,12 +900,16 @@
                 font-weight: 600;
                 color: #9CA3AF;
                 letter-spacing: 0.3px;
+                white-space: nowrap;
               }
             }
 
             .price {
               font-weight: 700;
               color: #A7F3D0;
+              white-space: nowrap;
+              flex-shrink: 0;
+              margin-left: 4px;
             }
 
             @media (min-width: 768px) {
@@ -910,29 +934,39 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: 6px;
           cursor: pointer;
+          min-width: 0;
 
           .b-id-left {
             display: flex;
             align-items: center;
             gap: 4px;
+            min-width: 0;
+            flex: 1;
 
             .lbl {
               font-size: 0.55rem;
               font-weight: 800;
               color: #A78BFA;
+              flex-shrink: 0;
             }
 
             .val {
               font-family: monospace;
-              font-size: 0.74rem;
+              font-size: 0.64rem;
               font-weight: 700;
               color: #FFFFFF;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              min-width: 0;
             }
           }
 
           .copy-icon {
             color: #A78BFA;
+            flex-shrink: 0;
 
             &.success {
               color: #4ADE80;

@@ -265,13 +265,13 @@
 
     .ticket-details-row {
       display: grid;
-      grid-template-columns: 1.1fr 1fr 1.3fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 1rem;
       border-top: 1px dashed rgba(0, 0, 0, 0.05);
       border-bottom: 1px dashed rgba(0, 0, 0, 0.05);
       padding: 1rem 0;
 
-      @media (max-width: 576px) {
+      @media (max-width: 640px) {
         grid-template-columns: 1fr;
         gap: 0.75rem;
       }

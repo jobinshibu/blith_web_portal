@@ -68,13 +68,48 @@ const BookingSuccess = () => {
   };
 
   // Helper to format time cleanly
-  const formatEventTime = (date) => {
-    if (!date) return '';
-    const d = parseDate(date);
-    return d.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
+  const formatEventTime = (bookingObj, eventObj) => {
+    // Check explicit time strings on booking or event document
+    const explicitTime = 
+      bookingObj?.eventTime || 
+      bookingObj?.time || 
+      eventObj?.eventTime || 
+      eventObj?.time || 
+      eventObj?.startTime || 
+      eventObj?.eventStartTime;
+
+    if (explicitTime && typeof explicitTime === 'string' && explicitTime.trim() !== '') {
+      return explicitTime.trim();
+    }
+
+    // Extract time from dates (eventStartDate or booking.eventDate)
+    let startDateObj = eventObj?.eventStartDate ? parseDate(eventObj.eventStartDate) : null;
+    let bookingDateObj = bookingObj?.eventDate ? parseDate(bookingObj.eventDate) : null;
+
+    let dateToUse = startDateObj || bookingDateObj;
+    if (!dateToUse) return '';
+
+    const startFormatted = dateToUse.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
+
+    if (eventObj?.eventEndDate) {
+      const endDateObj = parseDate(eventObj.eventEndDate);
+      if (endDateObj) {
+        const endFormatted = endDateObj.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        if (startFormatted !== endFormatted) {
+          return `${startFormatted} - ${endFormatted}`;
+        }
+      }
+    }
+
+    return startFormatted;
   };
 
   // Copy booking ID
@@ -413,14 +448,14 @@ const BookingSuccess = () => {
                 <Calendar size={14} className="icon" />
                 <div>
                   <span className="meta-lbl">Date</span>
-                  <span className="meta-val">{formatEventDate(booking?.eventDate || eventDetails?.eventStartDate)}</span>
+                  <span className="meta-val">{formatEventDate(eventDetails?.eventStartDate || booking?.eventDate)}</span>
                 </div>
               </div>
               <div className="meta-box">
                 <Clock size={14} className="icon" />
                 <div>
                   <span className="meta-lbl">Time</span>
-                  <span className="meta-val">{formatEventTime(booking?.eventDate || eventDetails?.eventStartDate)}</span>
+                  <span className="meta-val">{formatEventTime(booking, eventDetails) || 'TBA'}</span>
                 </div>
               </div>
               <div className="meta-box location">

@@ -10,7 +10,7 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(255, 255, 255, .97);
+  background: #ffffff;
   border-bottom: 1px solid var(--rule);
   height: 64px;
   overflow: visible;
@@ -32,17 +32,17 @@
     }
 
     .nav-logo-text-img {
-      height: 60px;
+      height: 52px;
       width: auto;
       object-fit: contain;
       mix-blend-mode: multiply;
 
       @media (max-width: 768px) {
-        height: 80px;
+        height: 52px;
       }
 
       @media (max-width: 480px) {
-        height: 51px;
+        height: 44px;
       }
     }
 

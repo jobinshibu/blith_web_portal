@@ -1026,7 +1026,7 @@ const EventBookingPage = () => {
     totalTickets > 0 &&
     (isMultiDay ? selectedDate !== null : true) &&
     attendee.name.trim() !== '' &&
-    attendee.email.trim() !== '' &&
+    isEmailValid &&
     isPhoneValid &&
     areApprovalAnswersValid &&
     agreeTerms && agreeAppTerms;
@@ -1254,7 +1254,7 @@ const EventBookingPage = () => {
       totalTickets > 0 &&
       (isMultiDay ? selectedDate !== null : true) &&
       attendee.name.trim() !== '' &&
-      attendee.email.trim() !== '' &&
+      isEmailValid &&
       isPhoneValid &&
       areApprovalAnswersValid &&
       (agreeTerms || bypassTermsCheck) &&
@@ -1485,6 +1485,7 @@ const EventBookingPage = () => {
           coupon: couponMap,
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
+          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
           eventId: event.id,
           eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
           eventLat: Number(event.lat || event.latitude || 0.0),
@@ -1530,6 +1531,7 @@ const EventBookingPage = () => {
           coupon: couponMap,
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
+          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
           eventId: event.id,
           eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
           eventLat: Number(event.lat || event.latitude || 0.0),
@@ -1566,6 +1568,7 @@ const EventBookingPage = () => {
           coupon: couponMap,
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
+          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
           eventId: event.id,
           eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
           eventLat: Number(event.lat || event.latitude || 0.0),
@@ -1611,6 +1614,7 @@ const EventBookingPage = () => {
           coupon: couponMap,
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
+          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
           eventId: event.id,
           eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
           eventLat: Number(event.lat || event.latitude || 0.0),
@@ -2515,8 +2519,8 @@ const EventBookingPage = () => {
                     }}
                   />
                 </div>
-                {((showErrors || (attendee.name.trim() !== '' && isPhoneValid)) && !attendee.email.trim()) && (
-                  <div className="validation-hint"><Info size={16} /><span>Please enter your email.</span></div>
+                {((showErrors || (attendee.name.trim() !== '' || isPhoneValid) || attendee.email.trim() !== '') && !isEmailValid) && (
+                  <div className="validation-hint"><Info size={16} /><span>Please enter a valid email address to receive your ticket !!</span></div>
                 )}
               </div>
 
