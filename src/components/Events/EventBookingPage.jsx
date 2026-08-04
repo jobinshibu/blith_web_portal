@@ -201,13 +201,24 @@ const EventBookingPage = () => {
             lastCheckedPhoneRef.current = (parsed.phone || '').trim();
           }
         } else {
-          setAttendee(prev => {
-            if (prev.name === '' && prev.email === '' && prev.phone === '') return prev;
-            return { name: '', email: '', phone: '' };
-          });
+          setAttendee({ name: '', email: '', phone: '' });
+          setSelectedDate(null);
+          setQuantities({});
+          setApprovalAnswers({});
           setResolvedUserId(null);
           setResolvedUserIdForCoupons(null);
           setFetchedUserName('');
+          setAppliedCoupon(null);
+          setCouponSession(null);
+          setCouponReservedUntil(null);
+          setCouponTimeLeft(null);
+          setCouponApplyingId(null);
+          setCouponErrors({});
+          setAgreeTerms(false);
+          setShowErrors(false);
+          setBookingId('');
+          lastCheckedEmailRef.current = '';
+          lastCheckedPhoneRef.current = '';
         }
       } catch (err) {
         console.warn("Failed to load checkout details from session:", err);
@@ -2032,11 +2043,9 @@ const EventBookingPage = () => {
                     </table>
                   </div>
 
-                  <!-- Booking QR Code -->
-                  <div style="text-align:center;margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;border:1px dashed #6C63FF;">
-                    <p style="margin-top:0;font-weight:bold;color:#6C63FF;font-size:15px;">🎟️ Your Entry Pass QR Code</p>
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${bId}" alt="Booking QR Code" style="width:150px;height:150px;display:block;margin:10px auto;" />
-                    <p style="margin-bottom:0;font-size:12px;color:#888;">Scan this QR code at the event entrance.</p>
+                  <!-- Open Ticket Button -->
+                  <div style="text-align:center;margin:25px 0;">
+                    <a href="https://blithe.social/ticketView/${event.id}/${bId}" style="display:inline-block;padding:12px 30px;background:#6C63FF;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;box-shadow:0 4px 6px rgba(108, 99, 255, 0.2);">🎟️ Open Ticket</a>
                   </div>
 
                   <h3 style="border-bottom:2px solid #6C63FF;padding-bottom:5px;margin-top:25px;font-size:18px;">Ticket Details</h3>
@@ -2343,8 +2352,8 @@ const EventBookingPage = () => {
           {event?.isBlocked
             ? "This event has been blocked or disabled by the organizer and is no longer available for booking."
             : event?.deleted
-            ? "This event has been removed by the organizer."
-            : "The event you are trying to book is no longer active or available."}
+              ? "This event has been removed by the organizer."
+              : "The event you are trying to book is no longer active or available."}
         </p>
         <button onClick={() => navigate('/events')} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
           Explore Other Events

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { submitContactMessage } from '../../services/contactService';
 import logoText from '../../assets/logo-text.png';
@@ -8,6 +8,15 @@ const Footer = () => {
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
   const [contactStatus, setContactStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (contactStatus.message) {
+      const timer = setTimeout(() => {
+        setContactStatus({ type: '', message: '' });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [contactStatus]);
 
   const handleContactChange = (e) => {
     setContactForm({ ...contactForm, [e.target.name]: e.target.value });

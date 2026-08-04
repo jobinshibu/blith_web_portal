@@ -182,6 +182,15 @@ const processTags = (tagsInput) => {
     .filter(t => t !== "");
 };
 
+// Helper to extract clean normalized search tokens from search query
+const getSearchTokens = (queryStr) => {
+  if (!queryStr || typeof queryStr !== 'string') return [];
+  const rawParts = queryStr.split(/[\s,]+/);
+  return rawParts
+    .map(p => p.replace(/^#+/, '').trim().toLowerCase())
+    .filter(p => p.length > 0 && p !== '&');
+};
+
 const CATEGORY_STYLES = [
   { name: "Music Shows", label: "Music", icon: Music, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
   { name: "Nightlife", label: "Nightlife", icon: Sparkles, color: "#7C3AED", bg: "#F5F3FF", border: "rgba(124, 58, 237, 0.2)", selectedBg: "linear-gradient(135deg, #7C3AED, #8B5CF6)", glow: "rgba(124, 58, 237, 0.25)" },
@@ -306,27 +315,54 @@ const parseEventDateRange = (dateStr, year = 2026) => {
   return null;
 };
 
-const isEventInDateRange = (eventDateStr, selectedStart, selectedEnd) => {
+const isEventInDateRange = (eventInput, selectedStart, selectedEnd) => {
   if (!selectedStart) return true;
 
-  const year = selectedStart.getFullYear();
-  const parsed = parseEventDateRange(eventDateStr, year);
-  if (!parsed) return false;
+  const toDateObj = (ts) => {
+    if (!ts) return null;
+    if (typeof ts.toDate === 'function') return ts.toDate();
+    return new Date(ts);
+  };
 
-  const eventStart = new Date(parsed.start.getFullYear(), parsed.start.getMonth(), parsed.start.getDate()).getTime();
-  const eventEnd = new Date(parsed.end.getFullYear(), parsed.end.getMonth(), parsed.end.getDate()).getTime();
+  let eventStartObj = null;
+  let eventEndObj = null;
+
+  if (eventInput && typeof eventInput === 'object') {
+    if (eventInput.raw?.eventStartDate) {
+      eventStartObj = toDateObj(eventInput.raw.eventStartDate);
+    }
+    if (eventInput.raw?.eventEndDate) {
+      eventEndObj = toDateObj(eventInput.raw.eventEndDate);
+    }
+    if (!eventStartObj && eventInput.date) {
+      const year = selectedStart.getFullYear();
+      const parsed = parseEventDateRange(eventInput.date, year);
+      if (parsed) {
+        eventStartObj = parsed.start;
+        eventEndObj = parsed.end;
+      }
+    }
+  } else if (typeof eventInput === 'string') {
+    const year = selectedStart.getFullYear();
+    const parsed = parseEventDateRange(eventInput, year);
+    if (parsed) {
+      eventStartObj = parsed.start;
+      eventEndObj = parsed.end;
+    }
+  }
+
+  if (!eventStartObj) return false;
+  if (!eventEndObj) eventEndObj = eventStartObj;
+
+  const eventStart = new Date(eventStartObj.getFullYear(), eventStartObj.getMonth(), eventStartObj.getDate()).getTime();
+  const eventEnd = new Date(eventEndObj.getFullYear(), eventEndObj.getMonth(), eventEndObj.getDate()).getTime();
 
   const selStart = new Date(selectedStart.getFullYear(), selectedStart.getMonth(), selectedStart.getDate()).getTime();
   const selEnd = selectedEnd
     ? new Date(selectedEnd.getFullYear(), selectedEnd.getMonth(), selectedEnd.getDate()).getTime()
-    : null;
+    : selStart;
 
-  if (selEnd) {
-    return (eventStart <= selEnd && eventEnd >= selStart);
-  } else {
-    // If only start date is selected, show all events from that day onwards
-    return (eventEnd >= selStart);
-  }
+  return (eventStart <= selEnd && eventEnd >= selStart);
 };
 
 const formatDateShort = (date) => {
@@ -508,9 +544,12 @@ const Events = () => {
   }, [reduxError]);
 
   useEffect(() => {
-    if (!rawCategories || rawCategories.length === 0) return;
+    let sourceCats = rawCategories;
+    if (!sourceCats || sourceCats.length === 0) {
+      sourceCats = CATEGORY_STYLES.map(s => ({ name: s.label }));
+    }
 
-    const fetchedCats = rawCategories.map((cat, index) => {
+    const fetchedCats = sourceCats.map((cat, index) => {
       const name = cat.categoryName || cat.name || cat.title || "Category";
       const nameLower = name.toLowerCase();
 
@@ -531,7 +570,7 @@ const Events = () => {
       const style = styleMatch || CATEGORY_STYLES[index % CATEGORY_STYLES.length];
 
       return {
-        id: cat.id,
+        id: cat.id || `cat-${index}`,
         name: name,
         label: name,
         icon: style.icon,
@@ -834,9 +873,19 @@ const Events = () => {
   // Unified Toggle Category Logic
   const toggleCategory = (catName) => {
     setSearchQuery(prev => {
-      let currentQueries = prev.split(/,\s*/).filter(q => q.trim() !== "");
-      if (currentQueries.some(q => q.toLowerCase() === catName.toLowerCase())) {
-        currentQueries = currentQueries.filter(q => q.toLowerCase() !== catName.toLowerCase());
+      let currentQueries = prev ? prev.split(/,\s*/).map(q => q.trim()).filter(Boolean) : [];
+      const cleanTarget = catName.replace(/^#+/, '').toLowerCase().trim();
+
+      const exists = currentQueries.some(q => {
+        const cleanQ = q.replace(/^#+/, '').toLowerCase().trim();
+        return cleanQ === cleanTarget;
+      });
+
+      if (exists) {
+        currentQueries = currentQueries.filter(q => {
+          const cleanQ = q.replace(/^#+/, '').toLowerCase().trim();
+          return cleanQ !== cleanTarget;
+        });
       } else {
         currentQueries.push(catName);
       }
@@ -845,8 +894,36 @@ const Events = () => {
   };
 
   const isCategorySelected = (catName) => {
-    const queries = searchQuery.split(/,\s*/).filter(q => q.trim() !== "");
-    return queries.some(q => q.toLowerCase() === catName.toLowerCase());
+    if (!catName || !searchQuery) return false;
+    const tokens = getSearchTokens(searchQuery);
+    const target = catName.replace(/^#+/, '').toLowerCase().trim();
+    return tokens.some(t => t === target || target.includes(t) || t.includes(target));
+  };
+
+  const getSortedCategories = (cats) => {
+    const tokens = getSearchTokens(searchQuery);
+    if (tokens.length === 0) return cats;
+
+    return cats.slice().sort((a, b) => {
+      const getSelIndex = (cat) => {
+        const catLower = cat.name.replace(/^#+/, '').toLowerCase().trim();
+        return tokens.findIndex(t => t === catLower || catLower.includes(t) || t.includes(catLower));
+      };
+
+      const aIdx = getSelIndex(a);
+      const bIdx = getSelIndex(b);
+
+      const aSel = aIdx !== -1 ? 1 : 0;
+      const bSel = bIdx !== -1 ? 1 : 0;
+
+      if (aSel !== bSel) {
+        return bSel - aSel;
+      }
+      if (aSel && bSel) {
+        return aIdx - bIdx; // Maintain exact selection order
+      }
+      return 0;
+    });
   };
 
   // Clear all filters
@@ -968,31 +1045,31 @@ const Events = () => {
 
   // Filter events based on selections
   const filteredEvents = events.filter(event => {
-    // 1. Unified Search & Category Filter (OR logic for multiple terms)
+    // 1. Unified Search & Category Filter (OR logic for multiple terms/hashtags)
     if (searchQuery.trim() !== "") {
-      const queries = searchQuery.toLowerCase().split(/,\s*/).filter(q => q.trim() !== "");
+      const tokens = getSearchTokens(searchQuery);
 
-      const isMatch = queries.some(queryClean => {
-        const q = queryClean.startsWith('#') ? queryClean.slice(1) : queryClean;
+      if (tokens.length > 0) {
+        const isMatch = tokens.some(q => {
+          const matchHashtag = event.hashtags && event.hashtags.some(tag => {
+            const tagClean = tag.toLowerCase().replace(/^#+/, '').trim();
+            return tagClean.includes(q) || q.includes(tagClean);
+          });
 
-        const matchHashtag = event.hashtags && event.hashtags.some(tag => {
-          const tagClean = tag.toLowerCase().replace('#', '');
-          return tagClean.includes(q);
+          const matchTitle = event.title.toLowerCase().includes(q);
+          const matchLoc = event.location.toLowerCase().includes(q);
+          const matchCat = event.category.toLowerCase().includes(q) || q.includes(event.category.toLowerCase());
+
+          return matchHashtag || matchTitle || matchLoc || matchCat;
         });
 
-        const matchTitle = event.title.toLowerCase().includes(q);
-        const matchLoc = event.location.toLowerCase().includes(q);
-        const matchCat = event.category.toLowerCase().includes(q);
-
-        return matchHashtag || matchTitle || matchLoc || matchCat;
-      });
-
-      if (!isMatch) return false;
+        if (!isMatch) return false;
+      }
     }
 
     // 2. Custom Date Range Picker Filter
     if (startDate) {
-      if (!isEventInDateRange(event.date, startDate, endDate)) return false;
+      if (!isEventInDateRange(event, startDate, endDate)) return false;
     }
 
     // 4. Nearby Filter
@@ -1360,16 +1437,10 @@ const Events = () => {
               {/* PC Grid Layout (flex wrap) */}
               <div className={`category-grid-pc-wrapper ${isCategoriesExpanded ? 'expanded' : ''}`}>
                 <div className="category-grid-pc">
-                  {exploreCategories
-                    .slice()
-                    .sort((a, b) => {
-                      const aSel = isCategorySelected(a.name) ? 1 : 0;
-                      const bSel = isCategorySelected(b.name) ? 1 : 0;
-                      return bSel - aSel;
-                    })
+                  {getSortedCategories(exploreCategories)
                     .map((cat, i) => (
                       <CategoryCard
-                        key={i}
+                        key={cat.id || cat.name || i}
                         cat={cat}
                         isSelected={isCategorySelected(cat.name)}
                         onClick={() => toggleCategory(cat.name)}
@@ -1390,16 +1461,10 @@ const Events = () => {
               {/* Mobile Swipeable Slider Layout */}
               <div className="category-slider-mobile">
                 <div className="category-slider" ref={categorySliderRef} onScroll={checkCategoryOverflow}>
-                  {exploreCategories
-                    .slice()
-                    .sort((a, b) => {
-                      const aSel = isCategorySelected(a.name) ? 1 : 0;
-                      const bSel = isCategorySelected(b.name) ? 1 : 0;
-                      return bSel - aSel;
-                    })
+                  {getSortedCategories(exploreCategories)
                     .map((cat, i) => (
                       <CategoryCard
-                        key={i}
+                        key={cat.id || cat.name || i}
                         cat={cat}
                         isSelected={isCategorySelected(cat.name)}
                         onClick={() => toggleCategory(cat.name)}

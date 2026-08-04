@@ -37,6 +37,50 @@ const formatSocialUrl = (url) => {
   return `https://${trimmed}`;
 };
 
+// Helper to parse text and render clickable anchor tags for URLs
+const renderTextWithLinks = (text) => {
+  if (!text) return null;
+  const strText = typeof text === 'string' ? text : String(text);
+
+  // Regex to match URLs starting with http://, https://, or www.
+  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+  const parts = strText.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (/^(https?:\/\/|www\.)/i.test(part)) {
+      let cleanUrl = part;
+      let trailingPunctuation = '';
+
+      // Extract trailing punctuation like ., !, ?, ), ], etc.
+      const punctMatch = part.match(/([.,!?:;)\]]+)$/);
+      if (punctMatch) {
+        trailingPunctuation = punctMatch[0];
+        cleanUrl = part.slice(0, -trailingPunctuation.length);
+      }
+
+      const href = cleanUrl.toLowerCase().startsWith('www.')
+        ? `https://${cleanUrl}`
+        : cleanUrl;
+
+      return (
+        <React.Fragment key={index}>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="description-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {cleanUrl}
+          </a>
+          {trailingPunctuation}
+        </React.Fragment>
+      );
+    }
+    return part;
+  });
+};
+
 // Helper to calculate distance in km
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
@@ -720,12 +764,22 @@ const EventDetails = () => {
           }
         } else {
           console.log("[CurrentUser Debug] No cached user found in sessionStorage.");
+          setCurrentUser(null);
         }
       } catch (err) {
         console.warn("[CurrentUser Debug] Failed to fetch current user profile:", err);
       }
     };
     fetchCurrentUserProfile();
+
+    const handleSessionChange = () => {
+      fetchCurrentUserProfile();
+    };
+
+    window.addEventListener('session-user-changed', handleSessionChange);
+    return () => {
+      window.removeEventListener('session-user-changed', handleSessionChange);
+    };
   }, []);
 
   // Fetch user location — triggers browser permission popup after a 5s delay
@@ -1611,8 +1665,8 @@ const EventDetails = () => {
           {event.isBlocked
             ? "This event is currently blocked and unavailable for viewing or booking."
             : event.deleted
-            ? "This event has been removed by the organizer."
-            : "This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer."}
+              ? "This event has been removed by the organizer."
+              : "This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer."}
         </p>
         <button onClick={() => navigate('/events')} className="back-btn">
           Back to Events
@@ -1763,7 +1817,7 @@ const EventDetails = () => {
                 <h2>About the Event</h2>
               </div>
               <div className={`expandable-content ${isAboutExpanded ? 'expanded' : ''}`} ref={aboutRef}>
-                <p className="description">{event.description}</p>
+                <p className="description" style={{ whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(event.description)}</p>
               </div>
               {showAboutBtn && (
                 <button
@@ -1821,7 +1875,7 @@ const EventDetails = () => {
                     {organiser.about && (
                       <>
                         <div className={`expandable-content ${isOrgAboutExpanded ? 'expanded' : ''}`} ref={orgAboutRef}>
-                          <p className="organiser-about" style={{ margin: 0 }}>{organiser.about}</p>
+                          <p className="organiser-about" style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(organiser.about)}</p>
                         </div>
                         {showOrgAboutBtn && (
                           <button
@@ -2108,7 +2162,7 @@ const EventDetails = () => {
               </div>
               <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsRef}>
                 <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
-                  {event.termsAndConditions}
+                  {renderTextWithLinks(event.termsAndConditions)}
                 </p>
               </div>
               {showTermsBtn && (
