@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { initializeAnalytics } from "firebase/analytics";
 import { getFunctions } from "firebase/functions";
 
@@ -25,8 +25,10 @@ if (isDevelopment && typeof window !== 'undefined') {
 
 export const analytics = initializeAnalytics(app);
 
-// Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(app);
+// Initialize Cloud Firestore with modern persistent local cache to prevent deprecation warning
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 
 // Initialize Cloud Functions
 export const functions = getFunctions(app);

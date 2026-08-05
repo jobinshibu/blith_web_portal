@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
 import { doc, getDoc, collectionGroup, query, where, getDocs } from 'firebase/firestore';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCodeCanvas from '../../utils/QRCodeCanvas';
 
 import {
   Copy,
@@ -18,7 +18,8 @@ import {
   MapPin,
   ShieldCheck,
   Share2,
-  ExternalLink
+  ExternalLink,
+  X
 } from 'lucide-react';
 
 import { toast } from 'react-hot-toast';
@@ -50,6 +51,7 @@ const TicketView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copiedId, setCopiedId] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Parse Firestore Timestamp or string date to Date object
   const parseDate = (val) => {
@@ -129,75 +131,61 @@ const TicketView = () => {
       try {
         let foundBooking = null;
 
-        // 0a. Parallel fetch event document instantly from event collection
+        // 0. Fast parallel lookup for event document and subcollections
         if (eventId) {
-          getDoc(doc(db, "event", eventId))
-            .then((eSnap) => {
-              if (eSnap.exists() && isMounted) {
-                setEventDetails({ id: eSnap.id, ...eSnap.data() });
-              }
-            })
-            .catch((e) => console.warn("Instant event fetch warning:", e));
+          const ebRef1 = doc(db, "event", eventId, "eventBookings", bookingId);
+          const ebRef2 = doc(db, "event", eventId, "myBookings", bookingId);
 
-          // 0b. Fast direct O(1) doc lookup under event subcollection
-          try {
-            const ebRef = doc(db, "event", eventId, "eventBookings", bookingId);
-            const ebSnap = await getDoc(ebRef);
-            if (ebSnap.exists()) {
-              foundBooking = { id: ebSnap.id, ...ebSnap.data() };
-            }
-          } catch (e) { }
+          const [eSnap, ebSnap1, ebSnap2] = await Promise.all([
+            getDoc(doc(db, "event", eventId)).catch(() => null),
+            getDoc(ebRef1).catch(() => null),
+            getDoc(ebRef2).catch(() => null)
+          ]);
 
-          if (!foundBooking) {
-            try {
-              const ebRef2 = doc(db, "event", eventId, "myBookings", bookingId);
-              const ebSnap2 = await getDoc(ebRef2);
-              if (ebSnap2.exists()) {
-                foundBooking = { id: ebSnap2.id, ...ebSnap2.data() };
-              }
-            } catch (e) { }
+          if (eSnap && eSnap.exists() && isMounted) {
+            setEventDetails({ id: eSnap.id, ...eSnap.data() });
+          }
+
+          if (ebSnap1 && ebSnap1.exists()) {
+            foundBooking = { id: ebSnap1.id, ...ebSnap1.data() };
+          } else if (ebSnap2 && ebSnap2.exists()) {
+            foundBooking = { id: ebSnap2.id, ...ebSnap2.data() };
           }
         }
 
-        // 1. Query collectionGroup 'myBookings' by field 'bookingId'
+        // 1 & 2. Parallel collectionGroup queries for 'myBookings' and 'eventBookings'
         if (!foundBooking) {
           try {
             const q1 = query(collectionGroup(db, 'myBookings'), where('bookingId', '==', bookingId));
-            const snap1 = await getDocs(q1);
-            if (!snap1.empty) {
+            const q2 = query(collectionGroup(db, 'eventBookings'), where('bookingId', '==', bookingId));
+
+            const [snap1, snap2] = await Promise.all([
+              getDocs(q1).catch((err) => { console.warn("myBookings collectionGroup query error:", err); return null; }),
+              getDocs(q2).catch((err) => { console.warn("eventBookings collectionGroup query error:", err); return null; })
+            ]);
+
+            if (snap1 && !snap1.empty) {
               foundBooking = { id: snap1.docs[0].id, ...snap1.docs[0].data() };
+            } else if (snap2 && !snap2.empty) {
+              foundBooking = { id: snap2.docs[0].id, ...snap2.docs[0].data() };
             }
           } catch (cgErr) {
-            console.warn("collectionGroup 'myBookings' query error:", cgErr);
+            console.warn("collectionGroup query error:", cgErr);
           }
         }
 
-        // 2. Query collectionGroup 'eventBookings' by field 'bookingId'
-        if (!foundBooking) {
-          try {
-            const q3 = query(collectionGroup(db, 'eventBookings'), where('bookingId', '==', bookingId));
-            const snap3 = await getDocs(q3);
-            if (!snap3.empty) {
-              foundBooking = { id: snap3.docs[0].id, ...snap3.docs[0].data() };
-            }
-          } catch (cgErr) {
-            console.warn("collectionGroup 'eventBookings' query error:", cgErr);
-          }
-        }
-
-        // 3. Fallback direct collection lookups
+        // 3. Fallback parallel direct collection lookups
         if (!foundBooking) {
           const directCollections = ['myBookings', 'bookings', 'eventBookings'];
-          for (const colName of directCollections) {
-            try {
-              const directRef = doc(db, colName, bookingId);
-              const directSnap = await getDoc(directRef);
-              if (directSnap.exists()) {
-                foundBooking = { id: directSnap.id, ...directSnap.data() };
-                break;
-              }
-            } catch (e) { }
-          }
+          try {
+            const snaps = await Promise.all(
+              directCollections.map((colName) => getDoc(doc(db, colName, bookingId)).catch(() => null))
+            );
+            const validSnap = snaps.find((snap) => snap && snap.exists());
+            if (validSnap) {
+              foundBooking = { id: validSnap.id, ...validSnap.data() };
+            }
+          } catch (e) { }
         }
 
         if (!isMounted) return;
@@ -205,30 +193,29 @@ const TicketView = () => {
         if (foundBooking) {
           setBooking(foundBooking);
 
-          // Fetch associated event info from event collection if not already loaded
+          // Fetch associated event info & user info in parallel
           const targetEventId = foundBooking.eventId || eventId;
-          if (targetEventId && !eventDetails) {
-            try {
-              const eventSnap = await getDoc(doc(db, "event", targetEventId));
-              if (eventSnap.exists()) {
-                setEventDetails({ id: eventSnap.id, ...eventSnap.data() });
-              }
-            } catch (e) {
-              console.error("Error fetching event details:", e);
-            }
-          }
+          const fetchEventTask = (targetEventId && !eventDetails)
+            ? getDoc(doc(db, "event", targetEventId))
+                .then((snap) => {
+                  if (snap.exists() && isMounted) {
+                    setEventDetails({ id: snap.id, ...snap.data() });
+                  }
+                })
+                .catch((e) => console.error("Error fetching event details:", e))
+            : Promise.resolve();
 
-          // Fetch user data if profile image or name missing
-          if (foundBooking.userId) {
-            try {
-              const userSnap = await getDoc(doc(db, "users", foundBooking.userId));
-              if (userSnap.exists()) {
-                setUserData(userSnap.data());
-              }
-            } catch (e) {
-              console.error("Error fetching user info:", e);
-            }
-          }
+          const fetchUserTask = (foundBooking.userId)
+            ? getDoc(doc(db, "users", foundBooking.userId))
+                .then((userSnap) => {
+                  if (userSnap.exists() && isMounted) {
+                    setUserData(userSnap.data());
+                  }
+                })
+                .catch((e) => console.error("Error fetching user info:", e))
+            : Promise.resolve();
+
+          await Promise.all([fetchEventTask, fetchUserTask]);
         } else {
           setError("Booking details not found. Please verify your URL.");
         }
@@ -436,7 +423,7 @@ const TicketView = () => {
       <header className="mobile-fit-header">
         <div className="brand-title-box">
           <div className="brand-logo-row">
-            <img src={logoTransparent} alt="Blithe Logo" className="header-brand-logo" />
+            <img src={logoTransparent} alt="Blithe Logo" className="header-brand-logo" decoding="async" />
             <span className="brand-name">BLITHE PASS</span>
           </div>
           {/* <span className="brand-sub">Official Entry Ticket</span> */}
@@ -498,7 +485,7 @@ const TicketView = () => {
               <div className="hero-event-section">
                 <div className="poster-frame">
                   {eventBannerImage ? (
-                    <img src={eventBannerImage} alt={eventName} className="poster-image" />
+                    <img src={eventBannerImage} alt={eventName} className="poster-image" decoding="async" loading="eager" />
                   ) : (
                     <div className="poster-placeholder">
                       <TicketIcon size={36} />
@@ -554,7 +541,7 @@ const TicketView = () => {
                   </div>
                   <div className="holder-user-val">
                     {ticketHolderImage ? (
-                      <img src={ticketHolderImage} alt={ticketHolderName} className="avatar" />
+                      <img src={ticketHolderImage} alt={ticketHolderName} className="avatar" decoding="async" />
                     ) : (
                       <div className="avatar-placeholder">
                         <User size={10} />
@@ -597,9 +584,9 @@ const TicketView = () => {
 
               <div className="stub-body-row">
                 {/* Entry QR Box */}
-                <div className="qr-wrapper">
-                  <div className="qr-card">
-                    <QRCodeSVG
+                <div className="qr-wrapper" onClick={() => setShowQRModal(true)}>
+                  <div className="qr-card clickable" title="Tap to expand QR code">
+                    <QRCodeCanvas
                       value={bookingId || 'ticket'}
                       size={140}
                       bgColor="#FFFFFF"
@@ -692,6 +679,61 @@ const TicketView = () => {
           </motion.div>
         )}
       </main>
+
+      {/* FULLSCREEN / ENLARGED QR MODAL */}
+      <AnimatePresence>
+        {showQRModal && (
+          <motion.div
+            className="qr-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowQRModal(false)}
+          >
+            <motion.div
+              className="qr-modal-content"
+              initial={{ scale: 0.85, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="qr-modal-close"
+                onClick={() => setShowQRModal(false)}
+                aria-label="Close QR Code"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="qr-modal-header">
+                <ShieldCheck size={22} className="qr-modal-shield" />
+                <h3>Entry Verification QR</h3>
+                <p>Present this high-resolution QR code to the entrance scanner</p>
+              </div>
+
+              <div className="qr-modal-card">
+                <QRCodeCanvas
+                  value={bookingId || 'ticket'}
+                  size={260}
+                  bgColor="#FFFFFF"
+                  fgColor="#000000"
+                  level="H"
+                  includeMargin={true}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </div>
+
+              <div className="qr-modal-booking-id">
+                <span className="lbl">BOOKING ID</span>
+                <span className="val">{bookingId}</span>
+              </div>
+
+              <span className="qr-modal-hint">Tap anywhere outside to close</span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

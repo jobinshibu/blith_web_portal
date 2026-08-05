@@ -24,7 +24,7 @@ export const fetchEventsThunk = createAsyncThunk(
         // Try optimized query with date filter to retrieve events ending from today onwards
         eventsQuery = query(
           collection(db, "event"),
-          where("deleted", "==", true),
+          where("deleted", "==", false),
           where("block", "==", false),
           where("eventEndDate", ">=", today)
         );
@@ -40,7 +40,7 @@ export const fetchEventsThunk = createAsyncThunk(
           console.error("Error executing optimized query, falling back:", indexError);
         }
 
-        // Fallback query without range condition (will retrieve all deleted/non-blocked events)
+        // Fallback query without range condition (will retrieve all non-deleted/non-blocked events)
         eventsQuery = query(
           collection(db, "event"),
           where("deleted", "==", false),
@@ -49,7 +49,7 @@ export const fetchEventsThunk = createAsyncThunk(
         querySnapshot = await getDocs(eventsQuery);
       }
 
-      // Fallback for local testing if no deleted events exist
+      // Fallback if primary query returns empty
       if (querySnapshot.empty) {
         eventsQuery = query(
           collection(db, "event"),
