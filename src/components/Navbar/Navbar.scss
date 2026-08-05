@@ -1,6 +1,7 @@
 @import '../../styles/variables';
 
 .navbar {
+  font-family: 'Poppins', sans-serif;
   --ink2: #4b5563;
   --rule: rgba(0, 0, 0, 0.08);
   --v: #7C3AED;
@@ -64,7 +65,7 @@
 
     a {
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       color: var(--ink2);
       text-decoration: none;
       padding: 8px 14px;
@@ -142,6 +143,7 @@
 }
 
 .mobile-off-canvas {
+  font-family: 'Poppins', sans-serif;
   position: fixed;
   top: 0;
   left: 0;
@@ -173,10 +175,14 @@
       margin-left: 1%;
 
       .nav-logo-text-img {
-        height: 40px;
+        height: 52px;
         width: auto;
         object-fit: contain;
         mix-blend-mode: multiply;
+
+        @media (max-width: 480px) {
+          height: 44px;
+        }
       }
     }
 

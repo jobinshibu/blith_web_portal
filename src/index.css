@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700;800&family=Playfair+Display:wght@600;700;800&family=Syne:wght@700;800&family=Urbanist:wght@700;800&family=Cinzel:wght@600;700;800&family=Unbounded:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700;800&family=Playfair+Display:wght@600;700;800&family=Syne:wght@700;800&family=Urbanist:wght@700;800&family=Cinzel:wght@600;700;800&family=Unbounded:wght@700;800&display=swap');
 
 :root {
   --lavender-600: #7C3AED;
@@ -147,6 +147,7 @@ button {
 }
 
 @media (max-width: 768px) {
+
   .event-details-page .mobile-fixed-booking-bar .btn-lg,
   .event-details-page .mobile-fixed-booking-bar .book-now-btn {
     padding: 0.75rem 1rem;
@@ -192,13 +193,14 @@ button {
 }
 
 .nav-link {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--text-700);
+  font-size: 13px;
+  font-weight: 600;
+
+  color: #4b5563;
 }
 
 .nav-link:hover {
-  color: var(--lavender-600);
+  color: #0F0F0F;
 }
 
 /* Hero Styles */

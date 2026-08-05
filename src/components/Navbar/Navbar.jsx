@@ -193,9 +193,16 @@ const Navbar = () => {
                 <a href="https://blithe.social" className="menu-logo" onClick={closeMenu}>
                   <img src={logoText} alt="Blithe" className="nav-logo-text-img" />
                 </a>
-                <button className="mobile-menu-close" onClick={closeMenu} aria-label="Close Menu">
-                  <X size={28} />
-                </button>
+                <div className="mobile-actions-group">
+                  {!isEventsPage && (
+                    <Link to="/events" className="nav-pill mobile-explore-btn" onClick={closeMenu}>
+                      Explore Events
+                    </Link>
+                  )}
+                  <button className="mobile-menu-close" onClick={closeMenu} aria-label="Close Menu">
+                    <X size={28} />
+                  </button>
+                </div>
               </div>
 
               <div className="mobile-nav-links">
