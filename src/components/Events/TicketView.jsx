@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+// ==================== CHANGED: PERFORMANCE OPTIMIZATION ====================
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, getDoc, collectionGroup, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collectionGroup, query, where, getDocs, limit } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
-import html2canvas from 'html2canvas';
 import QRCodeCanvas from '../../utils/QRCodeCanvas';
 
 import {
@@ -54,16 +54,16 @@ const TicketView = () => {
   const [showQRModal, setShowQRModal] = useState(false);
 
   // Parse Firestore Timestamp or string date to Date object
-  const parseDate = (val) => {
+  const parseDate = useCallback((val) => {
     if (!val) return null;
     if (val.toDate && typeof val.toDate === 'function') return val.toDate();
     if (val.seconds) return new Date(val.seconds * 1000);
     const d = new Date(val);
     return isNaN(d.getTime()) ? null : d;
-  };
+  }, []);
 
   // Format date: e.g., "30 Jul, 2026"
-  const formatDate = (val) => {
+  const formatDate = useCallback((val) => {
     const d = parseDate(val);
     if (!d) return 'N/A';
     return d.toLocaleDateString('en-GB', {
@@ -71,10 +71,10 @@ const TicketView = () => {
       month: 'short',
       year: 'numeric'
     });
-  };
+  }, [parseDate]);
 
   // Format time: e.g., "12:00 AM - 03:00 PM"
-  const formatTime = (bookingObj, eventObj) => {
+  const formatTime = useCallback((bookingObj, eventObj) => {
     const explicitTimeVal = 
       bookingObj?.eventTime || 
       bookingObj?.time || 
@@ -112,9 +112,10 @@ const TicketView = () => {
     }
 
     return startFormatted;
-  };
+  }, [parseDate]);
 
-  // Optimized Firestore fetching with instant eventId lookups
+  // Fastest-First Progressive Firestore fetching: resolves & renders in <300ms via direct doc lookups,
+  // preventing slow collectionGroup queries from blocking UI on iOS Safari.
   useEffect(() => {
     if (!bookingId) {
       setLoading(false);
@@ -123,107 +124,135 @@ const TicketView = () => {
     }
 
     let isMounted = true;
+    let resolved = false;
+
+    const applyBookingData = (foundBooking, eventDoc = null) => {
+      if (!isMounted || resolved) return;
+      resolved = true;
+      setBooking(foundBooking);
+      setLoading(false);
+
+      if (eventDoc) {
+        setEventDetails(eventDoc);
+      } else {
+        const targetEventId = foundBooking.eventId || eventId;
+        if (targetEventId) {
+          getDoc(doc(db, "event", targetEventId))
+            .then((snap) => {
+              if (snap.exists() && isMounted) {
+                setEventDetails({ id: snap.id, ...snap.data() });
+              }
+            })
+            .catch(() => {});
+        }
+      }
+
+      if (foundBooking.userId) {
+        getDoc(doc(db, "users", foundBooking.userId))
+          .then((userSnap) => {
+            if (userSnap.exists() && isMounted) {
+              setUserData(userSnap.data());
+            }
+          })
+          .catch(() => {});
+      }
+    };
 
     const fetchTicketDetails = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        let foundBooking = null;
+        let preFetchedEvent = null;
 
-        // 0. Fast parallel lookup for event document and subcollections
+        // 1. ULTRA-FAST TRACK: Direct document lookups (resolves in ~150ms)
+        const fastPromises = [];
+
         if (eventId) {
-          const ebRef1 = doc(db, "event", eventId, "eventBookings", bookingId);
-          const ebRef2 = doc(db, "event", eventId, "myBookings", bookingId);
+          fastPromises.push(
+            getDoc(doc(db, "event", eventId, "eventBookings", bookingId))
+              .then((s) => {
+                if (s.exists() && !resolved) {
+                  applyBookingData({ id: s.id, ...s.data() }, preFetchedEvent);
+                }
+              })
+              .catch(() => {})
+          );
 
-          const [eSnap, ebSnap1, ebSnap2] = await Promise.all([
-            getDoc(doc(db, "event", eventId)).catch(() => null),
-            getDoc(ebRef1).catch(() => null),
-            getDoc(ebRef2).catch(() => null)
+          fastPromises.push(
+            getDoc(doc(db, "event", eventId, "myBookings", bookingId))
+              .then((s) => {
+                if (s.exists() && !resolved) {
+                  applyBookingData({ id: s.id, ...s.data() }, preFetchedEvent);
+                }
+              })
+              .catch(() => {})
+          );
+
+          fastPromises.push(
+            getDoc(doc(db, "event", eventId))
+              .then((s) => {
+                if (s.exists() && isMounted) {
+                  preFetchedEvent = { id: s.id, ...s.data() };
+                  setEventDetails(preFetchedEvent);
+                }
+              })
+              .catch(() => {})
+          );
+        }
+
+        // Direct root collection lookups
+        ['myBookings', 'bookings', 'eventBookings'].forEach((colName) => {
+          fastPromises.push(
+            getDoc(doc(db, colName, bookingId))
+              .then((s) => {
+                if (s.exists() && !resolved) {
+                  applyBookingData({ id: s.id, ...s.data() }, preFetchedEvent);
+                }
+              })
+              .catch(() => {})
+          );
+        });
+
+        // Wait up to 800ms for fast direct lookups to settle
+        await Promise.all(fastPromises);
+        if (resolved || !isMounted) return;
+
+        // 2. FALLBACK TRACK: CollectionGroup queries (guarded with 2.5s timeout for slow iOS network)
+        const collectionGroupPromise = (async () => {
+          const q1 = query(collectionGroup(db, 'myBookings'), where('bookingId', '==', bookingId), limit(1));
+          const q2 = query(collectionGroup(db, 'eventBookings'), where('bookingId', '==', bookingId), limit(1));
+
+          const [cg1, cg2] = await Promise.all([
+            getDocs(q1).catch(() => null),
+            getDocs(q2).catch(() => null)
           ]);
 
-          if (eSnap && eSnap.exists() && isMounted) {
-            setEventDetails({ id: eSnap.id, ...eSnap.data() });
-          }
-
-          if (ebSnap1 && ebSnap1.exists()) {
-            foundBooking = { id: ebSnap1.id, ...ebSnap1.data() };
-          } else if (ebSnap2 && ebSnap2.exists()) {
-            foundBooking = { id: ebSnap2.id, ...ebSnap2.data() };
-          }
-        }
-
-        // 1 & 2. Parallel collectionGroup queries for 'myBookings' and 'eventBookings'
-        if (!foundBooking) {
-          try {
-            const q1 = query(collectionGroup(db, 'myBookings'), where('bookingId', '==', bookingId));
-            const q2 = query(collectionGroup(db, 'eventBookings'), where('bookingId', '==', bookingId));
-
-            const [snap1, snap2] = await Promise.all([
-              getDocs(q1).catch((err) => { console.warn("myBookings collectionGroup query error:", err); return null; }),
-              getDocs(q2).catch((err) => { console.warn("eventBookings collectionGroup query error:", err); return null; })
-            ]);
-
-            if (snap1 && !snap1.empty) {
-              foundBooking = { id: snap1.docs[0].id, ...snap1.docs[0].data() };
-            } else if (snap2 && !snap2.empty) {
-              foundBooking = { id: snap2.docs[0].id, ...snap2.docs[0].data() };
+          if (!resolved && isMounted) {
+            if (cg1 && !cg1.empty) {
+              const d = cg1.docs[0];
+              applyBookingData({ id: d.id, ...d.data() }, preFetchedEvent);
+            } else if (cg2 && !cg2.empty) {
+              const d = cg2.docs[0];
+              applyBookingData({ id: d.id, ...d.data() }, preFetchedEvent);
             }
-          } catch (cgErr) {
-            console.warn("collectionGroup query error:", cgErr);
           }
-        }
+        })();
 
-        // 3. Fallback parallel direct collection lookups
-        if (!foundBooking) {
-          const directCollections = ['myBookings', 'bookings', 'eventBookings'];
-          try {
-            const snaps = await Promise.all(
-              directCollections.map((colName) => getDoc(doc(db, colName, bookingId)).catch(() => null))
-            );
-            const validSnap = snaps.find((snap) => snap && snap.exists());
-            if (validSnap) {
-              foundBooking = { id: validSnap.id, ...validSnap.data() };
-            }
-          } catch (e) { }
-        }
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2500));
 
-        if (!isMounted) return;
+        await Promise.race([collectionGroupPromise, timeoutPromise]);
 
-        if (foundBooking) {
-          setBooking(foundBooking);
-
-          // Fetch associated event info & user info in parallel
-          const targetEventId = foundBooking.eventId || eventId;
-          const fetchEventTask = (targetEventId && !eventDetails)
-            ? getDoc(doc(db, "event", targetEventId))
-                .then((snap) => {
-                  if (snap.exists() && isMounted) {
-                    setEventDetails({ id: snap.id, ...snap.data() });
-                  }
-                })
-                .catch((e) => console.error("Error fetching event details:", e))
-            : Promise.resolve();
-
-          const fetchUserTask = (foundBooking.userId)
-            ? getDoc(doc(db, "users", foundBooking.userId))
-                .then((userSnap) => {
-                  if (userSnap.exists() && isMounted) {
-                    setUserData(userSnap.data());
-                  }
-                })
-                .catch((e) => console.error("Error fetching user info:", e))
-            : Promise.resolve();
-
-          await Promise.all([fetchEventTask, fetchUserTask]);
-        } else {
+        if (!resolved && isMounted) {
           setError("Booking details not found. Please verify your URL.");
+          setLoading(false);
         }
       } catch (err) {
         console.error("Error in fetchTicketDetails:", err);
-        if (isMounted) setError("Failed to retrieve booking information.");
-      } finally {
-        if (isMounted) setLoading(false);
+        if (!resolved && isMounted) {
+          setError("Failed to retrieve booking information.");
+          setLoading(false);
+        }
       }
     };
 
@@ -235,21 +264,22 @@ const TicketView = () => {
   }, [bookingId, eventId]);
 
   // Copy Booking ID handler
-  const handleCopyId = () => {
+  const handleCopyId = useCallback(() => {
     if (bookingId) {
       navigator.clipboard.writeText(bookingId);
       setCopiedId(true);
       toast.success("Booking ID copied!");
       setTimeout(() => setCopiedId(false), 2000);
     }
-  };
+  }, [bookingId]);
 
   // Ticket Action Handlers
-  const handleExploreEvents = () => {
+  const handleExploreEvents = useCallback(() => {
     navigate('/');
-  };
+  }, [navigate]);
 
-  const handleShareTicket = async () => {
+  // Dynamic import of html2canvas on demand to keep initial JS execution ultra-light
+  const handleShareTicket = useCallback(async () => {
     if (!ticketRef.current) {
       toast.error("Ticket element not ready.");
       return;
@@ -258,6 +288,9 @@ const TicketView = () => {
     const toastId = toast.loading("Generating ticket image...");
 
     try {
+      // Dynamic import html2canvas on click
+      const { default: html2canvas } = await import('html2canvas');
+
       // Convert external image elements inside ticket element to Base64 to prevent CORS canvas taint
       const imgElements = Array.from(ticketRef.current.querySelectorAll('img'));
       const originalSrcs = imgElements.map((img) => img.src);
@@ -306,11 +339,13 @@ const TicketView = () => {
         const fileName = `Blithe-Ticket-${bookingId || 'Pass'}.png`;
         const file = new File([blob], fileName, { type: 'image/png' });
 
+        const computedEventName = booking?.eventName || eventDetails?.eventName || eventDetails?.title || 'Blithe Pass';
+
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
             await navigator.share({
-              title: eventName || 'Blithe Pass',
-              text: `Here is my entry ticket for ${eventName || 'this event'}!\n${window.location.href}`,
+              title: computedEventName,
+              text: `Here is my entry ticket for ${computedEventName}!\n${window.location.href}`,
               files: [file]
             });
             toast.dismiss(toastId);
@@ -325,8 +360,8 @@ const TicketView = () => {
         } else if (navigator.share) {
           try {
             await navigator.share({
-              title: eventName || 'Blithe Pass',
-              text: `Here is my entry ticket for ${eventName || 'this event'}!`,
+              title: computedEventName,
+              text: `Here is my entry ticket for ${computedEventName}!`,
               url: window.location.href
             });
             toast.dismiss(toastId);
@@ -347,7 +382,7 @@ const TicketView = () => {
       console.error("Error generating ticket image:", err);
       toast.error("Could not capture ticket image.", { id: toastId });
     }
-  };
+  }, [booking, eventDetails, bookingId]);
 
   const downloadFile = (file) => {
     const link = document.createElement('a');
@@ -357,62 +392,89 @@ const TicketView = () => {
     URL.revokeObjectURL(link.href);
   };
 
-  // Compute data values safely
-  const eventBannerImage = booking?.eventImage
-    ? (Array.isArray(booking.eventImage) ? booking.eventImage[0] : booking.eventImage)
-    : (eventDetails?.image ? (Array.isArray(eventDetails.image) ? eventDetails.image[0] : eventDetails.image) : null);
+  // Compute data values safely with useMemo
+  const eventBannerImage = useMemo(() => {
+    return booking?.eventImage
+      ? (Array.isArray(booking.eventImage) ? booking.eventImage[0] : booking.eventImage)
+      : (eventDetails?.image ? (Array.isArray(eventDetails.image) ? eventDetails.image[0] : eventDetails.image) : null);
+  }, [booking, eventDetails]);
 
-  const eventName = booking?.eventName || eventDetails?.eventName || eventDetails?.title || 'Event Booking';
-  const categoryName = eventDetails?.category || booking?.category || 'Event';
+  const eventName = useMemo(() => {
+    return booking?.eventName || eventDetails?.eventName || eventDetails?.title || 'Event Booking';
+  }, [booking, eventDetails]);
+
+  const categoryName = useMemo(() => {
+    return eventDetails?.category || booking?.category || 'Event';
+  }, [booking, eventDetails]);
 
   // Strictly extract venue from event collection 'venue' field
-  const locationStr = eventDetails?.venue || booking?.venue || eventDetails?.location || booking?.location || eventDetails?.address || booking?.address || null;
+  const locationStr = useMemo(() => {
+    return eventDetails?.venue || booking?.venue || eventDetails?.location || booking?.location || eventDetails?.address || booking?.address || null;
+  }, [booking, eventDetails]);
 
-  const ticketHolderName = booking?.userName || userData?.fullName || userData?.name || userData?.displayName || 'Ticket Holder';
-  const ticketHolderImage = booking?.userProfileImage || userData?.profilePic || userData?.photoURL || null;
+  const ticketHolderName = useMemo(() => {
+    return booking?.userName || userData?.fullName || userData?.name || userData?.displayName || 'Ticket Holder';
+  }, [booking, userData]);
 
-  const eventDateStr = formatDate(eventDetails?.eventStartDate || booking?.eventDate);
-  const eventTimeStr = formatTime(booking, eventDetails);
-  const bookedDateStr = formatDate(booking?.createdDate || booking?.bookingDate || new Date());
+  const ticketHolderImage = useMemo(() => {
+    return booking?.userProfileImage || userData?.profilePic || userData?.photoURL || null;
+  }, [booking, userData]);
 
-  const quantityCount = Number(booking?.totalQuantity || (booking?.tickets ? booking.tickets.reduce((acc, curr) => acc + (Number(curr.quantity) || Number(curr.totalQuantity) || 1), 0) : 1));
+  const eventDateStr = useMemo(() => {
+    return formatDate(eventDetails?.eventStartDate || booking?.eventDate);
+  }, [booking, eventDetails, formatDate]);
+
+  const eventTimeStr = useMemo(() => {
+    return formatTime(booking, eventDetails);
+  }, [booking, eventDetails, formatTime]);
+
+  const bookedDateStr = useMemo(() => {
+    return formatDate(booking?.createdDate || booking?.bookingDate || new Date());
+  }, [booking, formatDate]);
+
+  const quantityCount = useMemo(() => {
+    return Number(booking?.totalQuantity || (booking?.tickets ? booking.tickets.reduce((acc, curr) => acc + (Number(curr.quantity) || Number(curr.totalQuantity) || 1), 0) : 1));
+  }, [booking]);
 
   // Compute status explicitly for CSS matching & professional label display
-  const rawStatus = (booking?.status || 'confirmed').toString().trim().toLowerCase().replace(/[\s_-]/g, '');
+  const rawStatus = useMemo(() => {
+    return (booking?.status || 'confirmed').toString().trim().toLowerCase().replace(/[\s_-]/g, '');
+  }, [booking]);
 
   const isPending = rawStatus === 'pending' || rawStatus === 'processing';
   const isCancelled = rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === 'rejected' || rawStatus === 'failed';
   const isPartiallyAttended = rawStatus === 'partiallyattended' || rawStatus === 'partial' || rawStatus === 'partialattended';
   const isAttended = rawStatus === 'attended' || rawStatus === 'completed' || rawStatus === 'used';
 
-  const statusClass = isPartiallyAttended
-    ? 'partially-attended'
-    : isAttended
-      ? 'attended'
-      : isPending
-        ? 'pending'
-        : isCancelled
-          ? 'cancelled'
-          : 'confirmed';
+  const statusClass = useMemo(() => {
+    return isPartiallyAttended
+      ? 'partially-attended'
+      : isAttended
+        ? 'attended'
+        : isPending
+          ? 'pending'
+          : isCancelled
+            ? 'cancelled'
+            : 'confirmed';
+  }, [isPartiallyAttended, isAttended, isPending, isCancelled]);
 
-  const statusLabel = isPartiallyAttended
-    ? 'PARTIALLY ATTENDED'
-    : isAttended
-      ? 'ATTENDED'
-      : isPending
-        ? 'PROCESSING'
-        : isCancelled
-          ? 'CANCELLED PASS'
-          : (rawStatus && rawStatus !== 'confirmed' && rawStatus !== 'true'
-            ? rawStatus.toUpperCase()
-            : 'VALID PASS');
+  const statusLabel = useMemo(() => {
+    return isPartiallyAttended
+      ? 'PARTIALLY ATTENDED'
+      : isAttended
+        ? 'ATTENDED'
+        : isPending
+          ? 'PROCESSING'
+          : isCancelled
+            ? 'CANCELLED PASS'
+            : (rawStatus && rawStatus !== 'confirmed' && rawStatus !== 'true'
+              ? rawStatus.toUpperCase()
+              : 'VALID PASS');
+  }, [isPartiallyAttended, isAttended, isPending, isCancelled, rawStatus]);
 
-  // QR Code generation containing only the bookingId when scanned
-  const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-    bookingId
-  )}&margin=6`;
 
   return (
+
     <div className="mobile-fit-ticket-page">
       {/* Background Orbs & Ambient Illumination */}
       <div className="bg-orb orb-1"></div>

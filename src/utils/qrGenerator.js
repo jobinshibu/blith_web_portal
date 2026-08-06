@@ -1,4 +1,4 @@
-﻿/**
+/**
  * qrGenerator.js
  * Pure JavaScript QR Code Generator - Zero external dependencies.
  * Renders QR codes to an HTML5 canvas element.
@@ -351,18 +351,33 @@ export function drawQRCode(canvas, text, opts = {}) {
   writeFormatInfo(finalModules, size, ecLevel, bestMask);
   if (version >= 7) writeVersionInfo(finalModules, size, version);
 
-  const canvasSize = typeof opts.size === 'number' ? opts.size : (canvas.width || 200);
-  canvas.width  = canvasSize;
-  canvas.height = canvasSize;
+  const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  const displaySize = typeof opts.size === 'number' ? opts.size : (canvas.clientWidth || canvas.width || 200);
+  const actualSize = displaySize * dpr;
 
-  const modSize = canvasSize / (size + 2 * quiet);
+  canvas.width  = actualSize;
+  canvas.height = actualSize;
+
+  const totalGrid = size + 2 * quiet;
+  const modSize = actualSize / totalGrid;
+
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, canvasSize, canvasSize);
-  ctx.fillStyle = fgColor;
+  ctx.imageSmoothingEnabled = false;
 
-  for (let r=0; r<size; r++)
-    for (let c=0; c<size; c++)
-      if (finalModules[r*size+c]===1)
-        ctx.fillRect((c+quiet)*modSize, (r+quiet)*modSize, modSize, modSize);
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, actualSize, actualSize);
+
+  ctx.fillStyle = fgColor;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (finalModules[r * size + c] === 1) {
+        const x = Math.floor((c + quiet) * modSize);
+        const y = Math.floor((r + quiet) * modSize);
+        const w = Math.ceil((c + quiet + 1) * modSize) - x;
+        const h = Math.ceil((r + quiet + 1) * modSize) - y;
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+  }
 }
+

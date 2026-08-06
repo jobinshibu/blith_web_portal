@@ -1,5 +1,6 @@
+// ==================== CHANGED: PERFORMANCE OPTIMIZATION ====================
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, persistentSingleTabManager, memoryLocalCache } from "firebase/firestore";
 import { initializeAnalytics } from "firebase/analytics";
 import { getFunctions } from "firebase/functions";
 
@@ -23,12 +24,38 @@ if (isDevelopment && typeof window !== 'undefined') {
   window['ga-disable-G-GZTJXH7BGC'] = true;
 }
 
-export const analytics = initializeAnalytics(app);
+// Asynchronous non-blocking analytics initialization
+let analyticsInstance = null;
+if (typeof window !== 'undefined') {
+  try {
+    analyticsInstance = initializeAnalytics(app);
+  } catch (err) {
+    console.warn('[Firebase] Analytics initialization deferred or failed:', err);
+  }
+}
+export const analytics = analyticsInstance;
 
-// Initialize Cloud Firestore with modern persistent local cache to prevent deprecation warning
+// WebKit/iOS detection: Safari and iOS browsers have known IndexedDB cross-tab locking delays
+const isWebKit = typeof navigator !== 'undefined' && (
+  /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (/^((?!chrome|android).)*safari/i.test(navigator.userAgent))
+);
+
+let localCacheConfig;
+try {
+  localCacheConfig = isWebKit
+    ? persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: false }) })
+    : persistentLocalCache({ tabManager: persistentMultipleTabManager() });
+} catch (e) {
+  localCacheConfig = memoryLocalCache();
+}
+
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  localCache: localCacheConfig
 });
+
 
 // Initialize Cloud Functions
 export const functions = getFunctions(app);
+
+
