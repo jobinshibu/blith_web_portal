@@ -23,7 +23,7 @@ const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
 
-  const isEventsPage = location.pathname === '/' || location.pathname === '/events' || location.pathname === '/events/';
+  const isEventsPage = location.pathname === '/';
 
   const loadUser = () => {
     try {
@@ -220,20 +220,6 @@ const Navbar = () => {
                       </a>
                     </motion.div>
                   ))}
-                  {currentUser && (
-                    <motion.div variants={itemVariants} className="mobile-nav-item">
-                      <button
-                        className="mobile-nav-link discover"
-                        onClick={() => {
-                          closeMenu();
-                          setIsProfileOpen(true);
-                        }}
-                        style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-                      >
-                        My Profile Dashboard
-                      </button>
-                    </motion.div>
-                  )}
                 </div>
               </div>
 
