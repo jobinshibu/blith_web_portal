@@ -248,13 +248,12 @@ $off: #FAFAFA;
     grid-column: 1 / -1;
     margin-bottom: 0;
 
-    .logo-footer,
     p {
-      display: none;
+      max-width: 100%;
     }
 
     .social-icons {
-      margin-top: 0;
+      margin-top: 14px;
       margin-bottom: 8px;
     }
   }
