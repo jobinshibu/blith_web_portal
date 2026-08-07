@@ -247,6 +247,9 @@ const EventBookingPage = () => {
   const [resolvedUserId, setResolvedUserId] = useState(null);
   const [fetchedUserName, setFetchedUserName] = useState('');
 
+  const [settingsDoc, setSettingsDoc] = useState(null);
+  const [alreadyBookedCount, setAlreadyBookedCount] = useState(0);
+
   const [termsText, setTermsText] = useState("");
   const [privacyPolicyText, setPrivacyPolicyText] = useState("");
 
@@ -258,6 +261,7 @@ const EventBookingPage = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data) {
+            setSettingsDoc(data);
             if (data.terms) {
               setTermsText(data.terms);
             }
@@ -272,6 +276,58 @@ const EventBookingPage = () => {
     };
     fetchSettingsDoc();
   }, []);
+
+  // Fetch already booked ticket count for the user and event
+  useEffect(() => {
+    if (!resolvedUserId || !event?.id) {
+      setAlreadyBookedCount(0);
+      return;
+    }
+
+    const fetchAlreadyBookedCount = async () => {
+      try {
+        const bookingsRef = collection(db, 'users', resolvedUserId, 'myBookings');
+        const q = query(bookingsRef, where('eventId', '==', event.id));
+        const querySnapshot = await getDocs(q);
+        let totalQty = 0;
+        querySnapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const status = (data.status || '').toLowerCase();
+          if (status !== 'cancelled' && status !== 'canceled' && status !== 'rejected' && status !== 'failed') {
+            totalQty += Number(data.totalQuantity || 0);
+          }
+        });
+        setAlreadyBookedCount(totalQty);
+      } catch (err) {
+        console.error("Error fetching user bookings count:", err);
+      }
+    };
+
+    fetchAlreadyBookedCount();
+  }, [resolvedUserId, event?.id]);
+
+  // Auto-adjust quantities if alreadyBookedCount or settingsDoc changes and exceeds limit
+  useEffect(() => {
+    if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
+      const globalMax = Number(settingsDoc.noOfTiketsPerUser);
+      if (!isNaN(globalMax) && globalMax > 0) {
+        const currentTotal = Object.values(quantities).reduce((a, b) => a + b, 0);
+        if (currentTotal + alreadyBookedCount > globalMax) {
+          let remainingAllowance = Math.max(0, globalMax - alreadyBookedCount);
+          toast.error(`Ticket limit exceeded. Maximum ${globalMax} tickets allowed per user for this event.`);
+          setQuantities(prev => {
+            const newQuantities = {};
+            Object.entries(prev).forEach(([idx, qty]) => {
+              const take = Math.min(qty, remainingAllowance);
+              newQuantities[idx] = take;
+              remainingAllowance -= take;
+            });
+            return newQuantities;
+          });
+        }
+      }
+    }
+  }, [alreadyBookedCount, settingsDoc, quantities]);
 
   const parseTerms = (text) => {
     if (!text) return [];
@@ -993,13 +1049,28 @@ const EventBookingPage = () => {
 
     setQuantities(prev => {
       const current = prev[idx] || 0;
-      const maxSlots = Math.min(10, remainingSlots);
+      let maxSlots = Math.min(10, remainingSlots);
+
+      if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
+        const globalMax = Number(settingsDoc.noOfTiketsPerUser);
+        if (!isNaN(globalMax) && globalMax > 0) {
+          const currentTotalOthers = Object.entries(prev)
+            .filter(([k, _]) => Number(k) !== idx)
+            .reduce((sum, [_, val]) => sum + (val || 0), 0);
+
+          const maxAllowedForThisBooking = Math.max(0, globalMax - alreadyBookedCount - currentTotalOthers);
+          maxSlots = Math.min(maxSlots, maxAllowedForThisBooking);
+        }
+      }
+
       return {
         ...prev,
         [idx]: Math.max(0, Math.min(maxSlots, current + delta))
       };
     });
   };
+
+
 
   const subtotal = tickets.reduce((sum, ticket, idx) => {
     return sum + (quantities[idx] || 0) * (ticket.blithePrice || 0);
@@ -1363,6 +1434,42 @@ const EventBookingPage = () => {
       setFetchedUserName(attendee.name);
       // Update userId for coupon context so re-fetch filters properly
       if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
+
+      // Check maximum tickets limit per user configured in settings
+      if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
+        const globalMax = Number(settingsDoc.noOfTiketsPerUser);
+        if (!isNaN(globalMax) && globalMax > 0) {
+          let userAlreadyBooked = 0;
+          if (uId && event?.id) {
+            try {
+              const bookingsRef = collection(db, 'users', uId, 'myBookings');
+              const q = query(bookingsRef, where('eventId', '==', event.id));
+              const querySnapshot = await getDocs(q);
+              querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                const status = (data.status || '').toLowerCase();
+                if (status !== 'cancelled' && status !== 'canceled' && status !== 'rejected' && status !== 'failed') {
+                  userAlreadyBooked += Number(data.totalQuantity || 0);
+                }
+              });
+              setAlreadyBookedCount(userAlreadyBooked);
+            } catch (err) {
+              console.error("Error verifying ticket limit at checkout:", err);
+            }
+          }
+
+          if (totalTickets + userAlreadyBooked > globalMax) {
+            const remainingSlotsAllowed = Math.max(0, globalMax - userAlreadyBooked);
+            if (remainingSlotsAllowed === 0) {
+              toast.error(`You have already booked the maximum limit of ${globalMax} tickets for this event.`);
+            } else {
+              toast.error(`You can only book up to ${remainingSlotsAllowed} more ticket(s) for this event. (Maximum limit per user: ${globalMax})`);
+            }
+            setIsVerifyingUser(false);
+            return;
+          }
+        }
+      }
 
       // Save user profile state and dispatch change event only when user clicks Proceed to Payment
       try {
