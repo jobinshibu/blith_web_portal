@@ -547,11 +547,11 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                   {/* Overlapping avatars row — same design as going-section */}
                   <div className="modal-attendees-pill">
                     <div className="attendee-avatars">
-                      {attendeesList.slice(0, 4).map((att, idx) => (
+                      {attendeesList.slice(0, 8).map((att, idx) => (
                         <div
                           key={idx}
                           className="attendee-avatar-wrapper"
-                          style={{ zIndex: 4 - idx }}
+                          style={{ zIndex: 8 - idx }}
                           title={att.userName || 'Attendee'}
                         >
                           {att.userProfileImage ? (
@@ -565,9 +565,18 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                           )}
                         </div>
                       ))}
+                      {totalCount > 8 && (
+                        <div
+                          className="attendee-avatar-wrapper attendee-avatar-more"
+                          style={{ zIndex: 0 }}
+                          title={`${totalCount - 8} more attendees`}
+                        >
+                          <span>+{totalCount - 8}</span>
+                        </div>
+                      )}
                     </div>
                     <span className="attendees-count-text">
-                      <span className="highlight-count">{totalCount >= 4 ? '4+' : totalCount}</span>{' '}
+                      <span className="highlight-count">{totalCount}</span>{' '}
                       {totalCount === 1 ? 'person is' : 'people are'} going
                     </span>
                   </div>
@@ -2034,7 +2043,7 @@ const EventDetails = () => {
                 )}
               </div>
               {/* Attendees section */}
-              {attendeesCount >= 4 && (
+              {attendeesCount > 0 && (
                 <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
                   <div className="attendee-avatars">
                     {attendeesList.slice(0, 4).map((att, idx) => (
@@ -2050,9 +2059,14 @@ const EventDetails = () => {
                         )}
                       </div>
                     ))}
+                    {attendeesCount > 4 && (
+                      <div className="attendee-avatar-wrapper attendee-avatar-more" style={{ zIndex: 0 }}>
+                        <span>+{attendeesCount - 4}</span>
+                      </div>
+                    )}
                   </div>
                   <span className="attendees-count-text">
-                    <span className="highlight-count">4+</span> people are going
+                    <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
                   </span>
                 </div>
               )}
