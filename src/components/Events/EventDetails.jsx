@@ -1647,7 +1647,7 @@ const EventDetails = () => {
         <p>
           We couldn't find the event you are looking for. It may have been removed, or the link is incorrect.
         </p>
-        <button onClick={() => navigate('/events')} className="back-btn">
+        <button onClick={() => navigate('/')} className="back-btn">
           Explore Other Events
         </button>
       </div>
@@ -1668,7 +1668,7 @@ const EventDetails = () => {
               ? "This event has been removed by the organizer."
               : "This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer."}
         </p>
-        <button onClick={() => navigate('/events')} className="back-btn">
+        <button onClick={() => navigate('/')} className="back-btn">
           Back to Events
         </button>
       </div>
@@ -1743,7 +1743,7 @@ const EventDetails = () => {
   return (
     <div className="event-details-page">
       <div className="details-header-bar container">
-        <button onClick={() => navigate('/events')} className="back-link-btn">
+        <button onClick={() => navigate('/')} className="back-link-btn">
           <ArrowLeft size={20} /> <span className="text">Back to Events</span>
         </button>
       </div>
@@ -2237,7 +2237,7 @@ const EventDetails = () => {
         </div>
         <Button
           variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
-          size="lg"
+          size="md"
           onClick={() => {
             // UPDATED: Expired event validation
             if (isEventExpired) {

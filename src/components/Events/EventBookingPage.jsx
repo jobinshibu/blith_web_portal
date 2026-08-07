@@ -1009,7 +1009,7 @@ const EventBookingPage = () => {
         <p>
           The event checkout could not be loaded. This event may have been removed.
         </p>
-        <Link to="/events" className="back-btn">
+        <Link to="/" className="back-btn">
           Explore Other Events
         </Link>
       </div>
@@ -1026,7 +1026,7 @@ const EventBookingPage = () => {
         <p>
           Registration for this private event is no longer open because the event has expired or been cancelled.
         </p>
-        <Link to="/events" className="back-btn">
+        <Link to="/" className="back-btn">
           Back to Events
         </Link>
       </div>
@@ -2484,7 +2484,7 @@ const EventBookingPage = () => {
               ? "This event has been removed by the organizer."
               : "The event you are trying to book is no longer active or available."}
         </p>
-        <button onClick={() => navigate('/events')} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+        <button onClick={() => navigate('/')} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
           Explore Other Events
         </button>
       </div>
@@ -3075,7 +3075,7 @@ const EventBookingPage = () => {
 
             <Button
               variant="primary"
-              size="lg"
+              size="md"
               type="button"
               className="pay-btn"
               onClick={handleCheckout}

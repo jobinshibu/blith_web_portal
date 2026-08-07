@@ -1520,7 +1520,7 @@
         .val {
           color: $text-900;
           font-weight: 600;
-          font-size: 12px;
+          font-size: 13px;
           margin-bottom: 0.15rem;
         }
 
@@ -1629,7 +1629,7 @@
     }
 
     .terms-details-card {
-      padding-bottom: 8rem; // For mobile layout specifically
+      padding-bottom: 1rem; // For mobile layout specifically
     }
 
     .mobile-fixed-booking-bar {
@@ -1644,8 +1644,19 @@
       z-index: 100;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem 1.5rem;
+      padding: 19px 1rem;
       box-shadow: 0 -4px 20px rgba($lavender-600, 0.1);
+
+      .btn,
+      .btn-lg,
+      .btn-md,
+      .book-now-btn,
+      button {
+        padding: 0.5rem 1.1rem !important;
+        font-size: 0.85rem !important;
+        border-radius: 0.5rem;
+        font-weight: 600;
+      }
 
       .price-row {
         flex-direction: column;
@@ -1657,15 +1668,15 @@
 
         .amount {
           color: $text-900;
-          font-size: 1.25rem;
+          font-size: 1.15rem;
           font-weight: 700;
           line-height: 1;
         }
 
         .amount-sub {
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           color: $text-500;
-          margin-top: 0.2rem;
+          margin-top: 0.15rem;
         }
       }
 
@@ -1674,7 +1685,8 @@
 
         .book-now-btn {
           border-radius: 0.5rem;
-          padding: 0.75rem 1.5rem;
+          padding: 0.5rem 1.1rem !important;
+          font-size: 0.85rem !important;
           font-weight: 700;
           border: none;
 

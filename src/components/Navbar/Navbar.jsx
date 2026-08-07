@@ -23,7 +23,7 @@ const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
 
-  const isEventsPage = location.pathname === '/';
+  const isEventsPage = location.pathname === '/' || location.pathname === '/events';
 
   const loadUser = () => {
     try {
@@ -122,7 +122,7 @@ const Navbar = () => {
           <a href="/about.html#discover" className="nav-link">Discover</a>
           <a href="/teams" className="nav-link">Team</a>
           <a href="/about.html" className="nav-link">About Us</a>
-          {!isEventsPage && <Link to="/events" className="nav-pill">Explore Events</Link>}
+          {!isEventsPage && <Link to="/" className="nav-pill">Explore Events</Link>}
           {currentUser && (
             <div className="nav-profile-wrapper">
               <button className="nav-profile-trigger" onClick={() => setIsProfileOpen(!isProfileOpen)} aria-label="Open Profile">
@@ -148,7 +148,7 @@ const Navbar = () => {
 
         <div className="mobile-actions-group">
           {!isEventsPage && (
-            <Link to="/events" className="nav-pill mobile-explore-btn" onClick={closeMenu}>
+            <Link to="/" className="nav-pill mobile-explore-btn" onClick={closeMenu}>
               Explore Events
             </Link>
           )}
@@ -195,7 +195,7 @@ const Navbar = () => {
                 </a>
                 <div className="mobile-actions-group">
                   {!isEventsPage && (
-                    <Link to="/events" className="nav-pill mobile-explore-btn" onClick={closeMenu}>
+                    <Link to="/" className="nav-pill mobile-explore-btn" onClick={closeMenu}>
                       Explore Events
                     </Link>
                   )}

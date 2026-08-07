@@ -537,7 +537,7 @@ const BookingSuccess = () => {
 
             {/* Compact Action buttons */}
             <div className="stub-nav-actions">
-              <Link to="/events" className="stub-action-btn primary">
+              <Link to="/" className="stub-action-btn primary">
                 Discover more Events <ArrowRight size={14} />
               </Link>
             </div>
