@@ -312,15 +312,18 @@ const EventBookingPage = () => {
       const globalMax = Number(settingsDoc.noOfTiketsPerUser);
       if (!isNaN(globalMax) && globalMax > 0) {
         const currentTotal = Object.values(quantities).reduce((a, b) => a + b, 0);
-        if (currentTotal + alreadyBookedCount > globalMax) {
-          let remainingAllowance = Math.max(0, globalMax - alreadyBookedCount);
+        const remainingAllowance = Math.max(0, globalMax - alreadyBookedCount);
+
+        // ONLY adjust if user has selected tickets (currentTotal > 0) AND currentTotal exceeds remainingAllowance
+        if (currentTotal > 0 && currentTotal > remainingAllowance) {
           toast.error(`Ticket limit exceeded. Maximum ${globalMax} tickets allowed per user for this event.`);
+          let remaining = remainingAllowance;
           setQuantities(prev => {
             const newQuantities = {};
             Object.entries(prev).forEach(([idx, qty]) => {
-              const take = Math.min(qty, remainingAllowance);
+              const take = Math.min(qty, remaining);
               newQuantities[idx] = take;
-              remainingAllowance -= take;
+              remaining -= take;
             });
             return newQuantities;
           });
@@ -1046,6 +1049,25 @@ const EventBookingPage = () => {
     const ticket = tickets[idx];
     const remainingSlots = getTicketRemainingSlots(ticket);
     if (!ticket || !ticket.status || remainingSlots <= 0) return;
+
+    if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
+      const globalMax = Number(settingsDoc.noOfTiketsPerUser);
+      if (!isNaN(globalMax) && globalMax > 0) {
+        const currentTotalOthers = Object.entries(quantities)
+          .filter(([k, _]) => Number(k) !== idx)
+          .reduce((sum, [_, val]) => sum + (val || 0), 0);
+
+        const maxAllowedForThisBooking = Math.max(0, globalMax - alreadyBookedCount - currentTotalOthers);
+        if (delta > 0 && (quantities[idx] || 0) >= maxAllowedForThisBooking) {
+          if (maxAllowedForThisBooking === 0) {
+            toast.error(`You have already booked the maximum limit of ${globalMax} tickets for this event.`);
+          } else {
+            toast.error(`You can only book up to ${globalMax} tickets in total for this event.`);
+          }
+          return;
+        }
+      }
+    }
 
     setQuantities(prev => {
       const current = prev[idx] || 0;
