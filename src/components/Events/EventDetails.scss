@@ -243,6 +243,7 @@
   .about-details-card,
   .organiser-details-card,
   .terms-details-card {
+
     .description,
     .organiser-about {
       font-size: 1.1rem;
@@ -250,6 +251,10 @@
       color: $text-700;
       white-space: pre-line;
       margin: 0;
+
+      @media (max-width: 768px) {
+        font-size: 0.9rem;
+      }
 
       .description-link,
       a {
@@ -2961,11 +2966,12 @@
 
 // ─── Organiser About ──────────────────────────────────────────────────────────
 .organiser-about {
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: rgba(55, 65, 81, 0.85);
   margin-top: 0.5rem;
   font-weight: 400;
+
+  @media (max-width: 768px) {
+    font-size: 0.9rem;
+  }
 }
 
 // ─── Attendees Modal — Pill + Name List ───────────────────────────────────────
