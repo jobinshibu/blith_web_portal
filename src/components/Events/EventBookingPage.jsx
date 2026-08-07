@@ -2657,7 +2657,7 @@ const EventBookingPage = () => {
                     }}
                   />
                 </div>
-                {((showErrors || (attendee.name.trim() !== '' || isPhoneValid) || attendee.email.trim() !== '') && !isEmailValid) && (
+                {((showErrors || attendee.email.trim() !== '') && !isEmailValid) && (
                   <div className="validation-hint"><Info size={16} /><span>Please enter a valid email address to receive your ticket !!</span></div>
                 )}
               </div>
@@ -2685,7 +2685,7 @@ const EventBookingPage = () => {
                     }}
                   />
                 </div>
-                {((showErrors || (attendee.name.trim() !== '' && isEmailValid)) && !isPhoneValid) && (
+                {((showErrors || attendee.phone.trim() !== '') && !isPhoneValid) && (
                   <div className="validation-hint"><Info size={16} /><span>Please provide a valid 10-digit phone number.</span></div>
                 )}
               </div>
