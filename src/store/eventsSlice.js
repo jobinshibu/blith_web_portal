@@ -119,7 +119,7 @@ const eventsSlice = createSlice({
   },
   reducers: {
     clearCache: (state) => {
-      state.lastFetched = 0; 10
+      state.lastFetched = 0;
       state.categoriesLastFetched = 0;
     }
   },
