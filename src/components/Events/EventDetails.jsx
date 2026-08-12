@@ -2071,6 +2071,55 @@ const EventDetails = () => {
                 </div>
               )}
 
+              {/* Mobile Talk to Us Section */}
+              <div className="mobile-talk-to-us-wrapper">
+                {(settings?.contactSupport || settings?.email) && (
+                  <p className="support-query-line">
+                    Talk to Us{' '}
+                    {settings.contactSupport && (() => {
+                      const str = String(settings.contactSupport).trim();
+                      const numbers = str.split(/[/,]|(?:\sor\s)/i).map(n => n.trim()).filter(Boolean);
+                      return numbers.map((num, idx) => {
+                        const cleanTel = num.replace(/[^\d+]/g, '');
+                        const telUrl = `tel:${cleanTel}`;
+                        return (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && ' | '}
+                            <a
+                              href={telUrl}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = telUrl;
+                              }}
+                            >
+                              {num}
+                            </a>
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
+                    {settings.contactSupport && settings.email && ' | '}
+                    {settings.email && (() => {
+                      const cleanEmail = String(settings.email).trim();
+                      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(cleanEmail)}`;
+                      return (
+                        <a
+                          href={gmailUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+                          }}
+                        >
+                          {cleanEmail}
+                        </a>
+                      );
+                    })()}
+                  </p>
+                )}
+              </div>
+
               <div className="action-box desktop-booking-box">
                 <div className="price-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -2152,17 +2201,46 @@ const EventDetails = () => {
                 {(settings?.contactSupport || settings?.email) && (
                   <p className="support-query-line">
                     Talk to Us{' '}
-                    {settings.contactSupport && (
-                      <a href={`tel:${settings.contactSupport.trim()}`}>
-                        {settings.contactSupport.trim()}
-                      </a>
-                    )}
+                    {settings.contactSupport && (() => {
+                      const str = String(settings.contactSupport).trim();
+                      const numbers = str.split(/[/,]|(?:\sor\s)/i).map(n => n.trim()).filter(Boolean);
+                      return numbers.map((num, idx) => {
+                        const cleanTel = num.replace(/[^\d+]/g, '');
+                        const telUrl = `tel:${cleanTel}`;
+                        return (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && ' | '}
+                            <a
+                              href={telUrl}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = telUrl;
+                              }}
+                            >
+                              {num}
+                            </a>
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
                     {settings.contactSupport && settings.email && ' | '}
-                    {settings.email && (
-                      <a href={`mailto:${settings.email.trim()}`}>
-                        {settings.email.trim()}
-                      </a>
-                    )}
+                    {settings.email && (() => {
+                      const cleanEmail = String(settings.email).trim();
+                      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(cleanEmail)}`;
+                      return (
+                        <a
+                          href={gmailUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+                          }}
+                        >
+                          {cleanEmail}
+                        </a>
+                      );
+                    })()}
                   </p>
                 )}
               </div>
