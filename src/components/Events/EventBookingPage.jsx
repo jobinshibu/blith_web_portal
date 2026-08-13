@@ -70,16 +70,30 @@ const generateBookingId = () => {
   return `BVB${timestamp}${randomNum}`;
 };
 
-// Generate search prefixes list for bookings
+// Generate search prefixes list for bookings (word-by-word search)
 const generateBookingSearchList = (userName, eventName, bookingId, eventId, userEmail = '', userPhone = '') => {
   const searchKeywords = new Set();
+
   const addPrefixes = (text) => {
     if (!text) return;
-    const lower = String(text).toLowerCase();
-    let cur = '';
-    for (let i = 0; i < lower.length; i++) {
-      cur += lower[i];
-      searchKeywords.add(cur);
+    const str = String(text).toLowerCase().trim();
+    if (!str) return;
+
+    // Find starting index of each word (index 0, plus any character following a space)
+    const startIndices = [0];
+    for (let i = 1; i < str.length; i++) {
+      if (str[i - 1] === ' ' && str[i] !== ' ') {
+        startIndices.push(i);
+      }
+    }
+
+    for (const startIdx of startIndices) {
+      const sub = str.slice(startIdx);
+      let cur = '';
+      for (let i = 0; i < sub.length; i++) {
+        cur += sub[i];
+        searchKeywords.add(cur);
+      }
     }
   };
 
@@ -88,7 +102,16 @@ const generateBookingSearchList = (userName, eventName, bookingId, eventId, user
   addPrefixes(bookingId);
   addPrefixes(eventId);
   addPrefixes(userEmail);
-  addPrefixes(userPhone);
+
+  if (userPhone) {
+    const rawPhone = String(userPhone).trim();
+    // Strip leading non-digits and optional country code '91' if 12-digit number (e.g. +917012790724)
+    const cleanPhone = rawPhone.replace(/^[^\d]+/, '').replace(/^91(?=\d{10}$)/, '');
+    addPrefixes(cleanPhone);
+    if (rawPhone.startsWith('+') || rawPhone !== cleanPhone) {
+      searchKeywords.add(rawPhone.toLowerCase());
+    }
+  }
 
   return Array.from(searchKeywords);
 };
@@ -306,17 +329,17 @@ const EventBookingPage = () => {
     fetchAlreadyBookedCount();
   }, [resolvedUserId, event?.id]);
 
-  // Auto-adjust quantities if alreadyBookedCount or settingsDoc changes and exceeds limit
+  // Auto-adjust quantities if settingsDoc changes and exceeds limit per checkout
   useEffect(() => {
     if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
       const globalMax = Number(settingsDoc.noOfTiketsPerUser);
       if (!isNaN(globalMax) && globalMax > 0) {
         const currentTotal = Object.values(quantities).reduce((a, b) => a + b, 0);
-        const remainingAllowance = Math.max(0, globalMax - alreadyBookedCount);
+        const remainingAllowance = globalMax;
 
         // ONLY adjust if user has selected tickets (currentTotal > 0) AND currentTotal exceeds remainingAllowance
         if (currentTotal > 0 && currentTotal > remainingAllowance) {
-          toast.error(`Ticket limit exceeded. Maximum ${globalMax} tickets allowed per user for this event.`);
+          toast.error(`Ticket limit exceeded. Maximum ${globalMax} tickets allowed per checkout.`);
           let remaining = remainingAllowance;
           setQuantities(prev => {
             const newQuantities = {};
@@ -330,7 +353,7 @@ const EventBookingPage = () => {
         }
       }
     }
-  }, [alreadyBookedCount, settingsDoc, quantities]);
+  }, [settingsDoc, quantities]);
 
   const parseTerms = (text) => {
     if (!text) return [];
@@ -1057,13 +1080,9 @@ const EventBookingPage = () => {
           .filter(([k, _]) => Number(k) !== idx)
           .reduce((sum, [_, val]) => sum + (val || 0), 0);
 
-        const maxAllowedForThisBooking = Math.max(0, globalMax - alreadyBookedCount - currentTotalOthers);
+        const maxAllowedForThisBooking = Math.max(0, globalMax - currentTotalOthers);
         if (delta > 0 && (quantities[idx] || 0) >= maxAllowedForThisBooking) {
-          if (maxAllowedForThisBooking === 0) {
-            toast.error(`You have already booked the maximum limit of ${globalMax} tickets for this event.`);
-          } else {
-            toast.error(`You can only book up to ${globalMax} tickets in total for this event.`);
-          }
+          toast.error(`You can only book up to ${globalMax} tickets at a time per checkout.`);
           return;
         }
       }
@@ -1080,7 +1099,7 @@ const EventBookingPage = () => {
             .filter(([k, _]) => Number(k) !== idx)
             .reduce((sum, [_, val]) => sum + (val || 0), 0);
 
-          const maxAllowedForThisBooking = Math.max(0, globalMax - alreadyBookedCount - currentTotalOthers);
+          const maxAllowedForThisBooking = Math.max(0, globalMax - currentTotalOthers);
           maxSlots = Math.min(maxSlots, maxAllowedForThisBooking);
         }
       }
@@ -1457,36 +1476,12 @@ const EventBookingPage = () => {
       // Update userId for coupon context so re-fetch filters properly
       if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
 
-      // Check maximum tickets limit per user configured in settings
+      // Check maximum tickets limit per user per checkout configured in settings
       if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
         const globalMax = Number(settingsDoc.noOfTiketsPerUser);
         if (!isNaN(globalMax) && globalMax > 0) {
-          let userAlreadyBooked = 0;
-          if (uId && event?.id) {
-            try {
-              const bookingsRef = collection(db, 'users', uId, 'myBookings');
-              const q = query(bookingsRef, where('eventId', '==', event.id));
-              const querySnapshot = await getDocs(q);
-              querySnapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                const status = (data.status || '').toLowerCase();
-                if (status !== 'cancelled' && status !== 'canceled' && status !== 'rejected' && status !== 'failed') {
-                  userAlreadyBooked += Number(data.totalQuantity || 0);
-                }
-              });
-              setAlreadyBookedCount(userAlreadyBooked);
-            } catch (err) {
-              console.error("Error verifying ticket limit at checkout:", err);
-            }
-          }
-
-          if (totalTickets + userAlreadyBooked > globalMax) {
-            const remainingSlotsAllowed = Math.max(0, globalMax - userAlreadyBooked);
-            if (remainingSlotsAllowed === 0) {
-              toast.error(`You have already booked the maximum limit of ${globalMax} tickets for this event.`);
-            } else {
-              toast.error(`You can only book up to ${remainingSlotsAllowed} more ticket(s) for this event. (Maximum limit per user: ${globalMax})`);
-            }
+          if (totalTickets > globalMax) {
+            toast.error(`You can only book up to ${globalMax} tickets at a time per checkout.`);
             setIsVerifyingUser(false);
             return;
           }
