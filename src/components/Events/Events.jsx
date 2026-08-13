@@ -1688,10 +1688,15 @@ const Events = () => {
                               </div>
 
                               <div className="portrait-card-details">
-                                <div className="portrait-card-date-row">
+                                <div className="portrait-card-date-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span className="portrait-card-date">
                                     {event.date}
                                   </span>
+                                  {event.priceMessage && (
+                                    <span className="portrait-card-price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800 }}>
+                                      {event.priceMessage}
+                                    </span>
+                                  )}
                                 </div>
                                 <h3 className="portrait-card-title">{event.title}</h3>
                                 <div className="portrait-card-location-row">

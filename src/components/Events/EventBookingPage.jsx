@@ -182,6 +182,15 @@ const EventBookingPage = () => {
     return approvalQuestionsList.every((_, idx) => (approvalAnswers[idx] || '').trim() !== '');
   }, [approvalQuestionsList, approvalAnswers]);
 
+  const tickets = useMemo(() => {
+    const rawTickets = event?.tickets || [];
+    return [...rawTickets].sort((a, b) => {
+      const priceA = Number(a?.blithePrice ?? a?.price ?? 0);
+      const priceB = Number(b?.blithePrice ?? b?.price ?? 0);
+      return priceA - priceB;
+    });
+  }, [event?.tickets]);
+
   const getFormattedApprovalAnswer = useCallback((eventObj, qList, answersMap) => {
     if (!eventObj?.approvalQuestion) return Array.isArray(eventObj?.approvalQuestion) ? {} : '';
     if (Array.isArray(eventObj.approvalQuestion)) {
@@ -1056,7 +1065,6 @@ const EventBookingPage = () => {
     );
   }
 
-  const tickets = event.tickets || [];
 
   const getTicketRemainingSlots = (ticket) => {
     if (!ticket) return 0;

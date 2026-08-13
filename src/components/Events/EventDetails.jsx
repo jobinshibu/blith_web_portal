@@ -575,10 +575,6 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
                         </div>
                       )}
                     </div>
-                    <span className="attendees-count-text">
-                      <span className="highlight-count">{totalCount}</span>{' '}
-                      {totalCount === 1 ? 'person is' : 'people are'} going
-                    </span>
                   </div>
 
                   {/* Name list below avatars */}
@@ -2065,9 +2061,6 @@ const EventDetails = () => {
                       </div>
                     )}
                   </div>
-                  <span className="attendees-count-text">
-                    <span className="highlight-count">{attendeesCount}</span> {attendeesCount === 1 ? 'person is' : 'people are'} going
-                  </span>
                 </div>
               )}
 

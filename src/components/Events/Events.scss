@@ -1337,6 +1337,16 @@
             font-size: 0.72rem;
           }
         }
+
+        .portrait-card-price-message {
+          font-size: 0.75rem;
+          font-weight: 800;
+          color: #EF4444;
+
+          @media (max-width: 480px) {
+            font-size: 0.65rem;
+          }
+        }
       }
 
       .portrait-card-title {
