@@ -2,6 +2,55 @@
 // event.php - Dynamic Open Graph generator for Hostinger / Apache environments
 $id = isset($_GET['id']) ? $_GET['id'] : '';
 
+// -------------------------------------------------------------
+// On-the-fly Image Compression Proxy for WhatsApp OG Previews
+// -------------------------------------------------------------
+if (isset($_GET['img']) && $id) {
+    $url = "https://firestore.googleapis.com/v1/projects/blith-2963e/databases/(default)/documents/event/" . urlencode($id);
+    $response = @file_get_contents($url);
+    if ($response) {
+        $data = json_decode($response, true);
+        if (isset($data['fields']['image']['arrayValue']['values'][0]['stringValue'])) {
+            $rawImgUrl = $data['fields']['image']['arrayValue']['values'][0]['stringValue'];
+            
+            // Fetch raw image
+            $imgData = @file_get_contents($rawImgUrl);
+            if ($imgData && extension_loaded('gd')) {
+                $src = @imagecreatefromstring($imgData);
+                if ($src) {
+                    $width = imagesx($src);
+                    $height = imagesy($src);
+                    $maxWidth = 800;
+                    
+                    if ($width > $maxWidth) {
+                        $newWidth = $maxWidth;
+                        $newHeight = (int)($height * ($newWidth / $width));
+                    } else {
+                        $newWidth = $width;
+                        $newHeight = $height;
+                    }
+                    
+                    $dst = imagecreatetruecolor($newWidth, $newHeight);
+                    imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                    
+                    header('Content-Type: image/jpeg');
+                    header('Cache-Control: public, max-age=86400');
+                    imagejpeg($dst, null, 75);
+                    imagedestroy($src);
+                    imagedestroy($dst);
+                    exit;
+                }
+            }
+            
+            // Fallback if GD is missing or image compression failed: redirect to original image
+            header("Location: " . $rawImgUrl);
+            exit;
+        }
+    }
+    header('Location: https://blithweb.vercel.app/assets/logo-transparent-88a7d774.png');
+    exit;
+}
+
 $title = "Blithe Event";
 $image = "https://blithweb.vercel.app/assets/logo-transparent-88a7d774.png";
 $desc = "Check out this event on Blithe!";
@@ -25,7 +74,9 @@ if ($id) {
                 $desc = htmlspecialchars(substr($fields['description']['stringValue'], 0, 150), ENT_QUOTES, 'UTF-8') . '...';
             }
             if (isset($fields['image']['arrayValue']['values'][0]['stringValue'])) {
-                $image = htmlspecialchars($fields['image']['arrayValue']['values'][0]['stringValue'], ENT_QUOTES, 'UTF-8');
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                $host = $_SERVER['HTTP_HOST'] ?? 'blithe.social';
+                $image = $protocol . $host . "/events/event.php?img=1&id=" . urlencode($id);
             }
         }
     }
