@@ -2374,14 +2374,14 @@
     padding-left: 2px;
 
     .attendee-avatar-wrapper {
-      width: 30px;
-      height: 30px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       overflow: hidden;
       border: 2px solid #ffffff;
       background: #f3f4f6;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      margin-left: -6px; // stack overlap
+      margin-left: -8px; // stack overlap
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -2420,13 +2420,22 @@
       }
 
       &.attendee-avatar-more {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        padding: 0;
         background: linear-gradient(135deg, #7C3AED, #584CF4);
         color: white;
         font-weight: 800;
-        font-size: 0.65rem;
+        font-size: 0.6rem;
+        letter-spacing: -0.6px;
 
         span {
-          display: block;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          white-space: nowrap;
         }
       }
     }
@@ -3099,13 +3108,22 @@
       }
 
       &.attendee-avatar-more {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        padding: 0;
         background: linear-gradient(135deg, #7C3AED, #584CF4);
         color: white;
         font-weight: 800;
-        font-size: 0.65rem;
+        font-size: 0.62rem;
+        letter-spacing: -0.6px;
 
         span {
-          display: block;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          white-space: nowrap;
         }
       }
     }
