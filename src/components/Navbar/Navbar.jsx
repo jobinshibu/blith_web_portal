@@ -210,12 +210,12 @@ const Navbar = () => {
                   {[
                     { name: 'How it Works', path: '/about.html#how-it-works' },
                     { name: 'For Creators', path: '/about.html#for-creators' },
-                    { name: 'Discover', path: '/about.html#discover', isDiscover: true },
+                    { name: 'Discover', path: '/about.html#discover' },
                     { name: 'Team', path: '/teams' },
                     { name: 'About Us', path: '/about.html' }
                   ].map((link, i) => (
                     <motion.div key={i} variants={itemVariants} className="mobile-nav-item">
-                      <a href={link.path} className={`mobile-nav-link ${link.isDiscover ? 'discover' : ''}`} onClick={closeMenu}>
+                      <a href={link.path} className="mobile-nav-link" onClick={closeMenu}>
                         {link.name}
                       </a>
                     </motion.div>
