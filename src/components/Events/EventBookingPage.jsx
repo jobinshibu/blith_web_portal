@@ -3044,7 +3044,7 @@ const EventBookingPage = () => {
                   ) : (
                     <div className="summary-row" style={{ margin: '0.75rem 0' }}>
                       <span>Platform Fee</span>
-                      <span style={{ color: '#10B981', fontWeight: 600 }}>Free</span>
+                      <span style={{ color: '#10B981', fontWeight: 600 }}>₹ 0</span>
                     </div>
                   )}
                   {appliedCoupon && (
