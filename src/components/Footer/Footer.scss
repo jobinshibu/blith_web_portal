@@ -217,6 +217,16 @@ $off: #FAFAFA;
 }
 
 @media(max-width: 960px) {
+  .footer-container {
+    &.has-bottom-bar {
+      padding-bottom: calc(32px + 2rem);
+
+      .footer-btm {
+        padding-bottom: 2rem;
+      }
+    }
+  }
+
   .footer-grid {
     grid-template-columns: 1fr 1fr;
     gap: 32px 24px;
@@ -234,6 +244,14 @@ $off: #FAFAFA;
 @media(max-width: 768px) {
   .footer-container {
     padding: 32px 20px 24px;
+
+    &.has-bottom-bar {
+      padding-bottom: calc(24px + 2rem);
+
+      .footer-btm {
+        padding-bottom: 2rem;
+      }
+    }
   }
 
   .footer-grid {

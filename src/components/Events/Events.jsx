@@ -897,7 +897,12 @@ const Events = () => {
     if (!catName || !searchQuery) return false;
     const tokens = getSearchTokens(searchQuery);
     const target = catName.replace(/^#+/, '').toLowerCase().trim();
-    return tokens.some(t => t === target || target.includes(t) || t.includes(target));
+    return tokens.some(t => {
+      if (t === target) return true;
+      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const reg = new RegExp(`\\b${escaped}\\b`, 'i');
+      return reg.test(target);
+    });
   };
 
   const getSortedCategories = (cats) => {
@@ -907,7 +912,12 @@ const Events = () => {
     return cats.slice().sort((a, b) => {
       const getSelIndex = (cat) => {
         const catLower = cat.name.replace(/^#+/, '').toLowerCase().trim();
-        return tokens.findIndex(t => t === catLower || catLower.includes(t) || t.includes(catLower));
+        return tokens.findIndex(t => {
+          if (t === catLower) return true;
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const reg = new RegExp(`\\b${escaped}\\b`, 'i');
+          return reg.test(catLower);
+        });
       };
 
       const aIdx = getSelIndex(a);
@@ -1051,14 +1061,17 @@ const Events = () => {
 
       if (tokens.length > 0) {
         const isMatch = tokens.some(q => {
+          const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const wordRegex = new RegExp(`\\b${escapedQ}\\b`, 'i');
+
           const matchHashtag = event.hashtags && event.hashtags.some(tag => {
             const tagClean = tag.toLowerCase().replace(/^#+/, '').trim();
-            return tagClean.includes(q) || q.includes(tagClean);
+            return wordRegex.test(tagClean) || tagClean.includes(q);
           });
 
-          const matchTitle = event.title.toLowerCase().includes(q);
-          const matchLoc = event.location.toLowerCase().includes(q);
-          const matchCat = event.category.toLowerCase().includes(q) || q.includes(event.category.toLowerCase());
+          const matchTitle = wordRegex.test(event.title) || event.title.toLowerCase().includes(q);
+          const matchLoc = wordRegex.test(event.location) || event.location.toLowerCase().includes(q);
+          const matchCat = wordRegex.test(event.category) || (q.length > 3 && event.category.toLowerCase().includes(q));
 
           return matchHashtag || matchTitle || matchLoc || matchCat;
         });

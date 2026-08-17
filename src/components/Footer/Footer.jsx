@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { submitContactMessage } from '../../services/contactService';
 import logoText from '../../assets/logo-text.png';
 import './Footer.scss';
 
-const Footer = () => {
+const Footer = ({ hasBottomBar: propHasBottomBar }) => {
+  const location = useLocation();
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
   const [contactStatus, setContactStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isEventDetailsPage = /^\/events\/[^/]+$/.test(location.pathname) && 
+    !['/events/terms', '/events/blithelink', '/events/booking-success'].includes(location.pathname);
+  
+  const hasBottomBar = propHasBottomBar !== undefined ? propHasBottomBar : isEventDetailsPage;
 
   useEffect(() => {
     if (contactStatus.message) {
@@ -45,7 +51,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="footer-container">
+    <footer className={`footer-container ${hasBottomBar ? 'has-bottom-bar' : ''}`}>
       <div className="footer-grid">
         {/* BRAND */}
         <div className="fg-brand">
