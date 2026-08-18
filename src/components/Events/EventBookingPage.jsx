@@ -116,6 +116,18 @@ const generateBookingSearchList = (userName, eventName, bookingId, eventId, user
   return Array.from(searchKeywords);
 };
 
+// Helper to sanitize phone number: strip non-digits and leading country code '91' or '0' if >10 digits, returning 10 digits
+const sanitizePhoneNumber = (phone) => {
+  if (!phone) return '';
+  let rawDigits = String(phone).replace(/\D/g, '');
+  if (rawDigits.length > 10 && rawDigits.startsWith('91')) {
+    rawDigits = rawDigits.slice(2);
+  } else if (rawDigits.length > 10 && rawDigits.startsWith('0')) {
+    rawDigits = rawDigits.slice(1);
+  }
+  return rawDigits.slice(0, 10);
+};
+
 // Helper to format date to YYYY-MM-DD
 const formatDateStr = (date) => {
   if (!date) return '';
@@ -157,6 +169,18 @@ const EventBookingPage = () => {
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setIsSlowConnection(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSlowConnection(false);
+    }
+  }, [loading]);
 
   const scrollRef = useRef(null);
   const [quantities, setQuantities] = useState({});
@@ -215,14 +239,15 @@ const EventBookingPage = () => {
         const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
         if (cachedDetails) {
           const parsed = JSON.parse(cachedDetails);
+          const sanitizedPhone = sanitizePhoneNumber(parsed.phone);
           setAttendee(prev => {
-            if (prev.name === parsed.name && prev.email === parsed.email && prev.phone === parsed.phone) {
+            if (prev.name === parsed.name && prev.email === parsed.email && prev.phone === sanitizedPhone) {
               return prev;
             }
             return {
               name: parsed.name || '',
               email: parsed.email || '',
-              phone: parsed.phone || ''
+              phone: sanitizedPhone
             };
           });
           if (parsed.uid) {
@@ -2450,7 +2475,7 @@ const EventBookingPage = () => {
 
     } catch (err) {
       console.error("Error in booking flow:", err);
-      toast.error(`Failed to proceed: ${err.message || err}`);
+      toast.error(navigator.onLine ? `Failed to proceed: ${err.message || err}` : 'Failed to proceed. Please check your internet connection and try again.');
     } finally {
       setIsVerifyingUser(false);
     }
@@ -2458,7 +2483,7 @@ const EventBookingPage = () => {
 
   if (loading) {
     return (
-      <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center' }}>
+      <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center', padding: '0 1rem' }}>
         <motion.img
           src={logo}
           alt="Loading..."
@@ -2467,6 +2492,28 @@ const EventBookingPage = () => {
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         />
         <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading checkout...</h2>
+        {isSlowConnection && (
+          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+            <p style={{ color: '#F59E0B', fontSize: '0.95rem', margin: 0 }}>
+              Connection seems slow. Please check your internet connection.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                backgroundColor: 'rgba(124, 58, 237, 0.15)',
+                color: '#A78BFA',
+                border: '1px solid #7C3AED',
+                borderRadius: '0.5rem',
+                padding: '0.4rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Reload Page
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -2677,7 +2724,7 @@ const EventBookingPage = () => {
                     style={{ paddingLeft: '4.75rem' }}
                     value={attendee.phone}
                     onChange={(e) => {
-                      const newPhone = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      const newPhone = sanitizePhoneNumber(e.target.value);
                       setAttendee(prev => {
                         if (resolvedUserId) {
                           setResolvedUserId(null);

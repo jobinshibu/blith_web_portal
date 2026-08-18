@@ -15,7 +15,10 @@ const TicketView = lazy(() => import('./components/Events/TicketView'))
 const LinkTree = lazy(() => import('./components/LinkTree/LinkTree'))
 const Terms = lazy(() => import('./components/Terms/Terms'))
 
+import { useNetworkStatus } from './hooks/useNetworkStatus'
+
 function App() {
+  useNetworkStatus();
   const location = useLocation();
   const isLinkTree = location.pathname === '/blithelink' || location.pathname === '/events/blithelink';
   const isTicketView = location.pathname.startsWith('/ticketView') || location.pathname.startsWith('/events/ticketView');

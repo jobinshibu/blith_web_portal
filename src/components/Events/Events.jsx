@@ -527,6 +527,7 @@ const Events = () => {
 
   const dispatch = useDispatch();
   const { events: rawEvents, categories: rawCategories, loading: reduxLoading, error: reduxError } = useSelector(state => state.events);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
 
   useEffect(() => {
     dispatch(fetchEventsThunk());
@@ -535,6 +536,14 @@ const Events = () => {
 
   useEffect(() => {
     setLoading(reduxLoading);
+    if (reduxLoading) {
+      const timer = setTimeout(() => {
+        setIsSlowConnection(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSlowConnection(false);
+    }
   }, [reduxLoading]);
 
   useEffect(() => {
@@ -1257,7 +1266,7 @@ const Events = () => {
   return (
     <div className="events-page">
       {loading ? (
-        <div className="loading-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem' }}>
+        <div className="loading-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center', padding: '0 1rem' }}>
           <motion.img
             src={logo}
             alt="Loading..."
@@ -1266,14 +1275,60 @@ const Events = () => {
             transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
           />
           <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading blithe events...</h2>
+          {isSlowConnection && (
+            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+              <p style={{ color: '#F59E0B', fontSize: '0.95rem', margin: 0 }}>
+                Connection seems slow. Please check your internet connection.
+              </p>
+              <button
+                onClick={() => {
+                  dispatch(fetchEventsThunk(true));
+                  dispatch(fetchCategoriesThunk(true));
+                }}
+                style={{
+                  backgroundColor: 'rgba(124, 58, 237, 0.15)',
+                  color: '#A78BFA',
+                  border: '1px solid #7C3AED',
+                  borderRadius: '0.5rem',
+                  padding: '0.4rem 1rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Retry Loading
+              </button>
+            </div>
+          )}
         </div>
       ) : error ? (
-        <div className="error-container" style={{ padding: '5rem', textAlign: 'center' }}>
-          <h2 style={{ color: '#EF4444', marginBottom: '1rem' }}>Failed to load events</h2>
-          <p style={{ color: '#fff', backgroundColor: 'rgba(239, 68, 68, 0.2)', padding: '1rem', borderRadius: '0.5rem', display: 'inline-block' }}>
-            {error}
+        <div className="error-container" style={{ padding: '5rem 1rem', textAlign: 'center' }}>
+          <h2 style={{ color: '#EF4444', marginBottom: '1rem' }}>Unable to load events</h2>
+          <p style={{ color: '#E5E7EB', backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '1rem', borderRadius: '0.5rem', display: 'inline-block', maxWidth: '500px' }}>
+            Please check your internet connection and try again.
           </p>
-          <p style={{ marginTop: '1rem', color: '#9CA3AF' }}>Check your Firebase Security Rules or internet connection.</p>
+          <div style={{ marginTop: '1.5rem' }}>
+            <button
+              onClick={() => {
+                setError(null);
+                dispatch(fetchEventsThunk(true));
+                dispatch(fetchCategoriesThunk(true));
+              }}
+              style={{
+                backgroundColor: '#7C3AED',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '0.5rem',
+                padding: '0.6rem 1.5rem',
+                fontSize: '1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(124, 58, 237, 0.4)'
+              }}
+            >
+              Retry
+            </button>
+          </div>
         </div>
       ) : (
         <>

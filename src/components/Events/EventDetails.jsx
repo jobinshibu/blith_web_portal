@@ -970,6 +970,18 @@ const EventDetails = () => {
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setIsSlowConnection(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSlowConnection(false);
+    }
+  }, [loading]);
 
   const hasLoggedView = useRef(false);
   const hasLoggedShare = useRef(false);
@@ -1629,7 +1641,7 @@ const EventDetails = () => {
 
   if (loading) {
     return (
-      <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center' }}>
+      <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center', padding: '0 1rem' }}>
         <motion.img
           src={logo}
           alt="Loading..."
@@ -1638,6 +1650,28 @@ const EventDetails = () => {
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         />
         <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading event details...</h2>
+        {isSlowConnection && (
+          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+            <p style={{ color: '#F59E0B', fontSize: '0.95rem', margin: 0 }}>
+              Connection seems slow. Please check your internet connection.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                backgroundColor: 'rgba(124, 58, 237, 0.15)',
+                color: '#A78BFA',
+                border: '1px solid #7C3AED',
+                borderRadius: '0.5rem',
+                padding: '0.4rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Reload Page
+            </button>
+          </div>
+        )}
       </div>
     );
   }
