@@ -2073,7 +2073,7 @@ const EventDetails = () => {
                 )}
               </div>
               {/* Attendees section */}
-              {attendeesCount > 0 && (
+              {attendeesCount >= 4 && (
                 <div className="attendees-going-section" onClick={() => setShowAttendeesPopup(true)}>
                   <div className="attendee-avatars">
                     {attendeesList.slice(0, 4).map((att, idx) => (
