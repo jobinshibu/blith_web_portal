@@ -79,6 +79,11 @@
         color: #0F0F0F;
         background: rgba(0, 0, 0, 0.04);
       }
+
+      &.active {
+        color: var(--v, #7C3AED) !important;
+        background: rgba(124, 58, 237, 0.08) !important;
+      }
     }
 
     .nav-pill {
@@ -264,6 +269,14 @@
 
     &:hover {
       color: $lavender-600;
+    }
+
+    &.active {
+      color: var(--v, #7C3AED) !important;
+      font-weight: 600;
+      background: rgba(124, 58, 237, 0.06);
+      padding-left: 8%;
+      border-radius: 6px;
     }
   }
 

@@ -25,14 +25,6 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
     }
   }, [contactStatus]);
 
-  useEffect(() => {
-    if (nameError) {
-      const timer = setTimeout(() => {
-        setNameError('');
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [nameError]);
 
   const handleContactChange = (e) => {
     const { name, value } = e.target;

@@ -109,6 +109,35 @@ const Navbar = () => {
     }
   };
 
+  const isLinkActive = (path) => {
+    if (!path) return false;
+    const pathname = location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const target = path.toLowerCase();
+
+    if (hash && hash !== '#') {
+      if (target.includes(hash)) return true;
+      if ((hash === '#how-it-works' || hash === '#for-creators' || hash === '#discover') && 
+          (target === '/about.html' || target === 'about.html')) {
+        return false;
+      }
+    }
+
+    if ((pathname.includes('/teams') || pathname.includes('/team') || pathname.includes('team')) && 
+        (target.includes('/teams') || target.includes('/team'))) {
+      return true;
+    }
+
+    if (!hash || hash === '#') {
+      if ((pathname.includes('about.html') || pathname.includes('about')) && 
+          (target === '/about.html' || target === 'about.html')) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   return (
     <>
       <nav className="navbar">
@@ -117,11 +146,11 @@ const Navbar = () => {
         </a>
 
         <div className="nav-links desktop-only">
-          <a href="/about.html#how-it-works" className="nav-link">How it Works</a>
-          <a href="/about.html#for-creators" className="nav-link">For Creators</a>
-          <a href="/about.html#discover" className="nav-link">Discover</a>
-          <a href="/teams" className="nav-link">Team</a>
-          <a href="/about.html" className="nav-link">About Us</a>
+          <a href="/about.html#how-it-works" className={`nav-link ${isLinkActive('/about.html#how-it-works') ? 'active' : ''}`}>How it Works</a>
+          <a href="/about.html#for-creators" className={`nav-link ${isLinkActive('/about.html#for-creators') ? 'active' : ''}`}>For Creators</a>
+          <a href="/about.html#discover" className={`nav-link ${isLinkActive('/about.html#discover') ? 'active' : ''}`}>Discover</a>
+          <a href="/teams" className={`nav-link ${isLinkActive('/teams') ? 'active' : ''}`}>Team</a>
+          <a href="/about.html" className={`nav-link ${isLinkActive('/about.html') ? 'active' : ''}`}>About Us</a>
           {!isEventsPage && <Link to="/" className="nav-pill">Explore Events</Link>}
           {currentUser && (
             <div className="nav-profile-wrapper">
@@ -215,7 +244,7 @@ const Navbar = () => {
                     { name: 'About Us', path: '/about.html' }
                   ].map((link, i) => (
                     <motion.div key={i} variants={itemVariants} className="mobile-nav-item">
-                      <a href={link.path} className="mobile-nav-link" onClick={closeMenu}>
+                      <a href={link.path} className={`mobile-nav-link ${isLinkActive(link.path) ? 'active' : ''}`} onClick={closeMenu}>
                         {link.name}
                       </a>
                     </motion.div>
