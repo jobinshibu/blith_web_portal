@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight, Globe, Info, Lock } from 'lucide-react';
+import { Search, SearchX, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight, Globe, Info, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice';
@@ -426,6 +426,7 @@ const Events = () => {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [isNearbyFilterActive, setIsNearbyFilterActive] = useState(false);
@@ -687,6 +688,7 @@ const Events = () => {
             category: data.category || "Other",
             promoted: isPromoted,
             hashtags: processTags(data.tags),
+            about: data.description || data.about || data.aboutEvent || data.eventDescription || data.details || "",
             priceMessage: data.priceMessage || "",
             isSoldOut: isSoldOut,
             distance: distance,
@@ -836,7 +838,7 @@ const Events = () => {
       if (observer) observer.disconnect();
       window.removeEventListener('resize', checkFilterOverflow);
     };
-  }, [startDate, endDate, isNearbyFilterActive, searchQuery, events]);
+  }, [startDate, endDate, isNearbyFilterActive, searchQuery, selectedCategories, events]);
 
   // Filter promoted events for the carousel
   const promotedEvents = events.filter(e => e.promoted);
@@ -879,67 +881,35 @@ const Events = () => {
     return () => clearInterval(timer);
   }, [promotedEvents.length, isHovered, absoluteIndex]);
 
-  // Unified Toggle Category Logic
+  // Dedicated Toggle Category Logic
   const toggleCategory = (catName) => {
-    setSearchQuery(prev => {
-      let currentQueries = prev ? prev.split(/,\s*/).map(q => q.trim()).filter(Boolean) : [];
+    setSelectedCategories(prev => {
       const cleanTarget = catName.replace(/^#+/, '').toLowerCase().trim();
-
-      const exists = currentQueries.some(q => {
-        const cleanQ = q.replace(/^#+/, '').toLowerCase().trim();
-        return cleanQ === cleanTarget;
-      });
+      const exists = prev.some(c => c.toLowerCase().trim() === cleanTarget);
 
       if (exists) {
-        currentQueries = currentQueries.filter(q => {
-          const cleanQ = q.replace(/^#+/, '').toLowerCase().trim();
-          return cleanQ !== cleanTarget;
-        });
+        return prev.filter(c => c.toLowerCase().trim() !== cleanTarget);
       } else {
-        currentQueries.push(catName);
+        return [...prev, catName];
       }
-      return currentQueries.join(", ");
     });
   };
 
   const isCategorySelected = (catName) => {
-    if (!catName || !searchQuery) return false;
-    const tokens = getSearchTokens(searchQuery);
-    const target = catName.replace(/^#+/, '').toLowerCase().trim();
-    return tokens.some(t => {
-      if (t === target) return true;
-      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const reg = new RegExp(`\\b${escaped}\\b`, 'i');
-      return reg.test(target);
-    });
+    if (!catName || selectedCategories.length === 0) return false;
+    const cleanTarget = catName.replace(/^#+/, '').toLowerCase().trim();
+    return selectedCategories.some(c => c.toLowerCase().trim() === cleanTarget);
   };
 
   const getSortedCategories = (cats) => {
-    const tokens = getSearchTokens(searchQuery);
-    if (tokens.length === 0) return cats;
+    if (selectedCategories.length === 0) return cats;
 
     return cats.slice().sort((a, b) => {
-      const getSelIndex = (cat) => {
-        const catLower = cat.name.replace(/^#+/, '').toLowerCase().trim();
-        return tokens.findIndex(t => {
-          if (t === catLower) return true;
-          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const reg = new RegExp(`\\b${escaped}\\b`, 'i');
-          return reg.test(catLower);
-        });
-      };
-
-      const aIdx = getSelIndex(a);
-      const bIdx = getSelIndex(b);
-
-      const aSel = aIdx !== -1 ? 1 : 0;
-      const bSel = bIdx !== -1 ? 1 : 0;
+      const aSel = isCategorySelected(a.name) ? 1 : 0;
+      const bSel = isCategorySelected(b.name) ? 1 : 0;
 
       if (aSel !== bSel) {
         return bSel - aSel;
-      }
-      if (aSel && bSel) {
-        return aIdx - bIdx; // Maintain exact selection order
       }
       return 0;
     });
@@ -948,6 +918,7 @@ const Events = () => {
   // Clear all filters
   const handleClearFilters = () => {
     setSearchQuery("");
+    setSelectedCategories([]);
     setStartDate(null);
     setEndDate(null);
     setIsNearbyFilterActive(false);
@@ -1064,12 +1035,38 @@ const Events = () => {
 
   // Filter events based on selections
   const filteredEvents = events.filter(event => {
-    // 1. Unified Search & Category Filter (OR logic for multiple terms/hashtags)
+    // 1. Category Filter (Dedicated Category Selection)
+    if (selectedCategories.length > 0) {
+      const eventCat = (event.category || "").toLowerCase().trim();
+      const matchesCategory = selectedCategories.some(selectedCat => {
+        const target = selectedCat.toLowerCase().trim();
+        if (eventCat === target) return true;
+        if (eventCat.includes(target) || target.includes(eventCat)) return true;
+
+        // Category keyword fallbacks
+        if (target.includes("food") && (eventCat.includes("drink") || eventCat.includes("beverage"))) return true;
+        if (target.includes("music") && (eventCat.includes("gig") || eventCat.includes("concert"))) return true;
+        if (target.includes("comedy") && eventCat.includes("standup")) return true;
+        if (target.includes("nightlife") && (eventCat.includes("party") || eventCat.includes("club"))) return true;
+        if (target.includes("sports") && (eventCat.includes("game") || eventCat.includes("match"))) return true;
+        if (target.includes("conference") && (eventCat.includes("tech") || eventCat.includes("workshop") || eventCat.includes("exhibition"))) return true;
+        if (target.includes("screening") && (eventCat.includes("movie") || eventCat.includes("film") || eventCat.includes("theatre"))) return true;
+        if (target.includes("fitness") && (eventCat.includes("health") || eventCat.includes("wellness"))) return true;
+        if (target.includes("mixer") && (eventCat.includes("art") || eventCat.includes("craft"))) return true;
+        if (target.includes("fest") && (eventCat.includes("travel") || eventCat.includes("camp") || eventCat.includes("fair"))) return true;
+
+        return false;
+      });
+
+      if (!matchesCategory) return false;
+    }
+
+    // 2. Search Query Filter (only text typed in search box)
     if (searchQuery.trim() !== "") {
       const tokens = getSearchTokens(searchQuery);
 
       if (tokens.length > 0) {
-        const isMatch = tokens.some(q => {
+        const isMatch = tokens.every(q => {
           const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const wordRegex = new RegExp(`\\b${escapedQ}\\b`, 'i');
 
@@ -1080,16 +1077,17 @@ const Events = () => {
 
           const matchTitle = wordRegex.test(event.title) || event.title.toLowerCase().includes(q);
           const matchLoc = wordRegex.test(event.location) || event.location.toLowerCase().includes(q);
-          const matchCat = wordRegex.test(event.category) || (q.length > 3 && event.category.toLowerCase().includes(q));
+          const matchCat = wordRegex.test(event.category) || event.category.toLowerCase().includes(q);
+          const matchAbout = wordRegex.test(event.about || "") || (event.about && event.about.toLowerCase().includes(q));
 
-          return matchHashtag || matchTitle || matchLoc || matchCat;
+          return matchHashtag || matchTitle || matchLoc || matchCat || matchAbout;
         });
 
         if (!isMatch) return false;
       }
     }
 
-    // 2. Custom Date Range Picker Filter
+    // 3. Custom Date Range Picker Filter
     if (startDate) {
       if (!isEventInDateRange(event, startDate, endDate)) return false;
     }
@@ -1111,7 +1109,7 @@ const Events = () => {
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(12);
-  }, [searchQuery, startDate, endDate, isNearbyFilterActive]);
+  }, [searchQuery, selectedCategories, startDate, endDate, isNearbyFilterActive]);
 
   // Infinite scroll listener using IntersectionObserver with scroll fallback
   useEffect(() => {
@@ -1693,7 +1691,7 @@ const Events = () => {
                     {locationError && <span className="location-error" style={{ color: 'red', fontSize: '0.8rem', marginLeft: '0.5rem' }}>{locationError}</span>}
 
                     {/* Clear Filters Indicator */}
-                    {(searchQuery || startDate || endDate || isNearbyFilterActive) && (
+                    {(searchQuery || selectedCategories.length > 0 || startDate || endDate || isNearbyFilterActive) && (
                       <button
                         type="button"
                         className="clear-all-pill"
@@ -1791,8 +1789,13 @@ const Events = () => {
                   </>
                 ) : (
                   <div className="no-events-container glass">
-                    <h3>No events match your criteria</h3>
-                    <p>Try searching for another keyword or clearing the active filters.</p>
+                    <SearchX size={48} style={{ color: '#9CA3AF', marginBottom: '1rem' }} />
+                    <h3>No Results Found</h3>
+                    <p>
+                      {searchQuery.trim() !== ""
+                        ? `No events found matching "${searchQuery.trim()}". Try searching for another keyword or clearing active filters.`
+                        : "No events match your selected filters."}
+                    </p>
                     <button className="reset-filters-btn" onClick={handleClearFilters}>
                       Clear all filters
                     </button>
