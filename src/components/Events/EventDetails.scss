@@ -704,6 +704,39 @@
           cursor: not-allowed !important;
           transform: none !important;
         }
+
+        &.btn-sold-out,
+        &.btn-sold-out:disabled {
+          background: linear-gradient(135deg, #DC2626, #991B1B) !important;
+          color: #FFFFFF !important;
+          border: 1px solid rgba(254, 202, 202, 0.4) !important;
+          box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3) !important;
+          cursor: not-allowed !important;
+          opacity: 0.95 !important;
+          transform: none !important;
+        }
+
+        &.btn-booking-closed,
+        &.btn-booking-closed:disabled {
+          background: linear-gradient(135deg, #374151, #1F2937) !important;
+          color: #F9FAFB !important;
+          border: 1px solid rgba(243, 244, 246, 0.25) !important;
+          box-shadow: 0 8px 20px rgba(31, 41, 55, 0.3) !important;
+          cursor: not-allowed !important;
+          opacity: 0.95 !important;
+          transform: none !important;
+        }
+
+        &.btn-event-expired,
+        &.btn-event-expired:disabled {
+          background: linear-gradient(135deg, #6B7280, #4B5563) !important;
+          color: #F9FAFB !important;
+          border: 1px solid rgba(209, 213, 219, 0.3) !important;
+          box-shadow: 0 6px 16px rgba(75, 85, 99, 0.2) !important;
+          cursor: not-allowed !important;
+          opacity: 0.92 !important;
+          transform: none !important;
+        }
       }
 
       .support-query-line {
@@ -1716,6 +1749,40 @@
         font-size: 0.85rem !important;
         border-radius: 0.5rem;
         font-weight: 600;
+        gap: 0.4rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+
+        &.btn-sold-out,
+        &.btn-sold-out:disabled {
+          background: linear-gradient(135deg, #DC2626, #991B1B) !important;
+          color: #FFFFFF !important;
+          border: 1px solid rgba(254, 202, 202, 0.4) !important;
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+          cursor: not-allowed !important;
+          opacity: 0.95 !important;
+        }
+
+        &.btn-booking-closed,
+        &.btn-booking-closed:disabled {
+          background: linear-gradient(135deg, #374151, #1F2937) !important;
+          color: #F9FAFB !important;
+          border: 1px solid rgba(243, 244, 246, 0.25) !important;
+          box-shadow: 0 4px 12px rgba(31, 41, 55, 0.3) !important;
+          cursor: not-allowed !important;
+          opacity: 0.95 !important;
+        }
+
+        &.btn-event-expired,
+        &.btn-event-expired:disabled {
+          background: linear-gradient(135deg, #6B7280, #4B5563) !important;
+          color: #F9FAFB !important;
+          border: 1px solid rgba(209, 213, 219, 0.3) !important;
+          box-shadow: 0 4px 12px rgba(75, 85, 99, 0.2) !important;
+          cursor: not-allowed !important;
+          opacity: 0.92 !important;
+        }
       }
 
       .price-row {

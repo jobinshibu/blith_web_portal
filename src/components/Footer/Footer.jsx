@@ -25,7 +25,13 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
   }, [contactStatus]);
 
   const handleContactChange = (e) => {
-    setContactForm({ ...contactForm, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'name') {
+      const filteredValue = value.replace(/[^a-zA-Z\s]/g, '');
+      setContactForm({ ...contactForm, name: filteredValue });
+    } else {
+      setContactForm({ ...contactForm, [name]: value });
+    }
   };
 
   const handleContactSubmit = async (e) => {
@@ -35,6 +41,12 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
     
     if (!contactForm.name || !contactForm.email || !contactForm.message) {
       setContactStatus({ type: 'error', message: 'Please fill in all fields' });
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (/[^a-zA-Z\s]/.test(contactForm.name)) {
+      setContactStatus({ type: 'error', message: 'Name field cannot contain digits or special characters.' });
       setIsSubmitting(false);
       return;
     }

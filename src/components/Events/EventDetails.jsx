@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages, Lock } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages, Lock, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { db, analytics } from '../../firebase';
@@ -2201,10 +2201,37 @@ const EventDetails = () => {
                     <span>Booking Closed: Ticket sales have ended for this event.</span>
                   </div>
                 )}
+                {isSoldOut && !isEventExpired && !isBookingClosed && (
+                  <div className="expired-event-banner sold-out-banner" style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '8px',
+                    padding: '0.75rem 1rem',
+                    marginTop: '0.75rem',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: '#DC2626',
+                    fontWeight: 600,
+                    fontSize: '0.9rem'
+                  }}>
+                    <AlertTriangle size={18} style={{ color: '#DC2626', flexShrink: 0 }} />
+                    <span>Sold Out: All tickets for this event have been sold.</span>
+                  </div>
+                )}
                 <Button
                   variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
                   size="lg"
-                  className="book-now-btn"
+                  className={`book-now-btn ${
+                    isEventExpired
+                      ? 'btn-event-expired'
+                      : isSoldOut
+                      ? 'btn-sold-out'
+                      : isBookingClosed
+                      ? 'btn-booking-closed'
+                      : ''
+                  }`}
                   onClick={() => {
                     // UPDATED: Expired event validation
                     if (isEventExpired) {
@@ -2215,12 +2242,33 @@ const EventDetails = () => {
                       toast.error("Booking for this event has closed.");
                       return;
                     }
+                    if (isSoldOut) {
+                      toast.error("This event is sold out.");
+                      return;
+                    }
                     trackClickCheckoutNow(event);
                     navigate(`/events/${event.id}/book`);
                   }}
                   disabled={isEventExpired || isSoldOut || isBookingClosed}
                 >
-                  {isEventExpired ? 'Event Expired' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
+                  {isEventExpired ? (
+                    <>
+                      <Calendar size={18} style={{ flexShrink: 0 }} />
+                      <span>Event Expired</span>
+                    </>
+                  ) : isSoldOut ? (
+                    <>
+                      <XCircle size={18} style={{ flexShrink: 0 }} />
+                      <span>Sold Out</span>
+                    </>
+                  ) : isBookingClosed ? (
+                    <>
+                      <Lock size={18} style={{ flexShrink: 0 }} />
+                      <span>Booking Closed</span>
+                    </>
+                  ) : (
+                    event.approvalNeeded ? 'Request to Join' : 'Book Now'
+                  )}
                 </Button>
                 <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
                   <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
@@ -2353,10 +2401,20 @@ const EventDetails = () => {
           {/* UPDATED: Expired event validation */}
           {isEventExpired && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Event Expired</span>}
           {isBookingClosed && !isEventExpired && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Booking Closed</span>}
+          {isSoldOut && !isEventExpired && !isBookingClosed && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Sold Out</span>}
         </div>
         <Button
           variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
           size="md"
+          className={`book-now-btn ${
+            isEventExpired
+              ? 'btn-event-expired'
+              : isSoldOut
+              ? 'btn-sold-out'
+              : isBookingClosed
+              ? 'btn-booking-closed'
+              : ''
+          }`}
           onClick={() => {
             // UPDATED: Expired event validation
             if (isEventExpired) {
@@ -2367,12 +2425,33 @@ const EventDetails = () => {
               toast.error("Booking for this event has closed.");
               return;
             }
+            if (isSoldOut) {
+              toast.error("This event is sold out.");
+              return;
+            }
             trackClickCheckoutNow(event);
             navigate(`/events/${event.id}/book`);
           }}
           disabled={isEventExpired || isSoldOut || isBookingClosed}
         >
-          {isEventExpired ? 'Event Expired' : isSoldOut ? 'Sold Out' : isBookingClosed ? 'Booking Closed' : (event.approvalNeeded ? 'Request to Join' : 'Book Now')}
+          {isEventExpired ? (
+            <>
+              <Calendar size={16} style={{ flexShrink: 0 }} />
+              <span>Event Expired</span>
+            </>
+          ) : isSoldOut ? (
+            <>
+              <XCircle size={16} style={{ flexShrink: 0 }} />
+              <span>Sold Out</span>
+            </>
+          ) : isBookingClosed ? (
+            <>
+              <Lock size={16} style={{ flexShrink: 0 }} />
+              <span>Booking Closed</span>
+            </>
+          ) : (
+            event.approvalNeeded ? 'Request to Join' : 'Book Now'
+          )}
         </Button>
       </div>
 
