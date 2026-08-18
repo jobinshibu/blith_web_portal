@@ -8,6 +8,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
   const location = useLocation();
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
   const [contactStatus, setContactStatus] = useState({ type: '', message: '' });
+  const [nameError, setNameError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEventDetailsPage = /^\/events\/[^/]+$/.test(location.pathname) && 
@@ -24,9 +25,23 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
     }
   }, [contactStatus]);
 
+  useEffect(() => {
+    if (nameError) {
+      const timer = setTimeout(() => {
+        setNameError('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [nameError]);
+
   const handleContactChange = (e) => {
     const { name, value } = e.target;
     if (name === 'name') {
+      if (/[^a-zA-Z\s]/.test(value)) {
+        setNameError('Name field cannot contain digits or special characters.');
+      } else {
+        setNameError('');
+      }
       const filteredValue = value.replace(/[^a-zA-Z\s]/g, '');
       setContactForm({ ...contactForm, name: filteredValue });
     } else {
@@ -38,6 +53,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
     e.preventDefault();
     setIsSubmitting(true);
     setContactStatus({ type: '', message: '' });
+    setNameError('');
     
     if (!contactForm.name || !contactForm.email || !contactForm.message) {
       setContactStatus({ type: 'error', message: 'Please fill in all fields' });
@@ -46,7 +62,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
     }
 
     if (/[^a-zA-Z\s]/.test(contactForm.name)) {
-      setContactStatus({ type: 'error', message: 'Name field cannot contain digits or special characters.' });
+      setNameError('Name field cannot contain digits or special characters.');
       setIsSubmitting(false);
       return;
     }
@@ -151,14 +167,21 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
         <div className="fg-col contact-col">
           <h5>Contact Us</h5>
           <form className="footer-contact-form" onSubmit={handleContactSubmit}>
-            <input 
-              type="text" 
-              name="name" 
-              placeholder="Your Name" 
-              value={contactForm.name}
-              onChange={handleContactChange}
-              required
-            />
+            <div className="form-group">
+              <input 
+                type="text" 
+                name="name" 
+                placeholder="Your Name" 
+                value={contactForm.name}
+                onChange={handleContactChange}
+                required
+              />
+              {nameError && (
+                <p className="input-validation-msg error">
+                  {nameError}
+                </p>
+              )}
+            </div>
             <input 
               type="email" 
               name="email" 

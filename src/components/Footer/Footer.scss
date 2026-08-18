@@ -150,6 +150,28 @@ $off: #FAFAFA;
   gap: 12px;
   width: 100%;
 
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .input-validation-msg {
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 4px;
+    margin-bottom: 0;
+    line-height: 1.3;
+
+    &.error {
+      color: #EF4444;
+    }
+
+    &.success {
+      color: #10B981;
+    }
+  }
+
   input,
   textarea {
     width: 100%;
@@ -213,6 +235,28 @@ $off: #FAFAFA;
 
   &.error {
     color: #EF4444;
+  }
+}
+
+.footer-status-msg {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+
+  &.success {
+    background-color: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+  }
+
+  &.error {
+    background-color: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
   }
 }
 
