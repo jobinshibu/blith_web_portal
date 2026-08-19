@@ -1068,17 +1068,20 @@ const Events = () => {
       if (tokens.length > 0) {
         const isMatch = tokens.every(q => {
           const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const wordRegex = new RegExp(`\\b${escapedQ}\\b`, 'i');
+          // Word-prefix regex: matches any word starting with the search query q (e.g., \bart matches "Art", "Artist", "Arts", but NOT "Party" or "Part")
+          const regex = /^\w/.test(q)
+            ? new RegExp(`\\b${escapedQ}`, 'i')
+            : new RegExp(`(?:^|\\s)${escapedQ}`, 'i');
 
           const matchHashtag = event.hashtags && event.hashtags.some(tag => {
             const tagClean = tag.toLowerCase().replace(/^#+/, '').trim();
-            return wordRegex.test(tagClean) || tagClean.includes(q);
+            return regex.test(tagClean);
           });
 
-          const matchTitle = wordRegex.test(event.title) || event.title.toLowerCase().includes(q);
-          const matchLoc = wordRegex.test(event.location) || event.location.toLowerCase().includes(q);
-          const matchCat = wordRegex.test(event.category) || event.category.toLowerCase().includes(q);
-          const matchAbout = wordRegex.test(event.about || "") || (event.about && event.about.toLowerCase().includes(q));
+          const matchTitle = regex.test(event.title || "");
+          const matchLoc = regex.test(event.location || "");
+          const matchCat = regex.test(event.category || "");
+          const matchAbout = regex.test(event.about || "");
 
           return matchHashtag || matchTitle || matchLoc || matchCat || matchAbout;
         });
