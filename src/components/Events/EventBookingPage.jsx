@@ -3032,7 +3032,7 @@ const EventBookingPage = () => {
                   return (
                     <div key={idx} className="ticket-item-row">
                       <span>{qty}x {ticket.ticketName}</span>
-                      <span>{(!ticket.blithePrice || Number(ticket.blithePrice) === 0) ? 'FREE' : `₹ ${qty * Number(ticket.blithePrice)}`}</span>
+                      <span>{(!ticket.blithePrice || Number(ticket.blithePrice) === 0) ? 'Free' : `₹ ${qty * Number(ticket.blithePrice)}`}</span>
                     </div>
                   );
                 }
@@ -3091,7 +3091,7 @@ const EventBookingPage = () => {
                   ) : (
                     <div className="summary-row" style={{ margin: '0.75rem 0' }}>
                       <span>Platform Fee</span>
-                      <span style={{ color: '#10B981', fontWeight: 600 }}>₹ 0</span>
+                      <span style={{ color: '#10B981', fontWeight: 600 }}>Free</span>
                     </div>
                   )}
                   {appliedCoupon && (
@@ -3102,7 +3102,7 @@ const EventBookingPage = () => {
                   )}
                   <div className="summary-row total-row">
                     <span>Grand Total</span>
-                    <span>₹ {total.toFixed(2)}</span>
+                    <span>{total === 0 ? 'Free' : `₹ ${total.toFixed(2)}`}</span>
                   </div>
                 </>
               )}
