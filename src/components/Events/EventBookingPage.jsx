@@ -2606,7 +2606,7 @@ const EventBookingPage = () => {
                     <div className="tier-top">
                       <h4>{ticket.ticketName}</h4>
                       {isUnavailable && (
-                        <p className="tier-desc error-text">Sold Out / Unavailable</p>
+                        <p className="tier-desc error-text">Sold Out</p>
                       )}
                     </div>
                     <div className="tier-bottom">
