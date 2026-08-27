@@ -702,7 +702,7 @@ const EventDetails = () => {
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
       try {
-        const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+        const cachedDetails = localStorage.getItem('blithe_checkout_attendee') || sessionStorage.getItem('blithe_checkout_attendee');
         console.log("[CurrentUser Debug] cachedDetails from sessionStorage:", cachedDetails);
         if (cachedDetails) {
           const parsed = JSON.parse(cachedDetails);

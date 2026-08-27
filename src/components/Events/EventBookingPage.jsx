@@ -236,7 +236,7 @@ const EventBookingPage = () => {
   useEffect(() => {
     const syncDetails = () => {
       try {
-        const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+        const cachedDetails = localStorage.getItem('blithe_checkout_attendee') || sessionStorage.getItem('blithe_checkout_attendee');
         if (cachedDetails) {
           const parsed = JSON.parse(cachedDetails);
           const sanitizedPhone = sanitizePhoneNumber(parsed.phone);
@@ -672,13 +672,15 @@ const EventBookingPage = () => {
                 setFetchedUserName(userData.name || '');
 
                 try {
-                  sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+                  const userPayload = JSON.stringify({
                     name: userData.name || attendee.name,
                     email: attendee.email,
                     phone: finalPhone,
                     uid: userData.uid,
                     profilePic: userData.profilePic || ""
-                  }));
+                  });
+                  localStorage.setItem('blithe_checkout_attendee', userPayload);
+                  sessionStorage.setItem('blithe_checkout_attendee', userPayload);
                   window.dispatchEvent(new CustomEvent('session-user-changed'));
                 } catch (err) {
                   console.warn("Failed to save checkout details to session on email resolve:", err);
@@ -719,13 +721,15 @@ const EventBookingPage = () => {
                 setFetchedUserName(userData.name || '');
 
                 try {
-                  sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+                  const userPayload = JSON.stringify({
                     name: userData.name || attendee.name,
                     email: finalEmail,
                     phone: userData.phoneNo || userData.phone || attendee.phone,
                     uid: userData.uid,
                     profilePic: userData.profilePic || ""
-                  }));
+                  });
+                  localStorage.setItem('blithe_checkout_attendee', userPayload);
+                  sessionStorage.setItem('blithe_checkout_attendee', userPayload);
                   window.dispatchEvent(new CustomEvent('session-user-changed'));
                 } catch (err) {
                   console.warn("Failed to save checkout details to session on phone resolve:", err);
@@ -745,13 +749,15 @@ const EventBookingPage = () => {
                   setFetchedUserName(attendee.name);
 
                   try {
-                    sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+                    const newPayload = JSON.stringify({
                       name: attendee.name,
                       email: attendee.email,
                       phone: trimmedPhone,
                       uid: newUid,
                       profilePic: ""
-                    }));
+                    });
+                    localStorage.setItem('blithe_checkout_attendee', newPayload);
+                    sessionStorage.setItem('blithe_checkout_attendee', newPayload);
                     window.dispatchEvent(new CustomEvent('session-user-changed'));
                   } catch (err) {
                     console.warn("Failed to save checkout details to session on instant create:", err);
@@ -1523,16 +1529,18 @@ const EventBookingPage = () => {
 
       // Save user profile state and dispatch change event only when user clicks Proceed to Payment
       try {
-        sessionStorage.setItem('blithe_checkout_attendee', JSON.stringify({
+        const proceedPayload = JSON.stringify({
           name: attendee.name,
           email: attendee.email,
           phone: attendee.phone,
           uid: uId,
           profilePic: userProfileImage || ""
-        }));
+        });
+        localStorage.setItem('blithe_checkout_attendee', proceedPayload);
+        sessionStorage.setItem('blithe_checkout_attendee', proceedPayload);
         window.dispatchEvent(new CustomEvent('session-user-changed'));
       } catch (err) {
-        console.warn("Failed to save checkout details to session on proceed:", err);
+        console.warn("Failed to save checkout details to storage on proceed:", err);
       }
 
       // Validate coupon reservation is still live

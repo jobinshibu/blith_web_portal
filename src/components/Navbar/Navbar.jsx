@@ -27,7 +27,7 @@ const Navbar = () => {
 
   const loadUser = () => {
     try {
-      const cachedDetails = sessionStorage.getItem('blithe_checkout_attendee');
+      const cachedDetails = localStorage.getItem('blithe_checkout_attendee') || sessionStorage.getItem('blithe_checkout_attendee');
       if (cachedDetails) {
         setCurrentUser(JSON.parse(cachedDetails));
       } else {
@@ -80,6 +80,7 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('blithe_checkout_attendee');
     sessionStorage.removeItem('blithe_checkout_attendee');
     setCurrentUser(null);
     setIsProfileOpen(false);
