@@ -207,7 +207,9 @@ const EventBookingPage = () => {
   }, [approvalQuestionsList, approvalAnswers]);
 
   const tickets = useMemo(() => {
-    const rawTickets = event?.tickets || [];
+    const rawTickets = (event?.tickets || []).filter(
+      (t) => t && t.deleted !== true && t.deleted !== 'true' && t.isDeleted !== true && t.isDeleted !== 'true' && t.delete !== true && t.delete !== 'true' && t.isDelete !== true && t.isDelete !== 'true'
+    );
     return [...rawTickets].sort((a, b) => {
       const priceA = Number(a?.blithePrice ?? a?.price ?? 0);
       const priceB = Number(b?.blithePrice ?? b?.price ?? 0);
@@ -1179,7 +1181,7 @@ const EventBookingPage = () => {
 
       if (!snapshot.exists()) {
         // Lazy Initialization from Event's current tickets
-        dbTickets.forEach((t) => {
+        (dbTickets || []).filter(t => t && t.deleted !== true && t.deleted !== 'true' && t.isDeleted !== true && t.isDeleted !== 'true' && t.delete !== true && t.delete !== 'true' && t.isDelete !== true && t.isDelete !== 'true').forEach((t) => {
           ticketsMap[t.ticketName] = t.totalSlots || 0;
         });
       } else {
@@ -1189,7 +1191,7 @@ const EventBookingPage = () => {
         blockedSlots = { ...(data.blocked_slots || {}) };
 
         // Merge missing tickets
-        dbTickets.forEach((t) => {
+        (dbTickets || []).filter(t => t && t.deleted !== true && t.deleted !== 'true' && t.isDeleted !== true && t.isDeleted !== 'true' && t.delete !== true && t.delete !== 'true' && t.isDelete !== true && t.isDelete !== 'true').forEach((t) => {
           if (ticketsMap[t.ticketName] === undefined) {
             ticketsMap[t.ticketName] = t.totalSlots || 0;
           }
@@ -1877,14 +1879,14 @@ const EventBookingPage = () => {
               blockedSlots = { ...(availData.blocked_slots || {}) };
 
               // Merge missing tickets
-              dbTickets.forEach((t) => {
+              (dbTickets || []).filter(t => t && t.deleted !== true && t.deleted !== 'true' && t.isDeleted !== true && t.isDeleted !== 'true' && t.delete !== true && t.delete !== 'true' && t.isDelete !== true && t.isDelete !== 'true').forEach((t) => {
                 if (ticketsMap[t.ticketName] === undefined) {
                   ticketsMap[t.ticketName] = t.totalSlots || 0;
                 }
               });
             } else {
               // Initialize for the first time
-              dbTickets.forEach((t) => {
+              (dbTickets || []).filter(t => t && t.deleted !== true && t.deleted !== 'true' && t.isDeleted !== true && t.isDeleted !== 'true' && t.delete !== true && t.delete !== 'true' && t.isDelete !== true && t.isDelete !== 'true').forEach((t) => {
                 ticketsMap[t.ticketName] = t.totalSlots || 0;
               });
             }
