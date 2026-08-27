@@ -319,6 +319,12 @@ const EventBookingPage = () => {
           const data = docSnap.data();
           if (data) {
             setSettingsDoc(data);
+            setSettings(prev => ({
+              ...prev,
+              ...data,
+              gst: data.gst !== undefined ? data.gst : (prev?.gst ?? 18),
+              serviceCode: data.serviceCode !== undefined ? data.serviceCode : (prev?.serviceCode ?? '')
+            }));
             if (data.terms) {
               setTermsText(data.terms);
             }
@@ -425,7 +431,8 @@ const EventBookingPage = () => {
   const [couponApplyingId, setCouponApplyingId] = useState(null); // couponId currently being applied
   const [couponErrors, setCouponErrors] = useState({});         // { [couponId]: errorString }
   const [resolvedUserIdForCoupons, setResolvedUserIdForCoupons] = useState(null);
-  const [settings, setSettings] = useState(null);
+  // Default to 18% GST so GST is immediately active without waiting for server network responses
+  const [settings, setSettings] = useState({ gst: 18, serviceCode: '' });
   const couponTimerRef = useRef(null);
   const [couponSearchInput, setCouponSearchInput] = useState('');
   const [revealedCouponCodes, setRevealedCouponCodes] = useState(new Set());
@@ -433,37 +440,6 @@ const EventBookingPage = () => {
   // Daily Availability State
   const [dailyAvailability, setDailyAvailability] = useState({});
   const [loadingAvailability, setLoadingAvailability] = useState(false);
-
-  // Fetch Settings
-  useEffect(() => {
-    const fetchSettings = async () => {
-      // Try common collection/document paths where app config (GST, serviceCode) may live.
-      // The 'settings' collection only stores event categories in this project.
-      const attempts = [
-        () => getDocs(collection(db, 'appConfig')),
-        () => getDocs(collection(db, 'config')),
-        () => getDocs(collection(db, 'platformSettings')),
-      ];
-
-      for (const attempt of attempts) {
-        try {
-          const snapshot = await attempt();
-          if (!snapshot.empty) {
-            const data = snapshot.docs[0].data();
-            if (data.gst !== undefined || data.serviceCode !== undefined) {
-              setSettings(data);
-              return;
-            }
-          }
-        } catch (_) { }
-      }
-
-      // Config collection not found — fall back to a safe default so GST still renders.
-      // 18% is the standard Indian GST rate applied on platform fees.
-      setSettings({ gst: 18 });
-    };
-    fetchSettings();
-  }, []);
 
   // Fetch Event Details
   useEffect(() => {
@@ -1156,15 +1132,13 @@ const EventBookingPage = () => {
     return sum + (quantities[idx] || 0) * (ticket.blithePrice || 0);
   }, 0);
 
-  // Use event.platformFee directly when present; fall back to 0 only if the field
-  // is genuinely absent. This avoids GST being zeroed out when event.paid is missing.
+  // Use event.platformFee directly when present; fall back to 0 only if the field is genuinely absent.
   const platformFeeRate = (event && (event.paid || event.platformFee)) ? (event.platformFee || 0.0) : 0.0;
   const platformFeeVal = subtotal > 0 ? (subtotal * (platformFeeRate / 100)) : 0;
 
-  // GST applies whenever there is a platform fee and the settings doc provides a rate.
-  // We intentionally do NOT gate on event.paid here because that boolean is sometimes
-  // absent from the Firestore document while platformFee is still set.
-  const gstPercentage = (settings && platformFeeVal > 0) ? (parseFloat(settings.gst) || 0.0) : 0.0;
+  // GST applies whenever there is a platform fee. Defaults to 18% immediately so tax is never 0 on checkout.
+  const gstRate = parseFloat(settings?.gst ?? settingsDoc?.gst ?? 18) || 18.0;
+  const gstPercentage = platformFeeVal > 0 ? gstRate : 0.0;
   const gstAmount = platformFeeVal * (gstPercentage / 100);
 
   const calculateDiscount = (coupon, currentSubtotal) => {
@@ -1370,7 +1344,7 @@ const EventBookingPage = () => {
       platform: "Web",
       priceDetails: formattedPriceDetails,
       searchList: finalBookingSearchList,
-      serviceCode: String(event.serviceCode || settings?.serviceCode || ""),
+      serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
       status: "pending",
       approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
       approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
@@ -1674,7 +1648,7 @@ const EventBookingPage = () => {
           platform: "Web",
           priceDetails: formattedPriceDetails,
           searchList: searchList,
-          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
+          serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
           approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
           approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
@@ -1723,7 +1697,7 @@ const EventBookingPage = () => {
           priceDetails: formattedPriceDetails,
           razorpayOrderId: String(orderId),
           searchList: searchList,
-          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
+          serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
           approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
           approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
@@ -1757,7 +1731,7 @@ const EventBookingPage = () => {
           platform: "Web",
           priceDetails: formattedPriceDetails,
           searchList: searchList,
-          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
+          serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
           approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
           approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
@@ -1806,7 +1780,7 @@ const EventBookingPage = () => {
           priceDetails: formattedPriceDetails,
           razorpayOrderId: String(orderId),
           searchList: searchList,
-          serviceCode: String(event.serviceCode || settings?.serviceCode || "998311"),
+          serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
           approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
           approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
@@ -2199,7 +2173,7 @@ const EventBookingPage = () => {
                   <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin:15px 0;">
                     <table style="width:100%;">
                       <tr><td style="color:#888;width:120px;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
-                      ${(event.serviceCode || settings?.serviceCode) ? `<tr><td style="color:#888;padding:3px 0;">HSN/SAC</td><td><strong>${event.serviceCode || settings?.serviceCode}</strong></td></tr>` : ''}
+                      ${(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode) ? `<tr><td style="color:#888;padding:3px 0;">HSN/SAC</td><td><strong>${event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode}</strong></td></tr>` : ''}
                       <tr><td style="color:#888;padding:3px 0;">Booked Date</td><td><strong>${bookedDateStr}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
                       ${(!isOnline && timeStr) ? `<tr><td style="color:#888;padding:3px 0;">Time</td><td><strong>${timeStr}</strong></td></tr>` : ''}
