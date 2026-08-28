@@ -110,6 +110,8 @@ const generateBookingSearchList = (userName, eventName, bookingId, eventId, user
     addPrefixes(cleanPhone);
     if (rawPhone.startsWith('+') || rawPhone !== cleanPhone) {
       searchKeywords.add(rawPhone.toLowerCase());
+    } else if (cleanPhone.length === 10) {
+      searchKeywords.add(`+91${cleanPhone}`);
     }
   }
 
@@ -126,6 +128,13 @@ const sanitizePhoneNumber = (phone) => {
     rawDigits = rawDigits.slice(1);
   }
   return rawDigits.slice(0, 10);
+};
+
+// Helper to format phone with +91 country code
+const formatPhoneWithPlus91 = (phone) => {
+  if (!phone) return '';
+  const clean = sanitizePhoneNumber(phone);
+  return clean ? `+91${clean}` : String(phone).trim();
 };
 
 // Helper to format date to YYYY-MM-DD
@@ -321,12 +330,7 @@ const EventBookingPage = () => {
           const data = docSnap.data();
           if (data) {
             setSettingsDoc(data);
-            setSettings(prev => ({
-              ...prev,
-              ...data,
-              gst: data.gst !== undefined ? data.gst : (prev?.gst ?? 18),
-              serviceCode: data.serviceCode !== undefined ? data.serviceCode : (prev?.serviceCode ?? '')
-            }));
+            setSettings(data);
             if (data.terms) {
               setTermsText(data.terms);
             }
@@ -433,8 +437,8 @@ const EventBookingPage = () => {
   const [couponApplyingId, setCouponApplyingId] = useState(null); // couponId currently being applied
   const [couponErrors, setCouponErrors] = useState({});         // { [couponId]: errorString }
   const [resolvedUserIdForCoupons, setResolvedUserIdForCoupons] = useState(null);
-  // Default to 18% GST so GST is immediately active without waiting for server network responses
-  const [settings, setSettings] = useState({ gst: 18, serviceCode: '' });
+  // Settings loaded dynamically from Firestore database
+  const [settings, setSettings] = useState(null);
   const couponTimerRef = useRef(null);
   const [couponSearchInput, setCouponSearchInput] = useState('');
   const [revealedCouponCodes, setRevealedCouponCodes] = useState(new Set());
@@ -1138,8 +1142,13 @@ const EventBookingPage = () => {
   const platformFeeRate = (event && (event.paid || event.platformFee)) ? (event.platformFee || 0.0) : 0.0;
   const platformFeeVal = subtotal > 0 ? (subtotal * (platformFeeRate / 100)) : 0;
 
-  // GST applies whenever there is a platform fee. Defaults to 18% immediately so tax is never 0 on checkout.
-  const gstRate = parseFloat(settings?.gst ?? settingsDoc?.gst ?? 18) || 18.0;
+  // Read GST rate dynamically from database (settingsDoc / settings) - no hardcoded default
+  const dbGst = (settingsDoc?.gst !== undefined && settingsDoc?.gst !== null)
+    ? settingsDoc.gst
+    : (settings?.gst !== undefined && settings?.gst !== null)
+      ? settings.gst
+      : null;
+  const gstRate = (dbGst !== undefined && dbGst !== null) ? (parseFloat(dbGst) || 0.0) : 0.0;
   const gstPercentage = platformFeeVal > 0 ? gstRate : 0.0;
   const gstAmount = platformFeeVal * (gstPercentage / 100);
 
@@ -1359,7 +1368,7 @@ const EventBookingPage = () => {
       userEmail: String(attendee.email),
       userId: String(uId),
       userName: String(attendee.name),
-      userPhone: String(attendee.phone),
+      userPhone: formatPhoneWithPlus91(attendee.phone),
       userProfileImage: String(userProfileImage || "")
     };
 
@@ -1382,7 +1391,7 @@ const EventBookingPage = () => {
       status: "pending",
       totalPrice: Number(total),
       userId: uId,
-      userPhone: attendee.phone
+      userPhone: formatPhoneWithPlus91(attendee.phone)
     });
   };
 
@@ -1479,7 +1488,8 @@ const EventBookingPage = () => {
         uId = generateUID();
         const newDocRef = doc(usersRef, uId);
         console.log(`User does not exist. Creating new record with UID: ${uId}`);
-        const newUserDocument = createDefaultUserObject(uId, attendee.name, attendee.email, attendee.phone);
+        const cleanUserPhone = sanitizePhoneNumber(attendee.phone);
+        const newUserDocument = createDefaultUserObject(uId, attendee.name, attendee.email, cleanUserPhone);
         await setDoc(newDocRef, newUserDocument);
         console.log(`New user record created successfully with UID: ${uId}`);
       } else {
@@ -1534,17 +1544,43 @@ const EventBookingPage = () => {
       const selectedDateVal = selectedDate ? selectedDate : startDate;
       const dateStr = formatDateStr(selectedDateVal);
 
+      // Ensure settings document is fetched from database before proceeding with checkout
+      let activeSettings = settingsDoc || settings;
+      if (!activeSettings || activeSettings.gst === undefined) {
+        try {
+          const docRef = doc(db, 'settings', 'settings');
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            activeSettings = docSnap.data();
+            setSettingsDoc(activeSettings);
+            setSettings(activeSettings);
+          }
+        } catch (err) {
+          console.error("Error fetching settings document during checkout:", err);
+        }
+      }
+
+      const activeGst = (activeSettings?.gst !== undefined && activeSettings?.gst !== null)
+        ? activeSettings.gst
+        : dbGst;
+      const checkoutGstRate = (activeGst !== undefined && activeGst !== null) ? (parseFloat(activeGst) || 0.0) : 0.0;
+      const checkoutGstPercentage = platformFeeVal > 0 ? checkoutGstRate : 0.0;
+      const checkoutGstAmount = platformFeeVal * (checkoutGstPercentage / 100);
+      const checkoutTotal = Math.max(0, (subtotal - discountAmount) + platformFeeVal + checkoutGstAmount);
+
       // Construct price details
       const priceDetails = {
         couponDiscountPrice: discountAmount,
-        gstAmount: gstAmount,
-        gstPercentage: gstPercentage,
+        gstAmount: checkoutGstAmount,
+        gstPercentage: checkoutGstPercentage,
         platformFee: platformFeeVal,
         platformFeePercentage: platformFeeRate,
         totalDiscount: discountAmount,
-        totalPrice: total,
+        totalPrice: checkoutTotal,
         totalTicketPrice: subtotal
       };
+
+      const formattedUserPhone = formatPhoneWithPlus91(attendee.phone);
 
       // Construct booked tickets array
       const bookedTickets = [];
@@ -1556,11 +1592,12 @@ const EventBookingPage = () => {
             price: ticket.blithePrice || 0,
             quantity: qty,
             ticketName: ticket.ticketName || "",
-            totalPrice: subtotal > 0 ? (qty * (ticket.blithePrice || 0) / subtotal) * total : 0,
+            totalPrice: subtotal > 0 ? (qty * (ticket.blithePrice || 0) / subtotal) * checkoutTotal : 0,
             totalQuantity: qty,
             userEmail: attendee.email,
             userId: uId,
             userName: attendee.name,
+            userPhone: formattedUserPhone,
             userProfileImage: userProfileImage
           });
         }
@@ -1572,7 +1609,7 @@ const EventBookingPage = () => {
         "",
         event.id,
         attendee.email,
-        attendee.phone
+        formattedUserPhone
       );
 
       // Transaction-based Booking Confirmation Logic
@@ -1597,7 +1634,7 @@ const EventBookingPage = () => {
           bId,
           event.id,
           attendee.email,
-          attendee.phone
+          formattedUserPhone
         );
 
         // Prepare booked tickets with matching properties
@@ -1667,15 +1704,15 @@ const EventBookingPage = () => {
             userEmail: String(t.userEmail || attendee.email),
             userId: String(t.userId || uId),
             userName: String(t.userName || attendee.name),
-            userPhone: String(t.userPhone || attendee.phone || ""),
+            userPhone: formatPhoneWithPlus91(t.userPhone || attendee.phone),
             userProfileImage: String(t.userProfileImage || userProfileImage || "")
           })),
-          totalPrice: Number(total),
+          totalPrice: Number(checkoutTotal),
           totalQuantity: Number(totalTickets),
           userEmail: String(attendee.email),
           userId: String(uId),
           userName: String(attendee.name),
-          userPhone: String(attendee.phone),
+          userPhone: formattedUserPhone,
           userProfileImage: String(userProfileImage || "")
         } : {
           bookingDate: serverTimestamp(),
@@ -1710,7 +1747,7 @@ const EventBookingPage = () => {
           userEmail: String(attendee.email),
           userId: String(uId),
           userName: String(attendee.name),
-          userPhone: String(attendee.phone),
+          userPhone: formattedUserPhone,
           userProfileImage: String(userProfileImage || "")
         };
 
@@ -1750,15 +1787,15 @@ const EventBookingPage = () => {
             userEmail: String(t.userEmail || attendee.email),
             userId: String(t.userId || uId),
             userName: String(t.userName || attendee.name),
-            userPhone: String(t.userPhone || attendee.phone || ""),
+            userPhone: formatPhoneWithPlus91(t.userPhone || attendee.phone),
             userProfileImage: String(t.userProfileImage || userProfileImage || "")
           })),
-          totalPrice: Number(total),
+          totalPrice: Number(checkoutTotal),
           totalQuantity: Number(totalTickets),
           userEmail: String(attendee.email),
           userId: String(uId),
           userName: String(attendee.name),
-          userPhone: String(attendee.phone),
+          userPhone: formattedUserPhone,
           userProfileImage: String(userProfileImage || "")
         } : {
           bookingDate: serverTimestamp(),
@@ -1793,7 +1830,7 @@ const EventBookingPage = () => {
           userEmail: String(attendee.email),
           userId: String(uId),
           userName: String(attendee.name),
-          userPhone: String(attendee.phone),
+          userPhone: formattedUserPhone,
           userProfileImage: String(userProfileImage || "")
         };
 
@@ -2054,7 +2091,7 @@ const EventBookingPage = () => {
                     <table style="width:100%;">
                       <tr><td style="color:#888;width:120px;padding:3px 0;">Name</td><td><strong>${attendee.name}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Email</td><td><strong>${attendee.email}</strong></td></tr>
-                      <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? attendee.phone : 'N/A'}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? formatPhoneWithPlus91(attendee.phone) : 'N/A'}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
                       ${approvalQuestionsList.length > 0 ? approvalQuestionsList.map((q, idx) => `
@@ -2275,7 +2312,7 @@ const EventBookingPage = () => {
                     <table style="width:100%;">
                       <tr><td style="color:#888;width:120px;padding:3px 0;">Name</td><td><strong>${attendee.name}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Email</td><td><strong>${attendee.email}</strong></td></tr>
-                      <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? attendee.phone : 'N/A'}</strong></td></tr>
+                      <tr><td style="color:#888;padding:3px 0;">Phone</td><td><strong>${attendee.phone && attendee.phone.trim() ? formatPhoneWithPlus91(attendee.phone) : 'N/A'}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Booking ID</td><td><strong>${bId}</strong></td></tr>
                       <tr><td style="color:#888;padding:3px 0;">Event Date</td><td><strong>${eventDateStr}</strong></td></tr>
                     </table>
@@ -2324,7 +2361,7 @@ const EventBookingPage = () => {
       };
 
       // 2. Process booking flow
-      if (total <= 0) {
+      if (checkoutTotal <= 0) {
         // Direct booking for free events (skip slot blocking)
         await performSaveBooking("free", "free", "free");
       } else {
@@ -2339,7 +2376,7 @@ const EventBookingPage = () => {
         const keySecret = "6c2w1nZcqVdlusV8j1AGz55t";
 
         try {
-          const order = await createRazorpayOrder(total, bId, keyId, keySecret);
+          const order = await createRazorpayOrder(checkoutTotal, bId, keyId, keySecret);
           orderId = order.id;
         } catch (orderErr) {
           console.error("Razorpay Order API failed:", orderErr);
@@ -2361,7 +2398,7 @@ const EventBookingPage = () => {
 
         const options = {
           key: keyId,
-          amount: Math.round(total * 100),
+          amount: Math.round(checkoutTotal * 100),
           currency: "INR",
           name: "Blithe",
           description: `Booking for ${event.eventName || event.title}`,
