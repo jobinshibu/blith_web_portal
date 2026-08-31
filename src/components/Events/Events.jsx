@@ -10,6 +10,7 @@ import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { trackHomeLandingPageView } from '../../utils/pixel';
+import { isSoundLikeMatch } from '../../utils/soundLike';
 
 
 // Robust multi-fallback IP Geolocation helper
@@ -1075,13 +1076,13 @@ const Events = () => {
 
           const matchHashtag = event.hashtags && event.hashtags.some(tag => {
             const tagClean = tag.toLowerCase().replace(/^#+/, '').trim();
-            return regex.test(tagClean);
+            return regex.test(tagClean) || isSoundLikeMatch(q, tagClean);
           });
 
-          const matchTitle = regex.test(event.title || "");
-          const matchLoc = regex.test(event.location || "");
-          const matchCat = regex.test(event.category || "");
-          const matchAbout = regex.test(event.about || "");
+          const matchTitle = regex.test(event.title || "") || isSoundLikeMatch(q, event.title);
+          const matchLoc = regex.test(event.location || "") || isSoundLikeMatch(q, event.location);
+          const matchCat = regex.test(event.category || "") || isSoundLikeMatch(q, event.category);
+          const matchAbout = regex.test(event.about || "") || isSoundLikeMatch(q, event.about);
 
           return matchHashtag || matchTitle || matchLoc || matchCat || matchAbout;
         });
