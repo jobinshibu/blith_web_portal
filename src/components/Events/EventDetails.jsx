@@ -829,33 +829,19 @@ const EventDetails = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch platform settings for contact support info
+  // Fetch platform settings for contact support info from /settings/settings
   useEffect(() => {
     const fetchSettings = async () => {
-      const attempts = [
-        () => getDocs(collection(db, 'appConfig')),
-        () => getDocs(collection(db, 'config')),
-        () => getDocs(collection(db, 'platformSettings')),
-      ];
-
-      for (const attempt of attempts) {
-        try {
-          const snapshot = await attempt();
-          if (!snapshot.empty) {
-            const data = snapshot.docs[0].data();
-            if (data.contactSupport !== undefined || data.email !== undefined) {
-              setSettings(data);
-              return;
-            }
-          }
-        } catch (_) { }
+      try {
+        const docRef = doc(db, 'settings', 'settings');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setSettings(data);
+        }
+      } catch (err) {
+        console.error("Error fetching settings from /settings/settings:", err);
       }
-
-      // Fallback
-      setSettings({
-        contactSupport: "+91 98453 47592",
-        email: "hello@blithe.social"
-      });
     };
     fetchSettings();
   }, []);
@@ -2107,8 +2093,23 @@ const EventDetails = () => {
                       const str = String(settings.contactSupport).trim();
                       const numbers = str.split(/[/,]|(?:\sor\s)/i).map(n => n.trim()).filter(Boolean);
                       return numbers.map((num, idx) => {
+                        const cleanDigits = num.replace(/[^\d]/g, '');
                         const cleanTel = num.replace(/[^\d+]/g, '');
-                        const telUrl = `tel:${cleanTel}`;
+                        let fullTel = cleanTel;
+                        let displayNum = num;
+
+                        if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+                          fullTel = `+${cleanDigits}`;
+                          displayNum = `+91 ${cleanDigits.slice(2)}`;
+                        } else if (cleanDigits.length === 10) {
+                          fullTel = `+91${cleanDigits}`;
+                          displayNum = `+91 ${cleanDigits}`;
+                        } else if (cleanTel.startsWith('+')) {
+                          fullTel = cleanTel;
+                          displayNum = num;
+                        }
+
+                        const telUrl = `tel:${fullTel}`;
                         return (
                           <React.Fragment key={idx}>
                             {idx > 0 && ' | '}
@@ -2119,7 +2120,7 @@ const EventDetails = () => {
                                 window.location.href = telUrl;
                               }}
                             >
-                              {num}
+                              {displayNum}
                             </a>
                           </React.Fragment>
                         );
@@ -2280,8 +2281,23 @@ const EventDetails = () => {
                       const str = String(settings.contactSupport).trim();
                       const numbers = str.split(/[/,]|(?:\sor\s)/i).map(n => n.trim()).filter(Boolean);
                       return numbers.map((num, idx) => {
+                        const cleanDigits = num.replace(/[^\d]/g, '');
                         const cleanTel = num.replace(/[^\d+]/g, '');
-                        const telUrl = `tel:${cleanTel}`;
+                        let fullTel = cleanTel;
+                        let displayNum = num;
+
+                        if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+                          fullTel = `+${cleanDigits}`;
+                          displayNum = `+91 ${cleanDigits.slice(2)}`;
+                        } else if (cleanDigits.length === 10) {
+                          fullTel = `+91${cleanDigits}`;
+                          displayNum = `+91 ${cleanDigits}`;
+                        } else if (cleanTel.startsWith('+')) {
+                          fullTel = cleanTel;
+                          displayNum = num;
+                        }
+
+                        const telUrl = `tel:${fullTel}`;
                         return (
                           <React.Fragment key={idx}>
                             {idx > 0 && ' | '}
@@ -2292,7 +2308,7 @@ const EventDetails = () => {
                                 window.location.href = telUrl;
                               }}
                             >
-                              {num}
+                              {displayNum}
                             </a>
                           </React.Fragment>
                         );
