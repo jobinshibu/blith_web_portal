@@ -242,6 +242,8 @@ const EventBookingPage = () => {
 
   const lastCheckedEmailRef = useRef('');
   const lastCheckedPhoneRef = useRef('');
+  const isResolvingUserRef = useRef(false);
+  const resolvingPromiseRef = useRef(null);
 
   // Load attendee details from sessionStorage on mount and listen for session changes
   useEffect(() => {
@@ -602,7 +604,134 @@ const EventBookingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedCoupon, couponSession]);
 
-  // ─── Fetch user info by email or phone fallback ────────────────────────────
+  // ─── Resolve or Create user in the form (Strict Single Execution) ───────────
+  const resolveOrCreateUser = useCallback(async (customAttendee = null) => {
+    const currentAttendee = customAttendee || attendee;
+    const trimmedEmail = (currentAttendee.email || '').trim().toLowerCase();
+    const trimmedPhone = (currentAttendee.phone || '').trim();
+    const trimmedName = (currentAttendee.name || '').trim();
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isEmailValid = emailRegex.test(trimmedEmail);
+    const isPhoneValid = /^\d{10}$/.test(trimmedPhone);
+
+    if (!trimmedName || !isEmailValid || !isPhoneValid || !agreeAppTerms) {
+      return null;
+    }
+
+    // If already resolving, wait for the existing in-flight promise to complete
+    if (isResolvingUserRef.current && resolvingPromiseRef.current) {
+      return await resolvingPromiseRef.current;
+    }
+
+    const executionPromise = (async () => {
+      isResolvingUserRef.current = true;
+      lastCheckedEmailRef.current = trimmedEmail;
+      lastCheckedPhoneRef.current = trimmedPhone;
+
+      try {
+        const usersRef = collection(db, "users");
+        let foundUserData = null;
+
+        // 1. Check if user exists by email
+        if (isEmailValid) {
+          console.log(`[User Form] Querying Firestore for email == ${trimmedEmail}`);
+          const q = query(usersRef, where("email", "==", trimmedEmail));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            foundUserData = { uid: userDoc.id, ...userDoc.data() };
+            console.log(`[User Form] Found user by email:`, foundUserData.uid);
+          }
+        }
+
+        // 2. Check by phone if not found by email
+        if (!foundUserData && isPhoneValid) {
+          console.log(`[User Form] Querying Firestore for phoneNo == ${trimmedPhone}`);
+          const q = query(usersRef, where("phoneNo", "==", trimmedPhone));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            foundUserData = { uid: userDoc.id, ...userDoc.data() };
+            console.log(`[User Form] Found user by phone:`, foundUserData.uid);
+          }
+        }
+
+        if (foundUserData) {
+          const finalPhone = foundUserData.phoneNo || foundUserData.phone || trimmedPhone;
+          const finalEmail = foundUserData.email || trimmedEmail;
+          lastCheckedPhoneRef.current = finalPhone;
+          lastCheckedEmailRef.current = finalEmail;
+
+          setAttendee(prev => ({
+            ...prev,
+            name: foundUserData.name || prev.name,
+            phone: finalPhone,
+            email: finalEmail
+          }));
+          setResolvedUserId(foundUserData.uid);
+          setResolvedUserIdForCoupons(foundUserData.uid);
+          setFetchedUserName(foundUserData.name || '');
+
+          try {
+            const userPayload = JSON.stringify({
+              name: foundUserData.name || currentAttendee.name,
+              email: finalEmail,
+              phone: finalPhone,
+              uid: foundUserData.uid,
+              profilePic: foundUserData.profilePic || ""
+            });
+            localStorage.setItem('blithe_checkout_attendee', userPayload);
+            sessionStorage.setItem('blithe_checkout_attendee', userPayload);
+            window.dispatchEvent(new CustomEvent('session-user-changed'));
+          } catch (err) {
+            console.warn("Failed to save checkout details to session on resolve:", err);
+          }
+          return foundUserData.uid;
+        } else {
+          // User does not exist -> Create NEW user document in the form (only once)
+          const newUid = generateUID();
+          const newDocRef = doc(usersRef, newUid);
+          const cleanUserPhone = sanitizePhoneNumber(trimmedPhone);
+          const newUserDoc = createDefaultUserObject(newUid, currentAttendee.name, currentAttendee.email, cleanUserPhone);
+          await setDoc(newDocRef, newUserDoc);
+          trackSignup({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
+          console.log(`[User Form] Created new user document in Firestore for UID: ${newUid}`);
+
+          setResolvedUserId(newUid);
+          setResolvedUserIdForCoupons(newUid);
+          setFetchedUserName(currentAttendee.name);
+
+          try {
+            const newPayload = JSON.stringify({
+              name: currentAttendee.name,
+              email: currentAttendee.email,
+              phone: cleanUserPhone,
+              uid: newUid,
+              profilePic: ""
+            });
+            localStorage.setItem('blithe_checkout_attendee', newPayload);
+            sessionStorage.setItem('blithe_checkout_attendee', newPayload);
+            window.dispatchEvent(new CustomEvent('session-user-changed'));
+          } catch (err) {
+            console.warn("Failed to save checkout details to session on form create:", err);
+          }
+          return newUid;
+        }
+      } catch (err) {
+        console.error("Error resolving or creating user in form:", err);
+        return null;
+      } finally {
+        isResolvingUserRef.current = false;
+        resolvingPromiseRef.current = null;
+      }
+    })();
+
+    resolvingPromiseRef.current = executionPromise;
+    return await executionPromise;
+  }, [attendee, agreeAppTerms]);
+
+  // ─── Trigger user resolve/create when form details are complete ────────────
   useEffect(() => {
     let active = true;
     let timeoutId = null;
@@ -618,144 +747,15 @@ const EventBookingPage = () => {
     const isAllDetailsEntered = trimmedName !== '' && isEmailValid && isPhoneValid && agreeAppTerms;
 
     if (isAllDetailsEntered) {
-      // If we already successfully looked up this email and phone, don't run it again
-      if (trimmedEmail === lastCheckedEmailRef.current && trimmedPhone === lastCheckedPhoneRef.current) {
+      if (trimmedEmail === lastCheckedEmailRef.current && trimmedPhone === lastCheckedPhoneRef.current && resolvedUserId) {
         return;
       }
 
       timeoutId = setTimeout(() => {
-        const fetchExistingUser = async () => {
-          lastCheckedEmailRef.current = trimmedEmail;
-          lastCheckedPhoneRef.current = trimmedPhone;
-
-          if (isEmailValid) {
-            console.log(`[User Fetch] Querying Firestore for email == ${trimmedEmail}`);
-            try {
-              const usersRef = collection(db, "users");
-              const q = query(usersRef, where("email", "==", trimmedEmail));
-              const querySnapshot = await getDocs(q);
-
-              if (!active) return;
-              if (!querySnapshot.empty) {
-                const userDoc = querySnapshot.docs[0];
-                const userData = { uid: userDoc.id, ...userDoc.data() };
-                console.log(`[User Fetch] Found user by email in Firestore:`, userData);
-
-                const finalPhone = userData.phoneNo || userData.phone || trimmedPhone;
-                lastCheckedPhoneRef.current = finalPhone;
-
-                setAttendee(prev => ({
-                  ...prev,
-                  name: userData.name || prev.name,
-                  phone: finalPhone
-                }));
-                setResolvedUserId(userData.uid);
-                setResolvedUserIdForCoupons(userData.uid);
-                setFetchedUserName(userData.name || '');
-
-                try {
-                  const userPayload = JSON.stringify({
-                    name: userData.name || attendee.name,
-                    email: attendee.email,
-                    phone: finalPhone,
-                    uid: userData.uid,
-                    profilePic: userData.profilePic || ""
-                  });
-                  localStorage.setItem('blithe_checkout_attendee', userPayload);
-                  sessionStorage.setItem('blithe_checkout_attendee', userPayload);
-                  window.dispatchEvent(new CustomEvent('session-user-changed'));
-                } catch (err) {
-                  console.warn("Failed to save checkout details to session on email resolve:", err);
-                }
-                return; // Done
-              } else {
-                console.log(`[User Fetch] No user found with email == ${trimmedEmail}`);
-              }
-            } catch (err) {
-              console.error("Error fetching existing user by email:", err);
-            }
-          }
-
-          // If email doesn't exist/isn't found, check phone/mobile
-          if (isPhoneValid) {
-            console.log(`[User Fetch] Email not found or invalid. Querying Firestore for phoneNo == ${trimmedPhone}`);
-            try {
-              const usersRef = collection(db, "users");
-              const q = query(usersRef, where("phoneNo", "==", trimmedPhone));
-              const querySnapshot = await getDocs(q);
-
-              if (!active) return;
-              if (!querySnapshot.empty) {
-                const userDoc = querySnapshot.docs[0];
-                const userData = { uid: userDoc.id, ...userDoc.data() };
-                console.log(`[User Fetch] User exists by phone: true. Found UID: ${userData.uid}`);
-
-                const finalEmail = userData.email || trimmedEmail;
-                lastCheckedEmailRef.current = finalEmail;
-
-                setAttendee(prev => ({
-                  ...prev,
-                  name: userData.name || prev.name,
-                  email: finalEmail
-                }));
-                setResolvedUserId(userData.uid);
-                setResolvedUserIdForCoupons(userData.uid);
-                setFetchedUserName(userData.name || '');
-
-                try {
-                  const userPayload = JSON.stringify({
-                    name: userData.name || attendee.name,
-                    email: finalEmail,
-                    phone: userData.phoneNo || userData.phone || attendee.phone,
-                    uid: userData.uid,
-                    profilePic: userData.profilePic || ""
-                  });
-                  localStorage.setItem('blithe_checkout_attendee', userPayload);
-                  sessionStorage.setItem('blithe_checkout_attendee', userPayload);
-                  window.dispatchEvent(new CustomEvent('session-user-changed'));
-                } catch (err) {
-                  console.warn("Failed to save checkout details to session on phone resolve:", err);
-                }
-              } else {
-                if (trimmedName && isEmailValid && isPhoneValid && agreeAppTerms) {
-                  console.log(`[User Fetch] User exists by phone: false for phoneNo == ${trimmedPhone}. Instantly creating user...`);
-                  const newUid = generateUID();
-                  const newDocRef = doc(usersRef, newUid);
-                  const newUserDoc = createDefaultUserObject(newUid, attendee.name, attendee.email, trimmedPhone);
-                  await setDoc(newDocRef, newUserDoc);
-                  trackSignup({ name: attendee.name, email: attendee.email, method: 'phone_checkout' });
-                  console.log(`[User Fetch] Created user document for UID: ${newUid}`);
-                  if (!active) return;
-                  setResolvedUserId(newUid);
-                  setResolvedUserIdForCoupons(newUid);
-                  setFetchedUserName(attendee.name);
-
-                  try {
-                    const newPayload = JSON.stringify({
-                      name: attendee.name,
-                      email: attendee.email,
-                      phone: trimmedPhone,
-                      uid: newUid,
-                      profilePic: ""
-                    });
-                    localStorage.setItem('blithe_checkout_attendee', newPayload);
-                    sessionStorage.setItem('blithe_checkout_attendee', newPayload);
-                    window.dispatchEvent(new CustomEvent('session-user-changed'));
-                  } catch (err) {
-                    console.warn("Failed to save checkout details to session on instant create:", err);
-                  }
-                } else {
-                  console.log(`[User Fetch] Fields not complete yet (Name: "${trimmedName}", Email Valid: ${isEmailValid}, Phone Valid: ${isPhoneValid}, AppTerms: ${agreeAppTerms}). Skipping instant user creation.`);
-                }
-              }
-            } catch (err) {
-              console.error("Error fetching existing user by phone:", err);
-            }
-          }
-        };
-
-        fetchExistingUser();
-      }, 1000);
+        if (active) {
+          resolveOrCreateUser();
+        }
+      }, 800);
     } else {
       if (active) {
         setResolvedUserId(null);
@@ -770,7 +770,7 @@ const EventBookingPage = () => {
         clearTimeout(timeoutId);
       }
     };
-  }, [attendee.name, attendee.email, attendee.phone, agreeAppTerms]);
+  }, [attendee.name, attendee.email, attendee.phone, agreeAppTerms, resolvedUserId, resolveOrCreateUser]);
 
   useEffect(() => {
     if (!resolvedUserId) {
@@ -1445,61 +1445,36 @@ const EventBookingPage = () => {
     }
 
     try {
-      // 1. Resolve User
-      const usersRef = collection(db, "users");
-      let uId = null;
+      // 1. Resolve User (User is created/resolved in the form; Proceed button reuses the UID)
+      let uId = resolvedUserId;
       let userProfileImage = "";
-      let userFound = false;
 
-      // Try email lookup first
-      if (attendee.email) {
-        const trimmedEmail = attendee.email.trim().toLowerCase();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (emailRegex.test(trimmedEmail)) {
-          const q = query(usersRef, where("email", "==", trimmedEmail));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            const userDoc = querySnapshot.docs[0];
-            uId = userDoc.id;
-            userProfileImage = userDoc.data().profilePic || "";
-            userFound = true;
-            console.log(`User already exists with UID (found by email): ${uId}`);
-          }
+      // If form resolution was still in-flight when Proceed was clicked, wait for it
+      if (!uId) {
+        if (resolvingPromiseRef.current) {
+          uId = await resolvingPromiseRef.current;
+        } else {
+          uId = await resolveOrCreateUser();
         }
       }
 
-      // Try phone lookup if not found by email
-      if (!userFound) {
-        const trimmedPhone = attendee.phone.trim();
-        if (/^\d{10}$/.test(trimmedPhone)) {
-          const q = query(usersRef, where("phoneNo", "==", trimmedPhone));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            const userDoc = querySnapshot.docs[0];
-            uId = userDoc.id;
-            userProfileImage = userDoc.data().profilePic || "";
-            userFound = true;
-            console.log(`User already exists with UID (found by phone): ${uId}`);
+      // Fetch user profile image if available
+      if (uId) {
+        try {
+          const userDocSnap = await getDoc(doc(db, "users", uId));
+          if (userDocSnap.exists()) {
+            userProfileImage = userDocSnap.data().profilePic || "";
           }
+        } catch (err) {
+          console.warn("Could not fetch user profile image:", err);
         }
       }
 
-      if (!userFound) {
-        uId = generateUID();
-        const newDocRef = doc(usersRef, uId);
-        console.log(`User does not exist. Creating new record with UID: ${uId}`);
-        const cleanUserPhone = sanitizePhoneNumber(attendee.phone);
-        const newUserDocument = createDefaultUserObject(uId, attendee.name, attendee.email, cleanUserPhone);
-        await setDoc(newDocRef, newUserDocument);
-        console.log(`New user record created successfully with UID: ${uId}`);
-      } else {
-        console.log(`User already exists. Skipping merging details to protect the existing document.`);
+      if (uId) {
+        setResolvedUserId(uId);
+        setFetchedUserName(attendee.name);
+        if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
       }
-
-      setResolvedUserId(uId);
-      setFetchedUserName(attendee.name);
-      // Update userId for coupon context so re-fetch filters properly
-      if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
 
       // Check maximum tickets limit per user per checkout configured in settings
       if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
