@@ -226,18 +226,25 @@ const EventBookingPage = () => {
     });
   }, [event?.tickets]);
 
-  const getFormattedApprovalAnswer = useCallback((eventObj, qList, answersMap) => {
-    if (!eventObj?.approvalQuestion) return Array.isArray(eventObj?.approvalQuestion) ? {} : '';
-    if (Array.isArray(eventObj.approvalQuestion)) {
-      const answerMap = {};
+  const formattedApprovalQuestions = useMemo(() => {
+    if (approvalQuestionsList.length > 0) return approvalQuestionsList;
+    if (Array.isArray(event?.approvalQuestion)) return event.approvalQuestion;
+    if (typeof event?.approvalQuestion === 'string' && event.approvalQuestion.trim() !== '') {
+      return [event.approvalQuestion.trim()];
+    }
+    return [];
+  }, [approvalQuestionsList, event?.approvalQuestion]);
+
+  const getFormattedApprovalAnswer = useCallback((qList, answersMap) => {
+    const answerMap = {};
+    if (Array.isArray(qList) && qList.length > 0) {
       qList.forEach((q, idx) => {
         if (q) {
-          answerMap[q] = (answersMap[idx] || '').trim();
+          answerMap[String(q).trim()] = (answersMap[idx] || '').trim();
         }
       });
-      return answerMap;
     }
-    return (answersMap[0] || '').trim();
+    return answerMap;
   }, []);
 
   const lastCheckedEmailRef = useRef('');
@@ -1357,8 +1364,8 @@ const EventBookingPage = () => {
       searchList: finalBookingSearchList,
       serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
       status: "pending",
-      approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
-      approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
+      approvalQuestion: formattedApprovalQuestions,
+      approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
       approvalNeeded: event.approvalNeeded === true,
       isPrivateEvent: event.isPrivateEvent === true,
       tickets: preparedTickets,
@@ -1664,8 +1671,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
-          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
+          approvalQuestion: formattedApprovalQuestions,
+          approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
@@ -1713,8 +1720,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
-          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
+          approvalQuestion: formattedApprovalQuestions,
+          approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: preparedTickets,
@@ -1747,8 +1754,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
-          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
+          approvalQuestion: formattedApprovalQuestions,
+          approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
@@ -1796,8 +1803,8 @@ const EventBookingPage = () => {
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: event.approvalQuestion || (Array.isArray(event.approvalQuestion) ? [] : ""),
-          approvalAnswer: getFormattedApprovalAnswer(event, approvalQuestionsList, approvalAnswers),
+          approvalQuestion: formattedApprovalQuestions,
+          approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: preparedTickets,
