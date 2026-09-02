@@ -1206,18 +1206,51 @@ const EventDetails = () => {
           }
 
           // Determine price
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const isTicketAvailable = (t) => {
+            if (!t) return false;
+            if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
+              return false;
+            }
+            if (t.status === false || t.status === 'false') return false;
+            const remainingSlots = Number(t.remainingSlots);
+            if (isNaN(remainingSlots) || remainingSlots <= 0) return false;
+            if (t.endDate) {
+              const ticketEndDate = typeof t.endDate.toDate === 'function' ? t.endDate.toDate() : (t.endDate.seconds ? new Date(t.endDate.seconds * 1000) : new Date(t.endDate));
+              if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
+                const tDate = new Date(ticketEndDate);
+                tDate.setHours(0, 0, 0, 0);
+                if (tDate < today) return false;
+              }
+            }
+            return true;
+          };
+
           let displayPrice = "Free";
           let isPriceOnwards = false;
+          const isSoldOutEvent = data.soldOut === true;
+
           if (data.tickets && data.tickets.length > 0) {
-            const paidTickets = data.tickets.filter(t => (t.actualPrice || 0) > 0);
-            if (paidTickets.length > 0) {
-              const minPrice = Math.min(...paidTickets.map(t => t.actualPrice));
-              displayPrice = `₹${minPrice}`;
-              isPriceOnwards = true;
-            } else {
-              displayPrice = "Free";
+            const availableTickets = isSoldOutEvent ? [] : data.tickets.filter(isTicketAvailable);
+            if (isSoldOutEvent || availableTickets.length === 0) {
+              displayPrice = "Sold Out";
               isPriceOnwards = false;
+            } else {
+              const availablePaidTickets = availableTickets.filter(t => (Number(t.actualPrice) || Number(t.price) || 0) > 0);
+              if (availablePaidTickets.length > 0) {
+                const minPrice = Math.min(...availablePaidTickets.map(t => Number(t.actualPrice) || Number(t.price) || 0));
+                displayPrice = `₹${minPrice}`;
+                isPriceOnwards = true;
+              } else {
+                displayPrice = "Free";
+                isPriceOnwards = false;
+              }
             }
+          } else if (isSoldOutEvent) {
+            displayPrice = "Sold Out";
+            isPriceOnwards = false;
           } else if (data.price > 0) {
             displayPrice = `₹${data.price}`;
           }
@@ -1419,16 +1452,27 @@ const EventDetails = () => {
 
               let displayPrice = "Free";
               let isPriceOnwards = false;
+              const isSoldOutRelated = data.soldOut === true;
+
               if (data.tickets && data.tickets.length > 0) {
-                const paidTickets = data.tickets.filter(t => (t.actualPrice || 0) > 0);
-                if (paidTickets.length > 0) {
-                  const minPrice = Math.min(...paidTickets.map(t => t.actualPrice));
-                  displayPrice = `₹${minPrice}`;
-                  isPriceOnwards = true;
-                } else {
-                  displayPrice = "Free";
+                const availableTickets = isSoldOutRelated ? [] : data.tickets.filter(isTicketAvailable);
+                if (isSoldOutRelated || availableTickets.length === 0) {
+                  displayPrice = "Sold Out";
                   isPriceOnwards = false;
+                } else {
+                  const availablePaidTickets = availableTickets.filter(t => (Number(t.actualPrice) || Number(t.price) || 0) > 0);
+                  if (availablePaidTickets.length > 0) {
+                    const minPrice = Math.min(...availablePaidTickets.map(t => Number(t.actualPrice) || Number(t.price) || 0));
+                    displayPrice = `₹${minPrice}`;
+                    isPriceOnwards = true;
+                  } else {
+                    displayPrice = "Free";
+                    isPriceOnwards = false;
+                  }
                 }
+              } else if (isSoldOutRelated) {
+                displayPrice = "Sold Out";
+                isPriceOnwards = false;
               } else if (data.price > 0) {
                 displayPrice = `₹${data.price}`;
               }
@@ -1743,18 +1787,28 @@ const EventDetails = () => {
   const isBookingClosed = event ? checkIsBookingClosed(event) : false;
 
   const checkEventSoldOut = (evt) => {
+    if (!evt) return false;
     if (evt.soldOut === true) return true;
     if (evt.tickets && evt.tickets.length > 0) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const hasAvailableTicket = evt.tickets.some(t => {
-        const isStatusActive = t.status !== false;
-        const hasSlots = t.remainingSlots > 0;
+        if (!t) return false;
+        if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
+          return false;
+        }
+        const isStatusActive = t.status !== false && t.status !== 'false';
+        const hasSlots = (Number(t.remainingSlots) || 0) > 0;
 
         let isNotExpired = true;
         if (t.endDate) {
-          const ticketEndDate = t.endDate.seconds ? t.endDate.toDate() : new Date(t.endDate);
-          const tDate = new Date(ticketEndDate);
-          if (tDate < new Date()) { // UPDATED: Expired event validation
-            isNotExpired = false;
+          const ticketEndDate = typeof t.endDate.toDate === 'function' ? t.endDate.toDate() : (t.endDate.seconds ? new Date(t.endDate.seconds * 1000) : new Date(t.endDate));
+          if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
+            const tDate = new Date(ticketEndDate);
+            tDate.setHours(0, 0, 0, 0);
+            if (tDate < today) {
+              isNotExpired = false;
+            }
           }
         }
         return isStatusActive && hasSlots && isNotExpired;
@@ -2417,7 +2471,7 @@ const EventDetails = () => {
           {/* UPDATED: Expired event validation */}
           {isEventExpired && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Event Expired</span>}
           {isBookingClosed && !isEventExpired && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Booking Closed</span>}
-          {isSoldOut && !isEventExpired && !isBookingClosed && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Sold Out</span>}
+          {isSoldOut && !isEventExpired && !isBookingClosed && event.price !== "Sold Out" && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Sold Out</span>}
         </div>
         <Button
           variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}

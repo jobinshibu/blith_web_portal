@@ -337,18 +337,57 @@ const BookingSuccess = () => {
             }
           }
 
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const isTicketAvailable = (t) => {
+            if (!t) return false;
+            if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
+              return false;
+            }
+            if (t.status === false || t.status === 'false') return false;
+            const remainingSlots = Number(t.remainingSlots);
+            if (isNaN(remainingSlots) || remainingSlots <= 0) return false;
+            if (t.endDate) {
+              const ticketEndDate = parseDate(t.endDate);
+              if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
+                const tDate = new Date(ticketEndDate);
+                tDate.setHours(0, 0, 0, 0);
+                if (tDate < today) return false;
+              }
+            }
+            return true;
+          };
+
+          let isSoldOut = e.soldOut === true;
           let displayPrice = "Free";
+          let isPriceOnwards = false;
+
           if (e.tickets && e.tickets.length > 0) {
-            const minPrice = Math.min(...e.tickets.map(t => t.actualPrice || 0));
-            displayPrice = minPrice > 0 ? `₹${minPrice}` : "Free";
+            const availableTickets = isSoldOut ? [] : e.tickets.filter(isTicketAvailable);
+            if (!isSoldOut && availableTickets.length === 0) {
+              isSoldOut = true;
+            }
+
+            if (isSoldOut) {
+              displayPrice = "Sold Out";
+              isPriceOnwards = false;
+            } else {
+              const availablePaidTickets = availableTickets.filter(t => (Number(t.actualPrice) || Number(t.price) || 0) > 0);
+              if (availablePaidTickets.length > 0) {
+                const minPrice = Math.min(...availablePaidTickets.map(t => Number(t.actualPrice) || Number(t.price) || 0));
+                displayPrice = `₹${minPrice}`;
+                isPriceOnwards = true;
+              } else {
+                displayPrice = "Free";
+                isPriceOnwards = false;
+              }
+            }
+          } else if (isSoldOut) {
+            displayPrice = "Sold Out";
+            isPriceOnwards = false;
           } else if (e.price > 0) {
             displayPrice = `₹${e.price}`;
-          }
-
-          let isPriceOnwards = false;
-          if (e.tickets && e.tickets.length > 0) {
-            const minPrice = Math.min(...e.tickets.map(t => t.actualPrice || 0));
-            isPriceOnwards = minPrice > 0;
           }
 
           const isFeatured = e.featured === true && e.featuredEndDate && parseDate(e.featuredEndDate) >= now;
