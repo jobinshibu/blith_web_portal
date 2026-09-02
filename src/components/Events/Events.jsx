@@ -462,6 +462,7 @@ const Events = () => {
   const [isHovered, setIsHovered] = useState(false);
   const [exploreCategories, setExploreCategories] = useState([]);
   const [events, setEvents] = useState([]);
+  const [recentlyEndedEvents, setRecentlyEndedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [visibleCount, setVisibleCount] = useState(12);
@@ -599,6 +600,7 @@ const Events = () => {
     if (!rawEvents || rawEvents.length === 0) {
       if (!reduxLoading && rawEvents.length === 0) {
         setEvents([]);
+        setRecentlyEndedEvents([]);
       }
       return;
     }
@@ -610,6 +612,101 @@ const Events = () => {
         return new Date(ts);
       };
 
+      const formatEventData = (data) => {
+        // Format date and time
+        const startDateObj = data.eventStartDate ? toDateObj(data.eventStartDate) : new Date();
+        const endDateObj = data.eventEndDate ? toDateObj(data.eventEndDate) : null;
+
+        const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        let formattedDate = formattedStartDate;
+        const formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+        if (endDateObj) {
+          const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          if (formattedStartDate !== formattedEndDate) {
+            formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
+          }
+        }
+
+        // Determine price and sold out status
+        const hasTickets = data.tickets && Array.isArray(data.tickets) && data.tickets.length > 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const isTicketAvailable = (t) => {
+          if (!t) return false;
+          if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
+            return false;
+          }
+          if (t.status === false || t.status === 'false') return false;
+          const remainingSlots = Number(t.remainingSlots);
+          if (isNaN(remainingSlots) || remainingSlots <= 0) return false;
+          if (t.endDate) {
+            const ticketEndDate = t.endDate?.seconds ? toDateObj(t.endDate) : new Date(t.endDate);
+            if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
+              const tDate = new Date(ticketEndDate);
+              tDate.setHours(0, 0, 0, 0);
+              if (tDate < today) return false;
+            }
+          }
+          return true;
+        };
+
+        let isSoldOut = data.soldOut === true;
+        let displayPrice = "Free";
+
+        if (hasTickets) {
+          const availableTickets = isSoldOut ? [] : data.tickets.filter(isTicketAvailable);
+          if (!isSoldOut && availableTickets.length === 0) {
+            isSoldOut = true;
+          }
+
+          if (isSoldOut) {
+            displayPrice = "Sold Out";
+          } else {
+            const availablePaidTickets = availableTickets.filter(t => (Number(t.actualPrice) || Number(t.price) || 0) > 0);
+            if (availablePaidTickets.length > 0) {
+              const minPrice = Math.min(...availablePaidTickets.map(t => Number(t.actualPrice) || Number(t.price) || 0));
+              displayPrice = `₹${minPrice} onwards`;
+            } else {
+              displayPrice = "Free";
+            }
+          }
+        } else if (isSoldOut) {
+          displayPrice = "Sold Out";
+        } else if (data.price > 0) {
+          displayPrice = `₹${data.price}`;
+        }
+
+        const featuredEndD = toDateObj(data.featuredEndDate);
+        const isPromoted = data.featured === true && featuredEndD && featuredEndD >= new Date();
+
+        const eLat = parseFloat(data.lat || data.latitude);
+        const eLng = parseFloat(data.long || data.lng || data.longitude);
+        let distance = null;
+        if (userLocation && !isNaN(eLat) && !isNaN(eLng)) {
+          distance = calculateDistance(userLocation.lat, userLocation.lng, eLat, eLng);
+        }
+
+        return {
+          id: data.id,
+          title: data.eventName || "Untitled Event",
+          image: (data.image && data.image.length > 0) ? data.image[0] : "",
+          date: formattedDate,
+          time: formattedTime,
+          location: data.location || data.venue || "TBA",
+          price: displayPrice,
+          category: data.category || "Other",
+          promoted: isPromoted,
+          hashtags: processTags(data.tags),
+          about: data.description || data.about || data.aboutEvent || data.eventDescription || data.details || "",
+          priceMessage: data.priceMessage || "",
+          isSoldOut: isSoldOut,
+          distance: distance,
+          raw: data
+        };
+      };
+
       const eventsData = rawEvents
         .filter(data => {
           const isNotBlocked = data.block === false;
@@ -619,100 +716,7 @@ const Events = () => {
           const isNotPrivate = data.isPrivateEvent !== true;
           return isNotBlocked && isNotExpired && hasNoPaymentUrl && isNotPrivate;
         })
-        .map(data => {
-          // Format date and time
-          const startDateObj = data.eventStartDate ? toDateObj(data.eventStartDate) : new Date();
-          const endDateObj = data.eventEndDate ? toDateObj(data.eventEndDate) : null;
-
-          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-          let formattedDate = formattedStartDate;
-          const formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-          if (endDateObj) {
-            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-            if (formattedStartDate !== formattedEndDate) {
-              formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
-            }
-          }
-
-          // Determine price and sold out status
-          const hasTickets = data.tickets && Array.isArray(data.tickets) && data.tickets.length > 0;
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          const isTicketAvailable = (t) => {
-            if (!t) return false;
-            if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
-              return false;
-            }
-            if (t.status === false || t.status === 'false') return false;
-            const remainingSlots = Number(t.remainingSlots);
-            if (isNaN(remainingSlots) || remainingSlots <= 0) return false;
-            if (t.endDate) {
-              const ticketEndDate = t.endDate?.seconds ? toDateObj(t.endDate) : new Date(t.endDate);
-              if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
-                const tDate = new Date(ticketEndDate);
-                tDate.setHours(0, 0, 0, 0);
-                if (tDate < today) return false;
-              }
-            }
-            return true;
-          };
-
-          let isSoldOut = data.soldOut === true;
-          let displayPrice = "Free";
-
-          if (hasTickets) {
-            const availableTickets = isSoldOut ? [] : data.tickets.filter(isTicketAvailable);
-            if (!isSoldOut && availableTickets.length === 0) {
-              isSoldOut = true;
-            }
-
-            if (isSoldOut) {
-              displayPrice = "Sold Out";
-            } else {
-              const availablePaidTickets = availableTickets.filter(t => (Number(t.actualPrice) || Number(t.price) || 0) > 0);
-              if (availablePaidTickets.length > 0) {
-                const minPrice = Math.min(...availablePaidTickets.map(t => Number(t.actualPrice) || Number(t.price) || 0));
-                displayPrice = `₹${minPrice} onwards`;
-              } else {
-                displayPrice = "Free";
-              }
-            }
-          } else if (isSoldOut) {
-            displayPrice = "Sold Out";
-          } else if (data.price > 0) {
-            displayPrice = `₹${data.price}`;
-          }
-
-          const featuredEndD = toDateObj(data.featuredEndDate);
-          const isPromoted = data.featured === true && featuredEndD && featuredEndD >= new Date();
-
-          const eLat = parseFloat(data.lat || data.latitude);
-          const eLng = parseFloat(data.long || data.lng || data.longitude);
-          let distance = null;
-          if (userLocation && !isNaN(eLat) && !isNaN(eLng)) {
-            distance = calculateDistance(userLocation.lat, userLocation.lng, eLat, eLng);
-          }
-
-          return {
-            id: data.id,
-            title: data.eventName || "Untitled Event",
-            image: (data.image && data.image.length > 0) ? data.image[0] : "",
-            date: formattedDate,
-            time: formattedTime,
-            location: data.location || data.venue || "TBA",
-            price: displayPrice,
-            category: data.category || "Other",
-            promoted: isPromoted,
-            hashtags: processTags(data.tags),
-            about: data.description || data.about || data.aboutEvent || data.eventDescription || data.details || "",
-            priceMessage: data.priceMessage || "",
-            isSoldOut: isSoldOut,
-            distance: distance,
-            raw: data
-          };
-        });
+        .map(formatEventData);
 
       // Sort events chronologically (earlier calendar date first), then by proximity (distance)
       eventsData.sort((a, b) => {
@@ -749,6 +753,43 @@ const Events = () => {
       });
 
       setEvents(eventsData);
+
+      // Filter and process Recently Ended Events
+      const now = new Date();
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      const existingIds = new Set(eventsData.map(e => e.id));
+
+      const recentlyEndedData = rawEvents
+        .filter(data => {
+          const isNotBlocked = data.block === false;
+          const isNotPrivate = data.isPrivateEvent !== true;
+          const status = Number(data.status);
+          const hasValidStatus = [1, 2, 3].includes(status) || [1, 2, 3].includes(data.status);
+
+          if (!isNotBlocked || !isNotPrivate || !hasValidStatus) return false;
+
+          const endD = toDateObj(data.eventEndDate);
+          if (!endD || isNaN(endD.getTime())) return false;
+
+          const eventEndDateTime = endD.getTime();
+          const currentDateTime = now.getTime();
+
+          return (
+            eventEndDateTime < currentDateTime &&
+            (currentDateTime - eventEndDateTime) <= SEVEN_DAYS_MS &&
+            !existingIds.has(data.id)
+          );
+        })
+        .map(formatEventData)
+        .sort((a, b) => {
+          const dateA = a.raw?.eventEndDate ? toDateObj(a.raw.eventEndDate) : new Date(0);
+          const dateB = b.raw?.eventEndDate ? toDateObj(b.raw.eventEndDate) : new Date(0);
+          const timeA = dateA instanceof Date && !isNaN(dateA.getTime()) ? dateA.getTime() : 0;
+          const timeB = dateB instanceof Date && !isNaN(dateB.getTime()) ? dateB.getTime() : 0;
+          return timeB - timeA;
+        });
+
+      setRecentlyEndedEvents(recentlyEndedData);
     } catch (err) {
       console.error("Error processing events in Redux cache: ", err);
     }
@@ -1824,6 +1865,68 @@ const Events = () => {
                 )}
               </div>
             </section>
+
+            {/* Recently Ended Events Section */}
+            {recentlyEndedEvents.length > 0 && (
+              <section className="all-events-section recently-ended-section" style={{ marginTop: '3.5rem' }}>
+                <h2 className="section-title" style={{ marginBottom: '1.5rem' }}>Recently Ended Events</h2>
+                <div className="events-main">
+                  <div className="events-portrait-grid">
+                    {recentlyEndedEvents.map((event) => (
+                      <div key={event.id} className="event-card-container">
+                        <Link to={`/events/${event.id}`} onClick={() => handleEventClick(event)} className="portrait-event-card">
+                          <div className="portrait-image-wrapper">
+                            <img src={event.image} alt={event.title} loading="lazy" />
+                            {event.promoted && (
+                              <span className="featured-badge-small">Featured</span>
+                            )}
+                            {event.isSoldOut && (
+                              <span className="sold-out-badge" style={{
+                                position: 'absolute',
+                                top: '12px',
+                                left: event.promoted ? '80px' : '12px',
+                                backgroundColor: '#EF4444',
+                                color: '#fff',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                zIndex: 10
+                              }}>Sold Out</span>
+                            )}
+                          </div>
+
+                          <div className="portrait-card-details">
+                            <div className="portrait-card-date-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className="portrait-card-date">
+                                {event.date}
+                              </span>
+                              {event.priceMessage && (
+                                <span className="portrait-card-price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800 }}>
+                                  {event.priceMessage}
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="portrait-card-title">{event.title}</h3>
+                            <div className="portrait-card-location-row">
+                              <p className="portrait-card-location">{event.location}</p>
+                              {event.distance !== null && event.distance !== undefined && (
+                                <span className="location-distance-tag">
+                                  <MapPin size={12} className="distance-icon" />
+                                  {event.distance < 1
+                                    ? `${Math.round(event.distance * 1000)}m`
+                                    : `${Math.round(event.distance)} km`}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         </>
       )}

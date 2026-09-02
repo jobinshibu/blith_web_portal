@@ -14,19 +14,19 @@ export const fetchEventsThunk = createAsyncThunk(
         return events.events;
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Start of today
+      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      startDate.setHours(0, 0, 0, 0);
 
       let eventsQuery;
       let querySnapshot;
 
       try {
-        // Try optimized query with date filter to retrieve events ending from today onwards
+        // Try optimized query with date filter to retrieve events ending from 7 days ago onwards
         eventsQuery = query(
           collection(db, "event"),
           where("deleted", "==", false),
           where("block", "==", false),
-          where("eventEndDate", ">=", today)
+          where("eventEndDate", ">=", startDate)
         );
         querySnapshot = await getDocs(eventsQuery);
       } catch (indexError) {

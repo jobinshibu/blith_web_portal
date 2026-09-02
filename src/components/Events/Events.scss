@@ -816,8 +816,9 @@
   }
 }
 
-// 4. All Events Section
-.all-events-section {
+// 4. All Events Section & Recently Ended Section
+.all-events-section,
+.recently-ended-section {
   .all-events-header {
     display: flex;
     justify-content: space-between;
