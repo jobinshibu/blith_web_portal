@@ -1869,7 +1869,7 @@ const Events = () => {
             {/* Recently Ended Events Section */}
             {recentlyEndedEvents.length > 0 && (
               <section className="all-events-section recently-ended-section" style={{ marginTop: '3.5rem' }}>
-                <h2 className="section-title" style={{ marginBottom: '1.5rem' }}>Recently Ended Events</h2>
+                <h2 className="section-title" style={{ marginBottom: '1.5rem' }}> You just missed !!! </h2>
                 <div className="events-main">
                   <div className="events-portrait-grid">
                     {recentlyEndedEvents.map((event) => (
