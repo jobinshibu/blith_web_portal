@@ -95,6 +95,28 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
+// Helper to check if a ticket is available and valid
+const checkTicketAvailable = (t, today = new Date()) => {
+  if (!t) return false;
+  if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
+    return false;
+  }
+  if (t.status === false || t.status === 'false') return false;
+  const remainingSlots = Number(t.remainingSlots);
+  if (isNaN(remainingSlots) || remainingSlots <= 0) return false;
+  if (t.endDate) {
+    const ticketEndDate = typeof t.endDate.toDate === 'function' ? t.endDate.toDate() : (t.endDate.seconds ? new Date(t.endDate.seconds * 1000) : new Date(t.endDate));
+    if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
+      const tDate = new Date(ticketEndDate);
+      tDate.setHours(0, 0, 0, 0);
+      const compareDate = new Date(today);
+      compareDate.setHours(0, 0, 0, 0);
+      if (tDate < compareDate) return false;
+    }
+  }
+  return true;
+};
+
 // Helper to process and split hashtags from string/array formats
 const processTags = (tagsInput) => {
   if (!tagsInput) return [];
@@ -1209,24 +1231,7 @@ const EventDetails = () => {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
-          const isTicketAvailable = (t) => {
-            if (!t) return false;
-            if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
-              return false;
-            }
-            if (t.status === false || t.status === 'false') return false;
-            const remainingSlots = Number(t.remainingSlots);
-            if (isNaN(remainingSlots) || remainingSlots <= 0) return false;
-            if (t.endDate) {
-              const ticketEndDate = typeof t.endDate.toDate === 'function' ? t.endDate.toDate() : (t.endDate.seconds ? new Date(t.endDate.seconds * 1000) : new Date(t.endDate));
-              if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
-                const tDate = new Date(ticketEndDate);
-                tDate.setHours(0, 0, 0, 0);
-                if (tDate < today) return false;
-              }
-            }
-            return true;
-          };
+          const isTicketAvailable = (t) => checkTicketAvailable(t, today);
 
           let displayPrice = "Free";
           let isPriceOnwards = false;
@@ -1429,7 +1434,7 @@ const EventDetails = () => {
 
   useEffect(() => {
     const fetchRelatedEvents = () => {
-      if (!event || !event.raw || !rawEvents || rawEvents.length === 0) return;
+      if (!event || !rawEvents || rawEvents.length === 0) return;
       try {
         const toDateObj = (ts) => {
           if (!ts) return null;
@@ -1437,11 +1442,16 @@ const EventDetails = () => {
           return new Date(ts);
         };
         const now = new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const isTicketAvailable = (t) => checkTicketAvailable(t, today);
 
         let allActiveEvents = [];
+        let otherActiveEvents = [];
         rawEvents.forEach(data => {
           if (data.id !== event.id) {
-            const isNotBlocked = data.block === false;
+            const isNotBlocked = data.block !== true && data.blocked !== true && data.isBlocked !== true;
             const endD = toDateObj(data.eventEndDate);
             const isNotExpired = endD ? endD >= now : true;
             const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
@@ -1477,113 +1487,136 @@ const EventDetails = () => {
                 displayPrice = `₹${data.price}`;
               }
 
-              const isCategoryMatch = data.category && event.category && data.category === event.category;
-              const isClusterMatch = data.category && clusterCategoryNames.includes(data.category.toLowerCase());
+              const isCategoryMatch = Boolean(
+                data.category &&
+                event.category &&
+                data.category.toString().trim().toLowerCase() === event.category.toString().trim().toLowerCase()
+              );
+              const isClusterMatch = Boolean(
+                data.category &&
+                Array.isArray(clusterCategoryNames) &&
+                clusterCategoryNames.some(c => c.toLowerCase() === data.category.toString().trim().toLowerCase())
+              );
               const commonTags = processTags(data.tags).filter(t => (event.tags || []).includes(t));
 
               // Only recommend if there is a category match OR cluster match OR common tags
-              if (isCategoryMatch || isClusterMatch || commonTags.length > 0) {
-                let score = 0;
-                if (isCategoryMatch) {
-                  score += 8;
-                } else if (isClusterMatch) {
+              let score = 0;
+              if (isCategoryMatch) {
+                score += 8;
+              } else if (isClusterMatch) {
+                score += 5;
+              }
+              score += commonTags.length * 2;
+
+              // Match distance proximity (nearby, if location geopoint is available)
+              const getDistance = (lat1, lon1, lat2, lon2) => {
+                const R = 6371; // Earth's radius in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a =
+                  Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+              };
+
+              const lat1 = event.geopoint?.latitude || event.geopoint?._lat;
+              const lon1 = event.geopoint?.longitude || event.geopoint?._long;
+              const lat2 = data.position?.geopoint?.latitude || data.position?.geopoint?._lat;
+              const lon2 = data.position?.geopoint?.longitude || data.position?.geopoint?._long;
+
+              if (lat1 && lon1 && lat2 && lon2) {
+                const dist = getDistance(lat1, lon1, lat2, lon2);
+                if (dist <= 10) {
                   score += 5;
+                } else if (dist <= 30) {
+                  score += 2;
                 }
-                score += commonTags.length * 2;
+              } else if (data.location && event.location && data.location.toLowerCase().includes(event.location.split(',')[0].toLowerCase())) {
+                score += 2; // fallback to text location prefix match
+              }
 
-                // Match distance proximity (nearby, if location geopoint is available)
-                const getDistance = (lat1, lon1, lat2, lon2) => {
-                  const R = 6371; // Earth's radius in km
-                  const dLat = (lat2 - lat1) * Math.PI / 180;
-                  const dLon = (lon2 - lon1) * Math.PI / 180;
-                  const a =
-                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                  return R * c;
-                };
+              if (formattedDate === event.date) score += 1;
 
-                const lat1 = event.geopoint?.latitude || event.geopoint?._lat;
-                const lon1 = event.geopoint?.longitude || event.geopoint?._long;
-                const lat2 = data.position?.geopoint?.latitude || data.position?.geopoint?._lat;
-                const lon2 = data.position?.geopoint?.longitude || data.position?.geopoint?._long;
+              const featuredEndD = toDateObj(data.featuredEndDate);
+              const isFeatured = data.featured === true && featuredEndD && featuredEndD >= now;
 
-                if (lat1 && lon1 && lat2 && lon2) {
-                  const dist = getDistance(lat1, lon1, lat2, lon2);
-                  if (dist <= 10) {
-                    score += 5;
-                  } else if (dist <= 30) {
-                    score += 2;
-                  }
-                } else if (data.location && event.location && data.location.includes(event.location.split(',')[0])) {
-                  score += 2; // fallback to text location prefix match
-                }
+              let relatedDistance = null;
+              if (userLocation && lat2 && lon2) {
+                relatedDistance = calculateDistance(userLocation.lat, userLocation.lng, lat2, lon2);
+              }
 
-                if (formattedDate === event.date) score += 1;
+              const formattedItem = {
+                id: data.id,
+                promoted: isFeatured,
+                title: data.eventName || "Untitled Event",
+                image: (data.image && data.image.length > 0) ? data.image[0] : (typeof data.image === 'string' ? data.image : ""),
+                date: formattedDate,
+                location: data.location || data.venue || "TBA",
+                price: displayPrice,
+                isPriceOnwards: isPriceOnwards,
+                priceMessage: data.priceMessage || "",
+                score,
+                distance: relatedDistance,
+                eventStartDate: data.eventStartDate || null
+              };
 
-                const featuredEndD = toDateObj(data.featuredEndDate);
-                const isFeatured = data.featured === true && featuredEndD && featuredEndD >= now;
-
-                let relatedDistance = null;
-                if (userLocation && lat2 && lon2) {
-                  relatedDistance = calculateDistance(userLocation.lat, userLocation.lng, lat2, lon2);
-                }
-
-                allActiveEvents.push({
-                  id: data.id,
-                  promoted: isFeatured,
-                  title: data.eventName || "Untitled Event",
-                  image: (data.image && data.image.length > 0) ? data.image[0] : "",
-                  date: formattedDate,
-                  location: data.location || data.venue || "TBA",
-                  price: displayPrice,
-                  isPriceOnwards: isPriceOnwards,
-                  priceMessage: data.priceMessage || "",
-                  score,
-                  distance: relatedDistance,
-                  eventStartDate: data.eventStartDate || null
-                });
+              if (isCategoryMatch || isClusterMatch || commonTags.length > 0) {
+                allActiveEvents.push(formattedItem);
+              } else {
+                otherActiveEvents.push(formattedItem);
               }
             }
           }
         });
 
-        allActiveEvents.sort((a, b) => b.score - a.score);
-        const topRelated = allActiveEvents;
-        // Sort top related events chronologically (earlier calendar date first), then by proximity (distance)
-        topRelated.sort((a, b) => {
-          const dateA = a.eventStartDate ? (typeof a.eventStartDate.toDate === 'function' ? a.eventStartDate.toDate() : new Date(a.eventStartDate)) : new Date(0);
-          const dateB = b.eventStartDate ? (typeof b.eventStartDate.toDate === 'function' ? b.eventStartDate.toDate() : new Date(b.eventStartDate)) : new Date(0);
-
-          const dayA = dateA instanceof Date && !isNaN(dateA)
-            ? new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate()).getTime()
-            : 0;
-          const dayB = dateB instanceof Date && !isNaN(dateB)
-            ? new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate()).getTime()
-            : 0;
-
-          if (dayA !== dayB) {
-            return dayA - dayB;
-          }
-
-          // Same calendar day: sort by distance ascending
-          const distA = a.distance;
-          const distB = b.distance;
-
-          if (distA !== null && distA !== undefined && distB !== null && distB !== undefined) {
-            if (distA !== distB) {
-              return distA - distB;
+        const sortEvents = (list) => {
+          return list.sort((a, b) => {
+            if (b.score !== a.score) {
+              return b.score - a.score;
             }
-          } else if (distA !== null && distA !== undefined) {
-            return -1; // a has distance, b does not, so a comes first
-          } else if (distB !== null && distB !== undefined) {
-            return 1;  // b has distance, a does not, so b comes first
-          }
+            const dateA = a.eventStartDate ? (typeof a.eventStartDate.toDate === 'function' ? a.eventStartDate.toDate() : new Date(a.eventStartDate)) : new Date(0);
+            const dateB = b.eventStartDate ? (typeof b.eventStartDate.toDate === 'function' ? b.eventStartDate.toDate() : new Date(b.eventStartDate)) : new Date(0);
 
-          // Fallback/Tie-breaker: chronological order of the time
-          return dateA - dateB;
-        });
+            const dayA = dateA instanceof Date && !isNaN(dateA)
+              ? new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate()).getTime()
+              : 0;
+            const dayB = dateB instanceof Date && !isNaN(dateB)
+              ? new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate()).getTime()
+              : 0;
+
+            if (dayA !== dayB) {
+              return dayA - dayB;
+            }
+
+            // Same calendar day: sort by distance ascending
+            const distA = a.distance;
+            const distB = b.distance;
+
+            if (distA !== null && distA !== undefined && distB !== null && distB !== undefined) {
+              if (distA !== distB) {
+                return distA - distB;
+              }
+            } else if (distA !== null && distA !== undefined) {
+              return -1; // a has distance, b does not, so a comes first
+            } else if (distB !== null && distB !== undefined) {
+              return 1;  // b has distance, a does not, so b comes first
+            }
+
+            // Fallback/Tie-breaker: chronological order of the time
+            return dateA - dateB;
+          });
+        };
+
+        let topRelated = sortEvents(allActiveEvents);
+
+        // Fallback: If not enough related events, pad with general active upcoming events
+        if (topRelated.length < 4 && otherActiveEvents.length > 0) {
+          const sortedOther = sortEvents(otherActiveEvents);
+          const needed = 4 - topRelated.length;
+          topRelated = [...topRelated, ...sortedOther.slice(0, needed)];
+        }
 
         setRelatedEvents(topRelated);
       } catch (err) {
@@ -1792,27 +1825,7 @@ const EventDetails = () => {
     if (evt.tickets && evt.tickets.length > 0) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const hasAvailableTicket = evt.tickets.some(t => {
-        if (!t) return false;
-        if (t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true') {
-          return false;
-        }
-        const isStatusActive = t.status !== false && t.status !== 'false';
-        const hasSlots = (Number(t.remainingSlots) || 0) > 0;
-
-        let isNotExpired = true;
-        if (t.endDate) {
-          const ticketEndDate = typeof t.endDate.toDate === 'function' ? t.endDate.toDate() : (t.endDate.seconds ? new Date(t.endDate.seconds * 1000) : new Date(t.endDate));
-          if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
-            const tDate = new Date(ticketEndDate);
-            tDate.setHours(0, 0, 0, 0);
-            if (tDate < today) {
-              isNotExpired = false;
-            }
-          }
-        }
-        return isStatusActive && hasSlots && isNotExpired;
-      });
+      const hasAvailableTicket = evt.tickets.some(t => checkTicketAvailable(t, today));
       return !hasAvailableTicket;
     }
     return false;
@@ -2451,7 +2464,13 @@ const EventDetails = () => {
                           </span>
                         )}
                       </div>
-
+                      <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 'auto' }}>
+                        <span>
+                          {relatedEvent.price}
+                          {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
+                        </span>
+                        {relatedEvent.priceMessage && <span className="price-message" style={{ fontSize: '0.85em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
+                      </p>
                     </div>
                   </Link>
                 </div>

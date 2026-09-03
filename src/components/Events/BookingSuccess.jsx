@@ -305,7 +305,7 @@ const BookingSuccess = () => {
         allEvents = rawEvents
           .filter(e => {
             const isNotCurrent = e.id !== eventDetails.id;
-            const isNotBlocked = e.block === false;
+            const isNotBlocked = e.block !== true && e.blocked !== true && e.isBlocked !== true;
             const endD = e.eventEndDate ? parseDate(e.eventEndDate) : null;
             const isNotExpired = endD ? endD >= now : true;
             return isNotCurrent && isNotBlocked && isNotExpired;
@@ -316,8 +316,8 @@ const BookingSuccess = () => {
           let score = 0;
 
           // Category match or Cluster match
-          const isCategoryMatch = eventDetails.category && e.category && e.category.toLowerCase() === eventDetails.category.toLowerCase();
-          const isClusterMatch = e.category && clusterCategoryNames.includes(e.category.toLowerCase());
+          const isCategoryMatch = Boolean(eventDetails.category && e.category && e.category.trim().toLowerCase() === eventDetails.category.trim().toLowerCase());
+          const isClusterMatch = Boolean(e.category && Array.isArray(clusterCategoryNames) && clusterCategoryNames.some(c => c.toLowerCase() === e.category.trim().toLowerCase()));
 
           if (isCategoryMatch) {
             score += 10;
