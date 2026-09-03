@@ -951,3 +951,365 @@
     transform: rotate(360deg);
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP REVIEW MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+@keyframes review-sparkle-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
+  50%       { transform: translateY(-6px) rotate(15deg); opacity: 1; }
+}
+
+@keyframes review-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(#7C3AED, 0); }
+  50%       { box-shadow: 0 0 0 12px rgba(#7C3AED, 0.06); }
+}
+
+.review-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;        // sheet slides up from bottom on mobile
+  justify-content: center;
+  background: rgba(#0F0A1E, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
+}
+
+.review-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-bottom: none;
+  border-radius: 1.75rem 1.75rem 0 0;
+  padding: 0 1.75rem 2rem;
+  box-shadow:
+    0 -8px 40px rgba(#7C3AED, 0.12),
+    0 -2px 12px rgba(#7C3AED, 0.06),
+    0 0 0 1px rgba(#C4B5FD, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  animation: review-glow-pulse 3s infinite ease-in-out;
+  overflow: hidden;
+
+  // ── Gradient accent bar at top ──────────────────────────────────────────────
+  .review-gradient-bar {
+    width: calc(100% + 3.5rem);   // bleed to edges
+    margin-left: -1.75rem;
+    height: 4px;
+    background: linear-gradient(90deg, #7C3AED 0%, #8B5CF6 40%, #A78BFA 70%, #C4B5FD 100%);
+    border-radius: 0;
+    margin-bottom: 1.5rem;
+  }
+
+  // ── Close button ────────────────────────────────────────────────────────────
+  .review-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1.1rem;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(#7C3AED, 0.15);
+    background: rgba(#7C3AED, 0.06);
+    color: #7C3AED;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    z-index: 2;
+
+    &:hover {
+      background: rgba(#7C3AED, 0.12);
+      transform: rotate(90deg);
+    }
+  }
+
+  // ── App icon ring ───────────────────────────────────────────────────────────
+  .review-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+
+    .review-icon-ring {
+      width: 72px;
+      height: 72px;
+      border-radius: 1.25rem;
+      background: linear-gradient(135deg, rgba(#7C3AED, 0.08) 0%, rgba(#A78BFA, 0.12) 100%);
+      border: 1.5px solid rgba(#C4B5FD, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 8px 24px rgba(#7C3AED, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+      .review-app-logo {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+        border-radius: 0.5rem;
+      }
+    }
+
+    // Floating sparkle accents
+    .review-sparkle-1,
+    .review-sparkle-2 {
+      position: absolute;
+      color: #A78BFA;
+    }
+    .review-sparkle-1 {
+      top: -6px;
+      right: -8px;
+      animation: review-sparkle-float 2.4s ease-in-out infinite;
+    }
+    .review-sparkle-2 {
+      bottom: -4px;
+      left: -10px;
+      animation: review-sparkle-float 2.8s ease-in-out infinite reverse;
+    }
+  }
+
+  // ── Copy text ───────────────────────────────────────────────────────────────
+  .review-copy {
+    text-align: center;
+    margin-bottom: 0.5rem;
+
+    .review-title {
+      font-family: $font-heading;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.015em;
+      margin: 0 0 0.45rem;
+      background: linear-gradient(135deg, #7C3AED 20%, #4F46E5 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.25;
+    }
+
+    .review-subtitle {
+      font-family: $font-body;
+      font-size: 0.875rem;
+      color: $text-500;
+      line-height: 1.55;
+      margin: 0;
+      max-width: 290px;
+    }
+  }
+
+  // ── Interactive star row ────────────────────────────────────────────────────
+  .review-stars-row {
+    display: flex;
+    gap: 0.35rem;
+    margin: 0.75rem 0 0.25rem;
+
+    .review-star-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 0.5rem;
+      transition: background 0.15s;
+      line-height: 0;
+
+      &:hover,
+      &.active {
+        background: rgba(#F59E0B, 0.08);
+      }
+    }
+  }
+
+  // ── Rating label ────────────────────────────────────────────────────────────
+  .review-rating-label {
+    font-family: $font-body;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #F59E0B;
+    margin: 0 0 0.35rem;
+    min-height: 1.2rem;
+    text-align: center;
+  }
+
+  // ── CTA buttons ─────────────────────────────────────────────────────────────
+  .review-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-top: 0.85rem;
+
+    .review-cta-primary {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      padding: 0.85rem 1.5rem;
+      border-radius: 0.9rem;
+      border: none;
+      cursor: pointer;
+      font-family: $font-body;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $white;
+      background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 60%, #4F46E5 100%);
+      box-shadow:
+        0 6px 20px rgba(#7C3AED, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      transition: box-shadow 0.25s, background 0.25s;
+      letter-spacing: 0.01em;
+
+      &:hover {
+        box-shadow:
+          0 10px 28px rgba(#7C3AED, 0.45),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        background: linear-gradient(135deg, #6D28D9 0%, #5B21B6 60%, #4338CA 100%);
+      }
+    }
+
+    .review-cta-dismiss {
+      width: 100%;
+      padding: 0.7rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(#7C3AED, 0.15);
+      background: transparent;
+      cursor: pointer;
+      font-family: $font-body;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: $text-500;
+      transition: background 0.2s, color 0.2s;
+
+      &:hover {
+        background: rgba(#7C3AED, 0.05);
+        color: #7C3AED;
+      }
+    }
+  }
+
+  // ── Footer note ─────────────────────────────────────────────────────────────
+  .review-footer-note {
+    font-family: $font-body;
+    font-size: 0.72rem;
+    color: $text-400;
+    text-align: center;
+    margin: 0.5rem 0 0;
+    line-height: 1.4;
+  }
+
+  // ── Desktop variant: centered dialog instead of bottom sheet ────────────────
+  &.desktop {
+    border-radius: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.75);
+    max-width: 480px;
+    padding: 0 2rem 2rem;
+    box-shadow:
+      0 24px 64px rgba(#7C3AED, 0.16),
+      0 8px 24px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(#C4B5FD, 0.3);
+    animation: none;  // no pulse on desktop
+
+    .review-gradient-bar {
+      width: calc(100% + 4rem);
+      margin-left: -2rem;
+    }
+  }
+}
+
+// ── Overlay: center on desktop ───────────────────────────────────────────────
+.review-modal-overlay {
+  &:has(.review-modal-card.desktop) {
+    align-items: center;
+  }
+}
+
+// ── Desktop dual-store action row ────────────────────────────────────────────
+.review-actions.desktop-dual {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+
+  // Top row: two store buttons side by side
+  > .review-cta-store {
+    flex: 1;
+  }
+
+  // Override to make the two store buttons a row
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+
+  // "Maybe later" spans full width
+  > .review-cta-dismiss {
+    grid-column: 1 / -1;
+  }
+}
+
+.review-cta-store {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.9rem;
+  border: none;
+  cursor: pointer;
+  font-family: $font-body;
+  font-weight: 700;
+  transition: box-shadow 0.25s, transform 0.2s;
+
+  span {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.15;
+
+    small {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      opacity: 0.8;
+    }
+
+    font-size: 0.875rem;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  // Android — green tinted
+  &.android {
+    background: linear-gradient(135deg, #1a7340 0%, #16a34a 100%);
+    color: $white;
+    box-shadow: 0 4px 16px rgba(#16a34a, 0.3);
+
+    &:hover {
+      box-shadow: 0 8px 24px rgba(#16a34a, 0.4);
+    }
+  }
+
+  // iOS — deep graphite / indigo
+  &.ios {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    color: $white;
+    box-shadow: 0 4px 16px rgba(#312e81, 0.3);
+
+    &:hover {
+      box-shadow: 0 8px 24px rgba(#312e81, 0.4);
+    }
+  }
+}

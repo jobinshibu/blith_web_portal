@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, 
   Calendar, 
@@ -16,12 +16,27 @@ import {
   Copy, 
   AlertCircle,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Star,
+  X
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import logoTransparent from '../../assets/logo-transparent.png';
 import { trackPixelPurchase } from '../../utils/pixel';
 import './BookingSuccess.scss';
+
+// ─── Platform detection helpers ──────────────────────────────────────────────
+const getMobilePlatform = () => {
+  const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+  if (/android/i.test(ua)) return 'android';
+  if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
+  return 'desktop';
+};
+
+const STORE_URLS = {
+  android: 'https://play.google.com/store/apps/details?id=com.firstlogicmetalab.blith_user_app&showAllReviews=true',
+  ios: 'https://apps.apple.com/in/app/blithe/id6473627877?action=write-review',
+};
 
 const BookingSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -35,6 +50,16 @@ const BookingSuccess = () => {
   const [eventDetails, setEventDetails] = useState(null);
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [clusterCategoryNames, setClusterCategoryNames] = useState([]);
+
+  // ── Review modal state ──────────────────────────────────────────────────────
+  // DEV: ?testReview=ios|android|desktop forces the modal open immediately
+  const devTestPlatform = import.meta.env.DEV ? searchParams.get('testReview') : null;
+  const mobilePlatform = devTestPlatform || getMobilePlatform();
+  const [showReviewModal, setShowReviewModal] = useState(
+    import.meta.env.DEV && !!devTestPlatform
+  );
+  const [hoveredStar, setHoveredStar] = useState(0);
+  const [selectedStar, setSelectedStar] = useState(0);
   
   const dispatch = useDispatch();
   const { events: rawEvents } = useSelector(state => state.events);
@@ -210,6 +235,7 @@ const BookingSuccess = () => {
 
     let isMounted = true;
     let intervalId;
+    let reviewTimer;
 
     const fetchBooking = async () => {
       try {
@@ -223,6 +249,11 @@ const BookingSuccess = () => {
             setLoading(false);
             clearInterval(intervalId);
             trackPixelPurchase(bookingId, bData.totalPrice || bData.totalAmount || 0, bData.eventName || 'Event Booking', bData.totalQuantity || 1);
+
+            // ── Trigger review modal after 3s win-moment delay (all devices) ──
+            reviewTimer = setTimeout(() => {
+              if (isMounted) setShowReviewModal(true);
+            }, 3000);
           }
         } else {
           setPollCount(prev => {
@@ -246,8 +277,21 @@ const BookingSuccess = () => {
     return () => {
       isMounted = false;
       clearInterval(intervalId);
+      clearTimeout(reviewTimer);
     };
   }, [bookingId, userId]);
+
+  // ── Review modal handlers ───────────────────────────────────────────────────
+  const handleReviewRedirect = useCallback((platform) => {
+    const url = STORE_URLS[platform] || STORE_URLS[mobilePlatform];
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    // On desktop keep modal open so user can tap the other store too
+    if (mobilePlatform !== 'desktop') setShowReviewModal(false);
+  }, [mobilePlatform]);
+
+  const handleDismissReview = useCallback(() => {
+    setShowReviewModal(false);
+  }, []);
 
   // Fetch and score related events
   useEffect(() => {
@@ -423,6 +467,167 @@ const BookingSuccess = () => {
 
   return (
     <div className="booking-success-page">
+
+      {/* ── App Review Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showReviewModal && (
+          <motion.div
+            className="review-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={handleDismissReview}
+          >
+            <motion.div
+              className={`review-modal-card${mobilePlatform === 'desktop' ? ' desktop' : ''}`}
+              initial={{ opacity: 0, y: 60, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Close button */}
+              <button className="review-close-btn" onClick={handleDismissReview} aria-label="Close">
+                <X size={16} />
+              </button>
+
+              {/* Decorative top gradient bar */}
+              <div className="review-gradient-bar" />
+
+              {/* Icon badge */}
+              <div className="review-icon-wrap">
+                <div className="review-icon-ring">
+                  <img src={logoTransparent} alt="Blithe" className="review-app-logo" />
+                </div>
+                <div className="review-sparkle-1"><Sparkles size={12} /></div>
+                <div className="review-sparkle-2"><Sparkles size={10} /></div>
+              </div>
+
+              {/* Copy */}
+              <div className="review-copy">
+                <h3 className="review-title">Enjoying Blithe? 🎉</h3>
+                <p className="review-subtitle">
+                  {mobilePlatform === 'desktop'
+                    ? 'Your booking is confirmed! Rate us on your preferred store — it means the world to us.'
+                    : `Your booking is confirmed! Take 10 seconds to rate us on the ${
+                        mobilePlatform === 'android' ? 'Play Store' : 'App Store'
+                      } — it means the world to us.`
+                  }
+                </p>
+              </div>
+
+              {/* Interactive stars */}
+              <div className="review-stars-row">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <motion.button
+                    key={star}
+                    className={`review-star-btn ${
+                      star <= (hoveredStar || selectedStar) ? 'active' : ''
+                    }`}
+                    onMouseEnter={() => setHoveredStar(star)}
+                    onMouseLeave={() => setHoveredStar(0)}
+                    onClick={() => setSelectedStar(star)}
+                    whileTap={{ scale: 0.8 }}
+                    animate={star <= selectedStar ? { rotate: [0, -15, 15, 0], scale: [1, 1.3, 1] } : {}}
+                    transition={{ duration: 0.3 }}
+                    aria-label={`Rate ${star} stars`}
+                  >
+                    <Star
+                      size={32}
+                      fill={star <= (hoveredStar || selectedStar) ? '#F59E0B' : 'none'}
+                      stroke={star <= (hoveredStar || selectedStar) ? '#F59E0B' : '#D1D5DB'}
+                      strokeWidth={1.5}
+                    />
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Rating label */}
+              {(hoveredStar || selectedStar) > 0 && (
+                <motion.p
+                  className="review-rating-label"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  {['', 'Not great 😞', 'Could be better 😕', 'It\'s OK 😐', 'Pretty good! 😊', 'Love it! 🤩'][
+                    hoveredStar || selectedStar
+                  ]}
+                </motion.p>
+              )}
+
+              {/* CTA buttons */}
+              <div className={`review-actions${mobilePlatform === 'desktop' ? ' desktop-dual' : ''}`}>
+                {mobilePlatform === 'desktop' ? (
+                  // Desktop: show both stores side by side
+                  <>
+                    <motion.button
+                      className="review-cta-store android"
+                      onClick={() => handleReviewRedirect('android')}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
+                      </svg>
+                      <span>
+                        <small>GET IT ON</small>
+                        Google Play
+                      </span>
+                    </motion.button>
+                    <motion.button
+                      className="review-cta-store ios"
+                      onClick={() => handleReviewRedirect('ios')}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                      </svg>
+                      <span>
+                        <small>DOWNLOAD ON THE</small>
+                        App Store
+                      </span>
+                    </motion.button>
+                    <button className="review-cta-dismiss" onClick={handleDismissReview}>
+                      Maybe later
+                    </button>
+                  </>
+                ) : (
+                  // Mobile: single correct store
+                  <>
+                    <motion.button
+                      className="review-cta-primary"
+                      onClick={() => handleReviewRedirect(mobilePlatform)}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      {mobilePlatform === 'android' ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M3.18 23.76c.3.17.64.24.98.21l12.94-12L13.06 8l-9.88 15.76zM20.5 10.22L17.67 8.6l-3.28 3.03 3.28 3.03 2.85-1.63c.81-.46.81-1.74-.02-2.81zM1.5.65C1.19.99 1 1.47 1 2.08v19.84c0 .61.19 1.09.5 1.43L1.62 23.4 13.06 12 1.62.6 1.5.65zM3.18.24L13.06 4 16.1 7.04 3.18.24z" />
+                        </svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                        </svg>
+                      )}
+                      Rate on {mobilePlatform === 'android' ? 'Google Play' : 'App Store'}
+                    </motion.button>
+                    <button className="review-cta-dismiss" onClick={handleDismissReview}>
+                      Maybe later
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Footer note */}
+              <p className="review-footer-note">
+                Your review goes directly to the store — nothing is saved by us.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Decorative Glowing Orbs */}
       <div className="glowing-orb orb-1"></div>
       <div className="glowing-orb orb-2"></div>
