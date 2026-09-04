@@ -517,18 +517,21 @@ const BookingSuccess = () => {
               </div>
 
               {/* Interactive stars */}
-              <div className="review-stars-row">
+              <div
+                className="review-stars-row"
+                onMouseLeave={() => setHoveredStar(0)}
+              >
                 {[1, 2, 3, 4, 5].map(star => (
                   <motion.button
                     key={star}
+                    type="button"
                     className={`review-star-btn ${star <= (hoveredStar || selectedStar) ? 'active' : ''
                       }`}
                     onMouseEnter={() => setHoveredStar(star)}
-                    onMouseLeave={() => setHoveredStar(0)}
                     onClick={() => setSelectedStar(star)}
-                    whileTap={{ scale: 0.8 }}
-                    animate={star <= selectedStar ? { rotate: [0, -15, 15, 0], scale: [1, 1.3, 1] } : {}}
-                    transition={{ duration: 0.3 }}
+                    whileTap={{ scale: 0.85 }}
+                    animate={star <= selectedStar ? { rotate: [0, -15, 15, 0], scale: [1, 1.25, 1] } : {}}
+                    transition={{ duration: 0.25 }}
                     aria-label={`Rate ${star} stars`}
                   >
                     <Star
@@ -541,18 +544,17 @@ const BookingSuccess = () => {
                 ))}
               </div>
 
-              {/* Rating label */}
-              {(hoveredStar || selectedStar) > 0 && (
-                <motion.p
-                  className="review-rating-label"
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  {['', 'Not great 😞', 'Could be better 😕', 'It\'s OK 😐', 'Pretty good! 😊', 'Love it! 🤩'][
-                    hoveredStar || selectedStar
-                  ]}
-                </motion.p>
-              )}
+              {/* Rating label - constant reserved space to avoid layout shift */}
+              <p
+                className={`review-rating-label ${(hoveredStar || selectedStar) > 0 ? 'visible' : ''}`}
+                aria-live="polite"
+              >
+                {(hoveredStar || selectedStar) > 0
+                  ? ['', 'Not great 😞', 'Could be better 😕', 'It\'s OK 😐', 'Pretty good! 😊', 'Love it! 🤩'][
+                      hoveredStar || selectedStar
+                    ]
+                  : '\u00A0'}
+              </p>
 
               {/* CTA buttons */}
               <div className={`review-actions${mobilePlatform === 'desktop' ? ' desktop-dual' : ''}`}>

@@ -1134,12 +1134,22 @@
   // ── Rating label ────────────────────────────────────────────────────────────
   .review-rating-label {
     font-family: $font-body;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #F59E0B;
     margin: 0 0 0.35rem;
-    min-height: 1.2rem;
+    height: 1.35rem;
+    line-height: 1.35rem;
     text-align: center;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    opacity: 0;
+    transform: translateY(-2px);
+    pointer-events: none;
+
+    &.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   // ── CTA buttons ─────────────────────────────────────────────────────────────
