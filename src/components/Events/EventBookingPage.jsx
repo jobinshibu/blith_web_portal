@@ -438,7 +438,8 @@ const EventBookingPage = () => {
 
   // Coupon state
   const [filteredCoupons, setFilteredCoupons] = useState([]);
-  const [couponLoading, setCouponLoading] = useState(false);
+  // CHANGED: Safari coupon loading fix - start couponLoading as true so skeleton shows immediately on mount/load
+  const [couponLoading, setCouponLoading] = useState(true);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponSession, setCouponSession] = useState(null);     // sessionId of active reservation
   const [couponReservedUntil, setCouponReservedUntil] = useState(null); // Date when reservation expires
@@ -451,6 +452,27 @@ const EventBookingPage = () => {
   const couponTimerRef = useRef(null);
   const [couponSearchInput, setCouponSearchInput] = useState('');
   const [revealedCouponCodes, setRevealedCouponCodes] = useState(new Set());
+  // CHANGED: Safari coupon loading fix - track search, user-resolution, and request sequence to prevent race conditions
+  const [isSearchingCoupon, setIsSearchingCoupon] = useState(false);
+  const [isResolvingUser, setIsResolvingUser] = useState(false);
+  const couponFetchRequestIdRef = useRef(0);
+  const revealedCouponCodesRef = useRef(revealedCouponCodes);
+  revealedCouponCodesRef.current = revealedCouponCodes;
+  const appliedCouponRef = useRef(appliedCoupon);
+  appliedCouponRef.current = appliedCoupon;
+
+  // CHANGED: Safari coupon loading fix - memoize visible coupons (accounting for private & revealed state)
+  const visibleCoupons = useMemo(() => {
+    return filteredCoupons.filter(coupon => {
+      const isPrivate = coupon.isPrivate === true;
+      const isRevealed = revealedCouponCodes.has(coupon.code?.toUpperCase()) || appliedCoupon?.id === coupon.id;
+      return !isPrivate || isRevealed;
+    });
+  }, [filteredCoupons, revealedCouponCodes, appliedCoupon]);
+
+  // CHANGED: Safari coupon loading fix - determine if coupon section is busy/loading
+  const isCouponBusy = couponLoading || isSearchingCoupon || isResolvingUser;
+  const showCouponSkeleton = couponLoading || (isCouponBusy && visibleCoupons.length === 0);
 
   // Daily Availability State
   const [dailyAvailability, setDailyAvailability] = useState({});
@@ -533,6 +555,8 @@ const EventBookingPage = () => {
   // ─── Fetch filtered coupons (re-runs when event or resolved userId changes) ─
   useEffect(() => {
     if (!event) return;
+    // CHANGED: Safari coupon loading fix - track request ID to prevent older/slow requests from overwriting newer results
+    const currentRequestId = ++couponFetchRequestIdRef.current;
     const load = async () => {
       setCouponLoading(true);
       try {
@@ -540,11 +564,26 @@ const EventBookingPage = () => {
           resolvedUserIdForCoupons ?? null,
           event.id
         );
-        setFilteredCoupons(coupons);
+        // CHANGED: Safari coupon loading fix - only apply result if this request is still the latest one
+        if (currentRequestId === couponFetchRequestIdRef.current) {
+          setFilteredCoupons(prev => {
+            const fetchedIds = new Set(coupons.map(c => c.id));
+            const preserved = prev.filter(c =>
+              !fetchedIds.has(c.id) && (
+                (c.code && revealedCouponCodesRef.current.has(c.code.toUpperCase())) ||
+                (appliedCouponRef.current && appliedCouponRef.current.id === c.id)
+              )
+            );
+            return [...coupons, ...preserved];
+          });
+        }
       } catch (err) {
         console.error('Error fetching coupons:', err);
       } finally {
-        setCouponLoading(false);
+        // CHANGED: Safari coupon loading fix - only clear loading if this is the latest request
+        if (currentRequestId === couponFetchRequestIdRef.current) {
+          setCouponLoading(false);
+        }
       }
     };
     load();
@@ -611,6 +650,20 @@ const EventBookingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedCoupon, couponSession]);
 
+  // ─── Release reservation if user reduces ticket quantity to 0 ──────────────
+  useEffect(() => {
+    const hasTickets = Object.values(quantities).some(qty => qty > 0);
+    if (!hasTickets && appliedCoupon) {
+      const uId = resolvedUserIdForCoupons || resolvedUserId;
+      if (uId && couponSession) {
+        releaseCouponService({ couponId: appliedCoupon.id, userId: uId, sessionId: couponSession }).catch(() => {});
+      }
+      setAppliedCoupon(null);
+      setCouponSession(null);
+      setCouponReservedUntil(null);
+    }
+  }, [quantities, appliedCoupon, couponSession, resolvedUserIdForCoupons, resolvedUserId]);
+
   // ─── Resolve or Create user in the form (Strict Single Execution) ───────────
   const resolveOrCreateUser = useCallback(async (customAttendee = null) => {
     const currentAttendee = customAttendee || attendee;
@@ -633,6 +686,7 @@ const EventBookingPage = () => {
 
     const executionPromise = (async () => {
       isResolvingUserRef.current = true;
+      setIsResolvingUser(true); // CHANGED: Safari coupon loading fix - mark user resolving active
       lastCheckedEmailRef.current = trimmedEmail;
       lastCheckedPhoneRef.current = trimmedPhone;
 
@@ -731,6 +785,7 @@ const EventBookingPage = () => {
       } finally {
         isResolvingUserRef.current = false;
         resolvingPromiseRef.current = null;
+        setIsResolvingUser(false); // CHANGED: Safari coupon loading fix - clear user resolving state
       }
     })();
 
@@ -758,9 +813,14 @@ const EventBookingPage = () => {
         return;
       }
 
+      // CHANGED: Safari coupon loading fix - mark resolving as active during debounce window
+      setIsResolvingUser(true);
+
       timeoutId = setTimeout(() => {
         if (active) {
-          resolveOrCreateUser();
+          resolveOrCreateUser().finally(() => {
+            if (active) setIsResolvingUser(false);
+          });
         }
       }, 800);
     } else {
@@ -768,6 +828,7 @@ const EventBookingPage = () => {
         setResolvedUserId(null);
         setResolvedUserIdForCoupons(null);
         setFetchedUserName('');
+        setIsResolvingUser(false); // CHANGED: Safari coupon loading fix
       }
     }
 
@@ -787,6 +848,11 @@ const EventBookingPage = () => {
 
   // Apply coupon handler
   const handleApplyCoupon = async (coupon) => {
+    const hasTickets = Object.values(quantities).some(qty => qty > 0);
+    if (!hasTickets) {
+      toast.error('Please select at least one ticket before applying a coupon.');
+      return;
+    }
     const isApplicable = subtotal >= (coupon.minOrderAmount || 0);
     if (!isApplicable || couponApplyingId === coupon.id) return;
 
@@ -896,143 +962,154 @@ const EventBookingPage = () => {
 
   // Search coupon handler
   const handleCouponSearch = async () => {
+    if (isSearchingCoupon) return; // CHANGED: Safari coupon loading fix - prevent concurrent search
     const codeToSearch = couponSearchInput.trim().toUpperCase();
     if (!codeToSearch) {
       toast.error('Please enter a coupon code.');
       return;
     }
 
-    // 1. Search locally first
-    let foundCoupon = filteredCoupons.find(
-      c => c.code && c.code.trim().toUpperCase() === codeToSearch
-    );
+    // CHANGED: Safari coupon loading fix - mark search in-flight to prevent "No active coupons" flash
+    setIsSearchingCoupon(true);
+    try {
+      // 1. Search locally first
+      let foundCoupon = filteredCoupons.find(
+        c => c.code && c.code.trim().toUpperCase() === codeToSearch
+      );
 
-    // 2. If not found locally, query Firestore
-    if (!foundCoupon) {
-      const loadingToastId = toast.loading('Checking coupon code...');
-      try {
-        const q = query(
-          collection(db, 'coupons'),
-          where('code', '==', codeToSearch),
-          where('isActive', '==', true),
-          where('deleted', '==', false)
-        );
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const docSnap = snap.docs[0];
-          const data = docSnap.data();
-          foundCoupon = { id: docSnap.id, ...data };
-        }
-      } catch (err) {
-        console.error('Error searching coupon in DB:', err);
-      } finally {
-        toast.dismiss(loadingToastId);
-      }
-    }
-
-    if (foundCoupon) {
-      const uId = resolvedUserIdForCoupons || resolvedUserId;
-      const type = (foundCoupon.type || '').toLowerCase();
-
-      // Check Expiration
-      let expiryDate = null;
-      if (foundCoupon.expiryDate) {
-        if (foundCoupon.expiryDate.toDate) {
-          expiryDate = foundCoupon.expiryDate.toDate();
-        } else if (foundCoupon.expiryDate.seconds) {
-          expiryDate = new Date(foundCoupon.expiryDate.seconds * 1000);
-        } else {
-          expiryDate = new Date(foundCoupon.expiryDate);
-        }
-      }
-      if (expiryDate && expiryDate < new Date()) {
-        toast.error('This coupon has expired.');
-        return;
-      }
-
-      // Check Event specific eligibility
-      if (type === 'event') {
-        if (foundCoupon.eventId !== event.id) {
-          toast.error('This coupon is not valid for this event.');
-          return;
-        }
-      }
-
-      // Check User specific eligibility
-      if (type === 'user') {
-        if (!uId) {
-          toast.error('Please enter your phone number first so we can verify eligibility.');
-          return;
-        }
-        const targets = foundCoupon.targetUserIds || [];
-        if (!targets.includes(uId)) {
-          toast.error('This coupon is not valid for your account.');
-          return;
-        }
-      }
-
-      // Check Welcome coupon eligibility
-      if (type === 'welcome') {
-        if (!uId) {
-          toast.error('Please enter your phone number first so we can verify eligibility.');
-          return;
-        }
-        const hasBookings = await checkHasBookings(uId);
-        if (hasBookings) {
-          toast.error('Welcome coupons are only for first-time bookings.');
-          return;
-        }
-      }
-
-      // Check usage limit
-      if (foundCoupon.usageLimit > 0) {
-        const usedCount = foundCoupon.usedCount || 0;
-        const reservedCount = foundCoupon.reservedCount || 0;
-        const effectiveUsed = usedCount + reservedCount;
-        if (effectiveUsed >= foundCoupon.usageLimit) {
-          toast.error('Coupon usage limit reached.');
-          return;
-        }
-      }
-
-      // Check if the user has already used this coupon
-      if (uId) {
-        const usageRef = collection(db, 'coupons', foundCoupon.id, 'usage');
-        const usageQuery = query(usageRef, where('userId', '==', uId));
+      // 2. If not found locally, query Firestore
+      if (!foundCoupon) {
+        const loadingToastId = toast.loading('Checking coupon code...');
         try {
-          const usageSnap = await getDocs(usageQuery);
-          if (!usageSnap.empty) {
-            toast.error('You have already used this coupon.');
-            return;
+          const q = query(
+            collection(db, 'coupons'),
+            where('code', '==', codeToSearch),
+            where('isActive', '==', true),
+            where('deleted', '==', false)
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const docSnap = snap.docs[0];
+            const data = docSnap.data();
+            foundCoupon = { id: docSnap.id, ...data };
           }
         } catch (err) {
-          console.warn('Failed to verify coupon usage on search:', err);
+          console.error('Error searching coupon in DB:', err);
+        } finally {
+          toast.dismiss(loadingToastId);
         }
       }
 
-      // Add to local filteredCoupons state so standard UI functions work on it
-      setFilteredCoupons(prev => {
-        if (prev.some(c => c.id === foundCoupon.id)) return prev;
-        return [...prev, foundCoupon];
-      });
+      if (foundCoupon) {
+        const uId = resolvedUserIdForCoupons || resolvedUserId;
+        const type = (foundCoupon.type || '').toLowerCase();
 
-      // Add to revealed list
-      setRevealedCouponCodes(prev => {
-        const next = new Set(prev);
-        next.add(codeToSearch);
-        return next;
-      });
+        // Check Expiration
+        let expiryDate = null;
+        if (foundCoupon.expiryDate) {
+          if (foundCoupon.expiryDate.toDate) {
+            expiryDate = foundCoupon.expiryDate.toDate();
+          } else if (foundCoupon.expiryDate.seconds) {
+            expiryDate = new Date(foundCoupon.expiryDate.seconds * 1000);
+          } else {
+            expiryDate = new Date(foundCoupon.expiryDate);
+          }
+        }
+        if (expiryDate && expiryDate < new Date()) {
+          toast.error('This coupon has expired.');
+          return;
+        }
 
-      // Check if applicable
-      const isApplicable = subtotal >= (foundCoupon.minOrderAmount || 0);
-      if (isApplicable) {
-        await handleApplyCoupon(foundCoupon);
+        // Check Event specific eligibility
+        if (type === 'event') {
+          if (foundCoupon.eventId !== event.id) {
+            toast.error('This coupon is not valid for this event.');
+            return;
+          }
+        }
+
+        // Check User specific eligibility
+        if (type === 'user') {
+          if (!uId) {
+            toast.error('Please enter your phone number first so we can verify eligibility.');
+            return;
+          }
+          const targets = foundCoupon.targetUserIds || [];
+          if (!targets.includes(uId)) {
+            toast.error('This coupon is not valid for your account.');
+            return;
+          }
+        }
+
+        // Check Welcome coupon eligibility
+        if (type === 'welcome') {
+          if (!uId) {
+            toast.error('Please enter your phone number first so we can verify eligibility.');
+            return;
+          }
+          const hasBookings = await checkHasBookings(uId);
+          if (hasBookings) {
+            toast.error('Welcome coupons are only for first-time bookings.');
+            return;
+          }
+        }
+
+        // Check usage limit
+        if (foundCoupon.usageLimit > 0) {
+          const usedCount = foundCoupon.usedCount || 0;
+          const reservedCount = foundCoupon.reservedCount || 0;
+          const effectiveUsed = usedCount + reservedCount;
+          if (effectiveUsed >= foundCoupon.usageLimit) {
+            toast.error('Coupon usage limit reached.');
+            return;
+          }
+        }
+
+        // Check if the user has already used this coupon
+        if (uId) {
+          const usageRef = collection(db, 'coupons', foundCoupon.id, 'usage');
+          const usageQuery = query(usageRef, where('userId', '==', uId));
+          try {
+            const usageSnap = await getDocs(usageQuery);
+            if (!usageSnap.empty) {
+              toast.error('You have already used this coupon.');
+              return;
+            }
+          } catch (err) {
+            console.warn('Failed to verify coupon usage on search:', err);
+          }
+        }
+
+        // Add to local filteredCoupons state so standard UI functions work on it
+        setFilteredCoupons(prev => {
+          if (prev.some(c => c.id === foundCoupon.id)) return prev;
+          return [...prev, foundCoupon];
+        });
+
+        // Add to revealed list
+        setRevealedCouponCodes(prev => {
+          const next = new Set(prev);
+          next.add(codeToSearch);
+          return next;
+        });
+
+        // Check if applicable
+        const hasTickets = Object.values(quantities).some(qty => qty > 0);
+        const isApplicable = hasTickets && subtotal >= (foundCoupon.minOrderAmount || 0);
+        if (isApplicable) {
+          await handleApplyCoupon(foundCoupon);
+        } else if (!hasTickets) {
+          toast.error('Coupon found! Please select at least one ticket to apply.');
+        } else {
+          const neededAmount = (foundCoupon.minOrderAmount || 0) - subtotal;
+          toast.error(`Coupon found! Add ₹${neededAmount} more to apply.`);
+        }
       } else {
-        const neededAmount = (foundCoupon.minOrderAmount || 0) - subtotal;
-        toast.error(`Coupon found! Add ₹${neededAmount} more to apply.`);
+        toast.error('Invalid or expired coupon code.');
       }
-    } else {
-      toast.error('Invalid or expired coupon code.');
+    } finally {
+      // CHANGED: Safari coupon loading fix - finish search state
+      setIsSearchingCoupon(false);
     }
   };
 
@@ -2823,7 +2900,9 @@ const EventBookingPage = () => {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleCouponSearch();
+                      if (!isSearchingCoupon) {
+                        handleCouponSearch();
+                      }
                     }
                   }}
                 />
@@ -2832,12 +2911,14 @@ const EventBookingPage = () => {
                 type="button"
                 onClick={handleCouponSearch}
                 className="coupon-search-btn"
+                disabled={isSearchingCoupon}
               >
-                Apply
+                {isSearchingCoupon ? 'Checking...' : 'Apply'}
               </button>
             </div>
 
-            {couponLoading ? (
+            {/* CHANGED: Safari coupon loading fix - show loading skeleton until latest coupon request is fully completed, never showing "No active coupons" while busy */}
+            {showCouponSkeleton ? (
               <div className="coupon-cards-loading">
                 {[1, 2].map(i => (
                   <div key={i} className="coupon-skeleton">
@@ -2850,23 +2931,15 @@ const EventBookingPage = () => {
                   </div>
                 ))}
               </div>
-            ) : filteredCoupons.filter(coupon => {
-              const isPrivate = coupon.isPrivate === true;
-              const isRevealed = revealedCouponCodes.has(coupon.code?.toUpperCase()) || appliedCoupon?.id === coupon.id;
-              return !isPrivate || isRevealed;
-            }).length === 0 ? (
+            ) : visibleCoupons.length === 0 ? (
               <p style={{ color: '#6B7280', fontStyle: 'italic', marginTop: '0.5rem' }}>No active coupons available right now.</p>
             ) : (
               <div className="coupons-list-view">
-                {filteredCoupons
-                  .filter(coupon => {
-                    const isPrivate = coupon.isPrivate === true;
-                    const isRevealed = revealedCouponCodes.has(coupon.code?.toUpperCase()) || appliedCoupon?.id === coupon.id;
-                    return !isPrivate || isRevealed;
-                  })
+                {visibleCoupons
                   .map(coupon => {
-                    const potDiscount = calculateDiscount(coupon, subtotal);
-                    const isApplicable = subtotal >= (coupon.minOrderAmount || 0);
+                    const hasTickets = Object.values(quantities).some(qty => qty > 0);
+                    const potDiscount = hasTickets ? calculateDiscount(coupon, subtotal) : 0;
+                    const isApplicable = hasTickets && subtotal >= (coupon.minOrderAmount || 0);
                     const isSelected = appliedCoupon?.id === coupon.id;
                     const isApplying = couponApplyingId === coupon.id;
                     const neededAmount = (coupon.minOrderAmount || 0) - subtotal;
@@ -2913,10 +2986,14 @@ const EventBookingPage = () => {
                             </p>
                           )}
 
-                          {!isApplicable && neededAmount > 0 && (
+                          {!isApplicable && !isSelected && (
                             <div className="unlock-progress-hint">
                               <Lock size={12} className="lock-icon" />
-                              <span>Add ₹{neededAmount} more to unlock</span>
+                              <span>
+                                {!hasTickets
+                                  ? 'Select a ticket to unlock'
+                                  : (neededAmount > 0 ? `Add ₹${neededAmount} more to unlock` : 'Locked')}
+                              </span>
                             </div>
                           )}
 

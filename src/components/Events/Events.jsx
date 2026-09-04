@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, SearchX, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight, Globe, Info, Lock } from 'lucide-react';
+import { Search, SearchX, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight, Globe, Info, Lock, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice';
@@ -1869,7 +1869,22 @@ const Events = () => {
             {/* Recently Ended Events Section */}
             {recentlyEndedEvents.length > 0 && (
               <section className="all-events-section recently-ended-section" style={{ marginTop: '3.5rem' }}>
-                <h2 className="section-title" style={{ marginBottom: '1.5rem' }}> You just missed !!! </h2>
+                <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.5rem' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                    color: '#7C3AED',
+                    flexShrink: 0
+                  }}>
+                    <History size={20} />
+                  </span>
+                  <span>You just missed !!!</span>
+                </h2>
                 <div className="events-main">
                   <div className="events-portrait-grid">
                     {recentlyEndedEvents.map((event) => (
@@ -1879,20 +1894,6 @@ const Events = () => {
                             <img src={event.image} alt={event.title} loading="lazy" />
                             {event.promoted && (
                               <span className="featured-badge-small">Featured</span>
-                            )}
-                            {event.isSoldOut && (
-                              <span className="sold-out-badge" style={{
-                                position: 'absolute',
-                                top: '12px',
-                                left: event.promoted ? '80px' : '12px',
-                                backgroundColor: '#EF4444',
-                                color: '#fff',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold',
-                                zIndex: 10
-                              }}>Sold Out</span>
                             )}
                           </div>
 
