@@ -2291,15 +2291,14 @@ const EventDetails = () => {
                 <Button
                   variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
                   size="lg"
-                  className={`book-now-btn ${
-                    isEventExpired
-                      ? 'btn-event-expired'
-                      : isSoldOut
+                  className={`book-now-btn ${isEventExpired
+                    ? 'btn-event-expired'
+                    : isSoldOut
                       ? 'btn-sold-out'
                       : isBookingClosed
-                      ? 'btn-booking-closed'
-                      : ''
-                  }`}
+                        ? 'btn-booking-closed'
+                        : ''
+                    }`}
                   onClick={() => {
                     // UPDATED: Expired event validation
                     if (isEventExpired) {
@@ -2322,7 +2321,7 @@ const EventDetails = () => {
                   {isEventExpired ? (
                     <>
                       <Calendar size={18} style={{ flexShrink: 0 }} />
-                      <span>Event Expired</span>
+                      <span>Event Closed</span>
                     </>
                   ) : isSoldOut ? (
                     <>
@@ -2495,15 +2494,14 @@ const EventDetails = () => {
         <Button
           variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
           size="md"
-          className={`book-now-btn ${
-            isEventExpired
-              ? 'btn-event-expired'
-              : isSoldOut
+          className={`book-now-btn ${isEventExpired
+            ? 'btn-event-expired'
+            : isSoldOut
               ? 'btn-sold-out'
               : isBookingClosed
-              ? 'btn-booking-closed'
-              : ''
-          }`}
+                ? 'btn-booking-closed'
+                : ''
+            }`}
           onClick={() => {
             // UPDATED: Expired event validation
             if (isEventExpired) {

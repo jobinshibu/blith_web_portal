@@ -1866,54 +1866,64 @@ const Events = () => {
               </div>
             </section>
 
-            {/* Recently Ended Events Section */}
+            {/* ===== CHANGED: Recently Ended Events UI ===== */}
             {recentlyEndedEvents.length > 0 && (
-              <section className="all-events-section recently-ended-section" style={{ marginTop: '3.5rem' }}>
-                <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.5rem' }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    backgroundColor: 'rgba(124, 58, 237, 0.1)',
-                    color: '#7C3AED',
-                    flexShrink: 0
-                  }}>
-                    <History size={20} />
-                  </span>
-                  <span>You just missed !!!</span>
-                </h2>
-                <div className="events-main">
-                  <div className="events-portrait-grid">
+              <section className="recently-ended-section">
+                <div className="recently-ended-header">
+                  <div className="recently-ended-title-group">
+                    <div className="recently-ended-icon-wrapper">
+                      <History size={18} strokeWidth={2.2} />
+                    </div>
+                    <div className="recently-ended-heading-col">
+                      <h2 className="recently-ended-heading">
+                        You just missed !!!
+                      </h2>
+                      {/* <p className="recently-ended-subheading">
+                        Events that wrapped up recently
+                      </p> */}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="recently-ended-main">
+                  <div className="recently-ended-grid">
                     {recentlyEndedEvents.map((event) => (
-                      <div key={event.id} className="event-card-container">
-                        <Link to={`/events/${event.id}`} onClick={() => handleEventClick(event)} className="portrait-event-card">
-                          <div className="portrait-image-wrapper">
+                      <div key={event.id} className="recently-ended-card-container">
+                        <Link
+                          to={`/events/${event.id}`}
+                          onClick={() => handleEventClick(event)}
+                          className="recently-ended-card"
+                        >
+                          <div className="recently-ended-image-wrapper">
                             <img src={event.image} alt={event.title} loading="lazy" />
-                            {event.promoted && (
-                              <span className="featured-badge-small">Featured</span>
-                            )}
+                            <div className="recently-ended-overlay" />
+                            <div className="recently-ended-badge">
+                              <span className="recently-ended-badge-dot" />
+                              <span>ENDED</span>
+                            </div>
                           </div>
 
-                          <div className="portrait-card-details">
-                            <div className="portrait-card-date-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span className="portrait-card-date">
+                          <div className="recently-ended-details">
+                            <div className="recently-ended-date-row">
+                              <span className="recently-ended-date">
                                 {event.date}
                               </span>
                               {event.priceMessage && (
-                                <span className="portrait-card-price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800 }}>
+                                <span className="recently-ended-price-message">
                                   {event.priceMessage}
                                 </span>
                               )}
                             </div>
-                            <h3 className="portrait-card-title">{event.title}</h3>
-                            <div className="portrait-card-location-row">
-                              <p className="portrait-card-location">{event.location}</p>
+                            <h3 className="recently-ended-title" title={event.title}>
+                              {event.title}
+                            </h3>
+                            <div className="recently-ended-location-row">
+                              <p className="recently-ended-location" title={event.location}>
+                                {event.location}
+                              </p>
                               {event.distance !== null && event.distance !== undefined && (
-                                <span className="location-distance-tag">
-                                  <MapPin size={12} className="distance-icon" />
+                                <span className="recently-ended-distance-tag">
+                                  <MapPin size={11} className="distance-icon" />
                                   {event.distance < 1
                                     ? `${Math.round(event.distance * 1000)}m`
                                     : `${Math.round(event.distance)} km`}
@@ -1928,6 +1938,7 @@ const Events = () => {
                 </div>
               </section>
             )}
+            {/* ===== END CHANGED: Recently Ended Events UI ===== */}
           </div>
         </>
       )}

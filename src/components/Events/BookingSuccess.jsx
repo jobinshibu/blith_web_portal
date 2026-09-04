@@ -5,15 +5,15 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk } from '../../store/eventsSlice';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Check, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Ticket, 
-  ArrowRight, 
-  Home, 
-  Copy, 
+import {
+  Check,
+  Calendar,
+  Clock,
+  MapPin,
+  Ticket,
+  ArrowRight,
+  Home,
+  Copy,
   AlertCircle,
   ChevronRight,
   Sparkles,
@@ -60,7 +60,7 @@ const BookingSuccess = () => {
   );
   const [hoveredStar, setHoveredStar] = useState(0);
   const [selectedStar, setSelectedStar] = useState(0);
-  
+
   const dispatch = useDispatch();
   const { events: rawEvents } = useSelector(state => state.events);
 
@@ -95,12 +95,12 @@ const BookingSuccess = () => {
   // Helper to format time cleanly
   const formatEventTime = (bookingObj, eventObj) => {
     // Check explicit time strings on booking or event document
-    const explicitTime = 
-      bookingObj?.eventTime || 
-      bookingObj?.time || 
-      eventObj?.eventTime || 
-      eventObj?.time || 
-      eventObj?.startTime || 
+    const explicitTime =
+      bookingObj?.eventTime ||
+      bookingObj?.time ||
+      eventObj?.eventTime ||
+      eventObj?.time ||
+      eventObj?.startTime ||
       eventObj?.eventStartTime;
 
     if (explicitTime && typeof explicitTime === 'string' && explicitTime.trim() !== '') {
@@ -341,7 +341,7 @@ const BookingSuccess = () => {
               const cities = ["bangalore", "bengaluru", "mumbai", "delhi", "noida", "gurgaon", "chennai", "hyderabad", "pune", "kolkata"];
               const city1 = cities.find(c => loc1.includes(c));
               const city2 = cities.find(c => loc2.includes(c));
-              
+
               if (city1 && city2 && city1 === city2) {
                 score += 5;
               } else if (loc1 === loc2) {
@@ -509,10 +509,9 @@ const BookingSuccess = () => {
                 <h3 className="review-title">Enjoying Blithe? 🎉</h3>
                 <p className="review-subtitle">
                   {mobilePlatform === 'desktop'
-                    ? 'Your booking is confirmed! Rate us on your preferred store — it means the world to us.'
-                    : `Your booking is confirmed! Take 10 seconds to rate us on the ${
-                        mobilePlatform === 'android' ? 'Play Store' : 'App Store'
-                      } — it means the world to us.`
+                    ? 'Your booking is confirmed! Rate us on your preferred store. it means the world to us.'
+                    : `Your booking is confirmed! Take 10 seconds to rate us on the ${mobilePlatform === 'android' ? 'Play Store' : 'App Store'
+                    } it means the world to us.`
                   }
                 </p>
               </div>
@@ -522,9 +521,8 @@ const BookingSuccess = () => {
                 {[1, 2, 3, 4, 5].map(star => (
                   <motion.button
                     key={star}
-                    className={`review-star-btn ${
-                      star <= (hoveredStar || selectedStar) ? 'active' : ''
-                    }`}
+                    className={`review-star-btn ${star <= (hoveredStar || selectedStar) ? 'active' : ''
+                      }`}
                     onMouseEnter={() => setHoveredStar(star)}
                     onMouseLeave={() => setHoveredStar(0)}
                     onClick={() => setSelectedStar(star)}
@@ -622,7 +620,7 @@ const BookingSuccess = () => {
 
               {/* Footer note */}
               <p className="review-footer-note">
-                Your review goes directly to the store — nothing is saved by us.
+                Your review goes directly to the store , nothing is saved by us.
               </p>
             </motion.div>
           </motion.div>
@@ -635,7 +633,7 @@ const BookingSuccess = () => {
       <div className="container compact-container">
         {/* Compact Animated Confirmation Banner */}
         <div className="success-header-card compact">
-          <motion.div 
+          <motion.div
             className={`success-badge-outer ${booking?.status === 'pending' ? 'pending' : ''}`}
             initial={{ scale: 0, rotate: -45 }}
             animate={{ scale: 1, rotate: 0 }}
@@ -649,30 +647,30 @@ const BookingSuccess = () => {
               )}
             </div>
           </motion.div>
-          
+
           <div className="header-text-group">
             <h1 className="gradient-success-title">
               {booking?.status === 'pending' ? 'Booking Request Pending' : 'Your Booking Confirmed'}
             </h1>
             <p className="success-subtitle">
-              {booking?.status === 'pending' 
-                ? 'Your registration is subject to host approval. We will notify you once approved.' 
+              {booking?.status === 'pending'
+                ? 'Your registration is subject to host approval. We will notify you once approved.'
                 : 'Your tickets are secured. Receipt has been emailed to you.'}
             </p>
           </div>
         </div>
 
         {/* LANDSCAPE TICKET DESIGN */}
-        <motion.div 
+        <motion.div
           className="classic-landscape-ticket glass"
           initial="hidden"
           animate="visible"
           variants={ticketVariant}
         >
-          
+
           {/* LEFT SECTION: Main Ticket Details */}
           <div className="ticket-main-section">
-            
+
             {/* Event Header row */}
             <div className="ticket-header-row">
               {eventDetails?.image && (
@@ -789,7 +787,7 @@ const BookingSuccess = () => {
         </motion.div>
 
         {/* App Download Banner */}
-        <motion.div 
+        <motion.div
           className="app-download-banner glass"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -805,7 +803,7 @@ const BookingSuccess = () => {
                 <p className="app-banner-desc">You can see your event and booking details in the Blithe app.</p>
               </div>
             </div>
-            
+
             <div className="app-download-badges">
               <a href="https://play.google.com/store/apps/details?id=com.firstlogicmetalab.blith_user_app" target="_blank" rel="noopener noreferrer" className="store-badge-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
