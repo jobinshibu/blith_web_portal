@@ -971,29 +971,36 @@
   inset: 0;
   z-index: 9999;
   display: flex;
-  align-items: flex-end;        // sheet slides up from bottom on mobile
-  justify-content: center;
-  background: rgba(#0F0A1E, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  pointer-events: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+
+  @media (max-width: 768px) {
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
 }
 
 .review-modal-card {
+  pointer-events: auto;
   position: relative;
   width: 100%;
-  max-width: 420px;
-  background: rgba(255, 255, 255, 0.92);
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-bottom: none;
-  border-radius: 1.75rem 1.75rem 0 0;
-  padding: 0 1.75rem 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 1.5rem;
+  padding: 0 1.5rem 1.5rem;
   box-shadow:
-    0 -8px 40px rgba(#7C3AED, 0.12),
-    0 -2px 12px rgba(#7C3AED, 0.06),
-    0 0 0 1px rgba(#C4B5FD, 0.25);
+    0 16px 48px rgba(#7C3AED, 0.18),
+    0 6px 20px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(#C4B5FD, 0.35);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1001,14 +1008,27 @@
   animation: review-glow-pulse 3s infinite ease-in-out;
   overflow: hidden;
 
+  @media (max-width: 768px) {
+    max-width: min(400px, calc(100vw - 2rem));
+    padding: 0 1.25rem 1.25rem;
+    border-radius: 1.25rem;
+    margin: auto;
+  }
+
   // ── Gradient accent bar at top ──────────────────────────────────────────────
   .review-gradient-bar {
-    width: calc(100% + 3.5rem);   // bleed to edges
-    margin-left: -1.75rem;
+    width: calc(100% + 3rem);   // bleed to edges
+    margin-left: -1.5rem;
     height: 4px;
     background: linear-gradient(90deg, #7C3AED 0%, #8B5CF6 40%, #A78BFA 70%, #C4B5FD 100%);
     border-radius: 0;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
+
+    @media (max-width: 480px) {
+      width: calc(100% + 2.5rem);
+      margin-left: -1.25rem;
+      margin-bottom: 1rem;
+    }
   }
 
   // ── Close button ────────────────────────────────────────────────────────────
@@ -1219,29 +1239,21 @@
     line-height: 1.4;
   }
 
-  // ── Desktop variant: centered dialog instead of bottom sheet ────────────────
+  // ── Desktop variant ────────────────────────────────────────────────────────
   &.desktop {
     border-radius: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.75);
-    max-width: 480px;
-    padding: 0 2rem 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    max-width: 410px;
+    padding: 0 1.5rem 1.5rem;
     box-shadow:
-      0 24px 64px rgba(#7C3AED, 0.16),
-      0 8px 24px rgba(0, 0, 0, 0.08),
-      0 0 0 1px rgba(#C4B5FD, 0.3);
-    animation: none;  // no pulse on desktop
+      0 16px 48px rgba(#7C3AED, 0.18),
+      0 6px 20px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(#C4B5FD, 0.35);
 
     .review-gradient-bar {
-      width: calc(100% + 4rem);
-      margin-left: -2rem;
+      width: calc(100% + 3rem);
+      margin-left: -1.5rem;
     }
-  }
-}
-
-// ── Overlay: center on desktop ───────────────────────────────────────────────
-.review-modal-overlay {
-  &:has(.review-modal-card.desktop) {
-    align-items: center;
   }
 }
 
