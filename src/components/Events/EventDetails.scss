@@ -748,13 +748,10 @@
         text-align: center;
         font-weight: 500;
         line-height: 1.55;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         gap: 0.25rem;
 
         @media (max-width: 480px) {
@@ -794,13 +791,10 @@
           text-align: center;
           font-weight: 500;
           line-height: 1.55;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
           display: flex;
           align-items: center;
           justify-content: center;
-          flex-wrap: nowrap;
+          flex-wrap: wrap;
           gap: 0.25rem;
 
           @media (max-width: 480px) {

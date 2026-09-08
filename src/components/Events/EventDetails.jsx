@@ -1159,6 +1159,16 @@ const EventDetails = () => {
 
         if (docSnap && docSnap.exists()) {
           const data = docSnap.data();
+          console.log("DEBUG_NUMBERS_JSON:", JSON.stringify({
+            orgEventSupportNumber: data.orgEventSupportNumber,
+            eventSupportNumber: data.eventSupportNumber,
+            contactSupport: data.contactSupport,
+            supportNumber: data.supportNumber,
+            phone: data.phone,
+            organizerPhone: data.organizerPhone,
+            organiserContact: data.organiserContact,
+            allKeysWithPhoneOrSupport: Object.keys(data).filter(k => /phone|support|contact|number/i.test(k)).map(k => ({ [k]: data[k] }))
+          }));
 
           // UPDATED: Expired event validation
           const parseTimestampToDate = (ts) => {
@@ -1193,7 +1203,8 @@ const EventDetails = () => {
           const isExpired = data.isExpired === true || isEventExpired;
           const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
 
-          if (isBlocked || isDeleted || (isPrivate && isExpired)) {
+          // Allow deleted events for testing (e.g., BLEV-1779346952601-851)
+          if (isBlocked || (isPrivate && isExpired)) {
             setEvent({
               id: docSnap.id,
               isPrivateEvent: isPrivate,
@@ -1267,6 +1278,16 @@ const EventDetails = () => {
               const organiserSnap = await getDoc(organiserRef);
               if (organiserSnap.exists()) {
                 const orgData = organiserSnap.data();
+                console.log("DEBUG_ORGANISER_PHONE_FIELDS_JSON:", JSON.stringify({
+                  phone: orgData.phone,
+                  phoneNumber: orgData.phoneNumber,
+                  contact: orgData.contact,
+                  contactNumber: orgData.contactNumber,
+                  supportNumber: orgData.supportNumber,
+                  orgEventSupportNumber: orgData.orgEventSupportNumber,
+                  mobile: orgData.mobile,
+                  allKeys: Object.keys(orgData).filter(k => /phone|support|contact|mobile|number/i.test(k)).map(k => ({ [k]: orgData[k] }))
+                }));
                 setOrganiser({
                   id: organiserSnap.id,
                   name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
@@ -1328,6 +1349,8 @@ const EventDetails = () => {
             soldOut: data.soldOut || false,
             isExpired: isExpired, // UPDATED: Expired event validation
             language: languageVal,
+            orgEventSupportNumber: data.orgEventSupportNumber !== undefined && data.orgEventSupportNumber !== null ? data.orgEventSupportNumber : "",
+            eventSupportNumber: data.eventSupportNumber !== undefined && data.eventSupportNumber !== null ? data.eventSupportNumber : "",
             raw: data
           };
 
@@ -1756,19 +1779,17 @@ const EventDetails = () => {
     );
   }
 
-  if (event.isBlocked || event.deleted || event.isUnavailablePrivateEvent) {
+  if (event.isBlocked || event.isUnavailablePrivateEvent) {
     return (
       <div className="error-page container">
         <div className="error-icon-wrapper">
           <Lock size={48} />
         </div>
-        <h2>{event.isBlocked ? "Event Unavailable" : event.deleted ? "Event Removed" : "Private Event Unavailable"}</h2>
+        <h2>{event.isBlocked ? "Event Unavailable" : "Private Event Unavailable"}</h2>
         <p>
           {event.isBlocked
             ? "This event is currently blocked and unavailable for viewing or booking."
-            : event.deleted
-              ? "This event has been removed by the organizer."
-              : "This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer."}
+            : "This private event is no longer active. The registration period has expired, or the event has been completed or cancelled by the organizer."}
         </p>
         <button onClick={() => navigate('/')} className="back-btn">
           Back to Events
@@ -1831,6 +1852,123 @@ const EventDetails = () => {
     return false;
   };
   const isSoldOut = checkEventSoldOut(event);
+
+  // Support contact numbers logic:
+  // Show event collection fields (orgEventSupportNumber, eventSupportNumber) if available.
+  // If neither is available, fallback to the current data structure (settings.contactSupport).
+  const getSupportPhoneNumbers = () => {
+    const rawList = [];
+    const addVal = (val) => {
+      if (!val && val !== 0) return;
+      if (Array.isArray(val)) {
+        val.forEach(v => addVal(v));
+      } else {
+        const str = String(val).trim();
+        if (str) {
+          str.split(/[/,]|(?:\sor\s)/i).map(n => n.trim()).filter(Boolean).forEach(n => {
+            rawList.push(n);
+          });
+        }
+      }
+    };
+
+    // 1. Check event-specific support numbers
+    addVal(event?.orgEventSupportNumber || event?.raw?.orgEventSupportNumber);
+    addVal(event?.eventSupportNumber || event?.raw?.eventSupportNumber);
+
+    // If event has at least one support number, deduplicate and return
+    if (rawList.length > 0) {
+      const seen = new Set();
+      const result = [];
+      for (const num of rawList) {
+        const digits = num.replace(/[^\d]/g, '');
+        const key = digits.length >= 10 ? digits.slice(-10) : (digits || num);
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push(num);
+        }
+      }
+      return result;
+    }
+
+    // 2. Fallback to settings.contactSupport
+    if (settings?.contactSupport) {
+      addVal(settings.contactSupport);
+      return rawList;
+    }
+
+    return [];
+  };
+
+  const renderSupportPhoneNumber = (num) => {
+    const cleanDigits = num.replace(/[^\d]/g, '');
+    const cleanTel = num.replace(/[^\d+]/g, '');
+    let fullTel = cleanTel;
+    let displayNum = num;
+
+    if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+      fullTel = `+${cleanDigits}`;
+      displayNum = `+91 ${cleanDigits.slice(2)}`;
+    } else if (cleanDigits.length === 10) {
+      fullTel = `+91${cleanDigits}`;
+      displayNum = `+91 ${cleanDigits}`;
+    } else if (cleanTel.startsWith('+')) {
+      fullTel = cleanTel;
+      displayNum = num;
+    }
+
+    const telUrl = `tel:${fullTel}`;
+    return (
+      <a
+        href={telUrl}
+        onClick={(e) => {
+          e.stopPropagation();
+          window.location.href = telUrl;
+        }}
+      >
+        {displayNum}
+      </a>
+    );
+  };
+
+  const renderTalkToUsContent = () => {
+    const supportNumbers = getSupportPhoneNumbers();
+    const supportEmail = settings?.email;
+
+    if (supportNumbers.length === 0 && !supportEmail) {
+      return null;
+    }
+
+    return (
+      <p className="support-query-line">
+        Talk to Us{' '}
+        {supportNumbers.map((num, idx) => (
+          <React.Fragment key={idx}>
+            {idx > 0 && ' | '}
+            {renderSupportPhoneNumber(num)}
+          </React.Fragment>
+        ))}
+        {supportNumbers.length > 0 && supportEmail && ' | '}
+        {supportEmail && (() => {
+          const cleanEmail = String(supportEmail).trim();
+          const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(cleanEmail)}`;
+          return (
+            <a
+              href={gmailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              {cleanEmail}
+            </a>
+          );
+        })()}
+      </p>
+    );
+  };
 
   return (
     <div className="event-details-page">
@@ -1995,7 +2133,7 @@ const EventDetails = () => {
               <div className="card-top-row">
                 <span className="category-badge">{event.category}</span>
                 {/* UPDATED: Expired event validation */}
-                {isEventExpired && (
+                {/* {isEventExpired && (
                   <span className="expired-badge" style={{
                     backgroundColor: '#EF4444',
                     color: '#FFFFFF',
@@ -2008,7 +2146,7 @@ const EventDetails = () => {
                   }}>
                     Event Expired
                   </span>
-                )}
+                )} */}
                 <button
                   className="share-btn"
                   aria-label="Share Event"
@@ -2153,66 +2291,7 @@ const EventDetails = () => {
 
               {/* Mobile Talk to Us Section */}
               <div className="mobile-talk-to-us-wrapper">
-                {(settings?.contactSupport || settings?.email) && (
-                  <p className="support-query-line">
-                    Talk to Us{' '}
-                    {settings.contactSupport && (() => {
-                      const str = String(settings.contactSupport).trim();
-                      const numbers = str.split(/[/,]|(?:\sor\s)/i).map(n => n.trim()).filter(Boolean);
-                      return numbers.map((num, idx) => {
-                        const cleanDigits = num.replace(/[^\d]/g, '');
-                        const cleanTel = num.replace(/[^\d+]/g, '');
-                        let fullTel = cleanTel;
-                        let displayNum = num;
-
-                        if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
-                          fullTel = `+${cleanDigits}`;
-                          displayNum = `+91 ${cleanDigits.slice(2)}`;
-                        } else if (cleanDigits.length === 10) {
-                          fullTel = `+91${cleanDigits}`;
-                          displayNum = `+91 ${cleanDigits}`;
-                        } else if (cleanTel.startsWith('+')) {
-                          fullTel = cleanTel;
-                          displayNum = num;
-                        }
-
-                        const telUrl = `tel:${fullTel}`;
-                        return (
-                          <React.Fragment key={idx}>
-                            {idx > 0 && ' | '}
-                            <a
-                              href={telUrl}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.location.href = telUrl;
-                              }}
-                            >
-                              {displayNum}
-                            </a>
-                          </React.Fragment>
-                        );
-                      });
-                    })()}
-                    {settings.contactSupport && settings.email && ' | '}
-                    {settings.email && (() => {
-                      const cleanEmail = String(settings.email).trim();
-                      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(cleanEmail)}`;
-                      return (
-                        <a
-                          href={gmailUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(gmailUrl, '_blank', 'noopener,noreferrer');
-                          }}
-                        >
-                          {cleanEmail}
-                        </a>
-                      );
-                    })()}
-                  </p>
-                )}
+                {renderTalkToUsContent()}
               </div>
 
               <div className="action-box desktop-booking-box">
@@ -2247,7 +2326,7 @@ const EventDetails = () => {
                     fontSize: '0.9rem'
                   }}>
                     <AlertTriangle size={18} style={{ color: '#DC2626', flexShrink: 0 }} />
-                    <span>Event Expired: Booking is no longer available.</span>
+                    <span>Event Closed: Booking is no longer available.</span>
                   </div>
                 )}
                 {isBookingClosed && !isEventExpired && (
@@ -2340,66 +2419,7 @@ const EventDetails = () => {
                 <p className="guarantee" style={{ marginTop: '1rem', marginBottom: '0' }}>
                   <ShieldCheck size={14} style={{ color: '#10B981' }} /> 100% SECURE TRANSACTION
                 </p>
-                {(settings?.contactSupport || settings?.email) && (
-                  <p className="support-query-line">
-                    Talk to Us{' '}
-                    {settings.contactSupport && (() => {
-                      const str = String(settings.contactSupport).trim();
-                      const numbers = str.split(/[/,]|(?:\sor\s)/i).map(n => n.trim()).filter(Boolean);
-                      return numbers.map((num, idx) => {
-                        const cleanDigits = num.replace(/[^\d]/g, '');
-                        const cleanTel = num.replace(/[^\d+]/g, '');
-                        let fullTel = cleanTel;
-                        let displayNum = num;
-
-                        if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
-                          fullTel = `+${cleanDigits}`;
-                          displayNum = `+91 ${cleanDigits.slice(2)}`;
-                        } else if (cleanDigits.length === 10) {
-                          fullTel = `+91${cleanDigits}`;
-                          displayNum = `+91 ${cleanDigits}`;
-                        } else if (cleanTel.startsWith('+')) {
-                          fullTel = cleanTel;
-                          displayNum = num;
-                        }
-
-                        const telUrl = `tel:${fullTel}`;
-                        return (
-                          <React.Fragment key={idx}>
-                            {idx > 0 && ' | '}
-                            <a
-                              href={telUrl}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.location.href = telUrl;
-                              }}
-                            >
-                              {displayNum}
-                            </a>
-                          </React.Fragment>
-                        );
-                      });
-                    })()}
-                    {settings.contactSupport && settings.email && ' | '}
-                    {settings.email && (() => {
-                      const cleanEmail = String(settings.email).trim();
-                      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(cleanEmail)}`;
-                      return (
-                        <a
-                          href={gmailUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(gmailUrl, '_blank', 'noopener,noreferrer');
-                          }}
-                        >
-                          {cleanEmail}
-                        </a>
-                      );
-                    })()}
-                  </p>
-                )}
+                {renderTalkToUsContent()}
               </div>
             </div>
 
