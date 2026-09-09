@@ -7,6 +7,7 @@ import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice'
 import logo from '../../assets/logo.jpeg';
 import './Events.scss';
 import { db, analytics } from '../../firebase';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { logEvent } from 'firebase/analytics';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { trackHomeLandingPageView } from '../../utils/pixel';
@@ -463,9 +464,32 @@ const Events = () => {
   const [exploreCategories, setExploreCategories] = useState([]);
   const [events, setEvents] = useState([]);
   const [recentlyEndedEvents, setRecentlyEndedEvents] = useState([]);
+  const [settingsDoc, setSettingsDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [visibleCount, setVisibleCount] = useState(12);
+
+  // Field for 'You just missed' section visibility from /settings/settings (defaults to false)
+  const isHideYouJustMissed = Boolean(
+    settingsDoc && (
+      settingsDoc.isHideYouJustMissed === true ||
+      settingsDoc.isHideYouJustMissed === 'true' ||
+      settingsDoc.hideYouJustMissed === true ||
+      settingsDoc.hideYouJustMissed === 'true' ||
+      settingsDoc.isHideRecentlyEnded === true ||
+      settingsDoc.isHideRecentlyEnded === 'true' ||
+      settingsDoc.hideRecentlyEnded === true ||
+      settingsDoc.hideRecentlyEnded === 'true' ||
+      settingsDoc.isHideRecentlyEndedEvents === true ||
+      settingsDoc.isHideRecentlyEndedEvents === 'true' ||
+      settingsDoc.hideRecentlyEndedEvents === true ||
+      settingsDoc.hideRecentlyEndedEvents === 'true' ||
+      settingsDoc.isHidePreviousWeekEvents === true ||
+      settingsDoc.isHidePreviousWeekEvents === 'true' ||
+      settingsDoc.hidePreviousWeekEvents === true ||
+      settingsDoc.hidePreviousWeekEvents === 'true'
+    )
+  );
 
   const calendarRef = useRef(null);
   const searchSectionRef = useRef(null);
@@ -536,6 +560,35 @@ const Events = () => {
     dispatch(fetchEventsThunk());
     dispatch(fetchCategoriesThunk());
   }, [dispatch]);
+
+  // Subscribe to platform settings from /settings/settings
+  useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      const docRef = doc(db, 'settings', 'settings');
+      unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setSettingsDoc(docSnap.data());
+          }
+        },
+        (err) => {
+          console.warn("Error subscribing to /settings/settings, attempting getDoc fallback:", err);
+          getDoc(docRef)
+            .then((snap) => {
+              if (snap.exists()) {
+                setSettingsDoc(snap.data());
+              }
+            })
+            .catch((e) => console.error("Fallback getDoc failed for /settings/settings:", e));
+        }
+      );
+    } catch (err) {
+      console.error("Error setting up /settings/settings listener:", err);
+    }
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     setLoading(reduxLoading);
@@ -1867,7 +1920,7 @@ const Events = () => {
             </section>
 
             {/* ===== CHANGED: Recently Ended Events UI ===== */}
-            {recentlyEndedEvents.length > 0 && (
+            {!isHideYouJustMissed && recentlyEndedEvents.length > 0 && (
               <section className="recently-ended-section">
                 <div className="recently-ended-header">
                   <div className="recently-ended-title-group">
