@@ -917,13 +917,15 @@
                             flex-direction: column;
                             gap: 1px;
                             min-width: 0;
+                            flex: 1;
 
                             .name {
                                 font-weight: 700;
                                 color: #FFFFFF;
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
+                                white-space: normal;
+                                word-break: break-word;
+                                overflow-wrap: break-word;
+                                line-height: 1.25;
                             }
 
                             .attended-tag {
@@ -931,7 +933,8 @@
                                 font-weight: 600;
                                 color: #9CA3AF;
                                 letter-spacing: 0.3px;
-                                white-space: nowrap;
+                                white-space: normal;
+                                word-break: break-word;
                             }
                         }
 
