@@ -10,6 +10,7 @@ import { fetchEventsThunk } from '../../store/eventsSlice';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { updateUserInterests } from '../../services/userService';
 import { trackEventPageView, trackEventCategoryView, trackClickCheckoutNow } from '../../utils/pixel';
+import { trackGAViewItem, trackGABeginCheckout } from '../../utils/analytics';
 import Button from '../Button/Button';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
@@ -1372,6 +1373,7 @@ const EventDetails = () => {
                 platform: 'web',
                 ...getLeadSourceProps()
               });
+              trackGAViewItem(loadedEventObj);
             }
           } catch (analyticsErr) {
             console.warn("Failed to log event analytics in EventDetails:", analyticsErr);
@@ -2393,6 +2395,7 @@ const EventDetails = () => {
                       return;
                     }
                     trackClickCheckoutNow(event);
+                    trackGABeginCheckout(event);
                     navigate(`/events/${event.id}/book`);
                   }}
                   disabled={isEventExpired || isSoldOut || isBookingClosed}
@@ -2537,6 +2540,7 @@ const EventDetails = () => {
               return;
             }
             trackClickCheckoutNow(event);
+            trackGABeginCheckout(event);
             navigate(`/events/${event.id}/book`);
           }}
           disabled={isEventExpired || isSoldOut || isBookingClosed}

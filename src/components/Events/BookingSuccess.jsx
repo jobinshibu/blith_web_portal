@@ -23,6 +23,7 @@ import {
 import { toast } from 'react-hot-toast';
 import logoTransparent from '../../assets/logo-transparent.png';
 import { trackPixelPurchase } from '../../utils/pixel';
+import { trackGAPurchase } from '../../utils/analytics';
 import './BookingSuccess.scss';
 
 // ─── Platform detection helpers ──────────────────────────────────────────────
@@ -249,6 +250,7 @@ const BookingSuccess = () => {
             setLoading(false);
             clearInterval(intervalId);
             trackPixelPurchase(bookingId, bData.totalPrice || bData.totalAmount || 0, bData.eventName || 'Event Booking', bData.totalQuantity || 1);
+            trackGAPurchase(bookingId, bData);
 
             // ── Trigger review modal after 3s win-moment delay (all devices) ──
             reviewTimer = setTimeout(() => {

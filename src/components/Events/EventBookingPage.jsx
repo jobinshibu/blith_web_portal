@@ -14,6 +14,7 @@ import {
   checkHasBookings,
 } from '../../services/couponService';
 import { trackClickCheckoutNow, trackClickPayNow, trackSignup, trackPixelPurchase } from '../../utils/pixel';
+import { trackGABeginCheckout, trackGASignUp, trackGAAPaymentInfo } from '../../utils/analytics';
 import Button from '../Button/Button';
 import { toast } from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
@@ -529,6 +530,7 @@ const EventBookingPage = () => {
           const loadedEvt = { id: docSnap.id, ...data };
           setEvent(loadedEvt);
           trackClickCheckoutNow(loadedEvt, data.price || 0, 1);
+          trackGABeginCheckout(loadedEvt, data.price || 0, 1);
         }
       } catch (err) {
         console.error("Error fetching event:", err);
@@ -757,6 +759,7 @@ const EventBookingPage = () => {
           const newUserDoc = createDefaultUserObject(newUid, currentAttendee.name, currentAttendee.email, cleanUserPhone);
           await setDoc(newDocRef, newUserDoc);
           trackSignup({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
+          trackGASignUp({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
           console.log(`[User Form] Created new user document in Firestore for UID: ${newUid}`);
 
           setResolvedUserId(newUid);
@@ -1512,6 +1515,7 @@ const EventBookingPage = () => {
       totalAmount: total,
       numItems: totalTickets
     });
+    trackGAAPaymentInfo(event, total, totalTickets, total > 0 ? 'razorpay' : 'free');
 
     setIsVerifyingUser(true);
 
@@ -1525,6 +1529,18 @@ const EventBookingPage = () => {
         });
       } catch (analyticsErr) {
         console.warn("Failed to log pay_and_proceed_button_click to Firebase Analytics:", analyticsErr);
+      }
+    } else {
+      try {
+        logEvent(analytics, 'pay_and_proceed_button_click', {
+          email: attendee.email,
+          event_id: event.id,
+          event_name: event.eventName || event.title,
+          platform: 'web',
+          payment_type: 'free'
+        });
+      } catch (analyticsErr) {
+        console.warn("Failed to log pay_and_proceed_button_click for free event to Firebase Analytics:", analyticsErr);
       }
     }
 
