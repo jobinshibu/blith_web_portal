@@ -129,6 +129,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
           <h5>More</h5>
           <ul>
             <li><a href="/about.html">About Us</a></li>
+            <li><Link to="/venue">For Venues</Link></li>
             <li><a href="/about.html#start">Start Hosting</a></li>
             <li><a href="/teams">Team</a></li>
           </ul>
