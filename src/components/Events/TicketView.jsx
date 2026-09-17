@@ -679,6 +679,9 @@ const TicketView = () => {
                           <div key={idx} className="type-item">
                             <div className="type-left">
                               <span className="name">{qty}x {name}</span>
+                              {t.description && t.description.trim() ? (
+                                <span className="ticket-desc">{t.description.trim()}</span>
+                              ) : null}
                               <span className="attended-tag">Event Attended: {attendedCount}/{qty}</span>
                             </div>
                             <span className="price">₹{(itemPrice || 0).toFixed(2)}</span>

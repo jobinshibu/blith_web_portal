@@ -1417,6 +1417,7 @@ const EventBookingPage = () => {
 
     const preparedTickets = bookedTickets.map((t) => ({
       category: String(t.category || "generic"),
+      description: String(t.description || ""),
       price: Number(t.price || 0),
       quantity: Number(t.quantity || 0),
       ticketName: String(t.ticketName || ""),
@@ -1664,6 +1665,7 @@ const EventBookingPage = () => {
         if (qty > 0) {
           bookedTickets.push({
             category: ticket.category || "generic",
+            description: ticket.description || "",
             price: ticket.blithePrice || 0,
             quantity: qty,
             ticketName: ticket.ticketName || "",
@@ -1715,6 +1717,7 @@ const EventBookingPage = () => {
         // Prepare booked tickets with matching properties
         const preparedTickets = bookedTickets.map((t) => ({
           category: String(t.category || "generic"),
+          description: String(t.description || ""),
           price: Number(t.price || 0),
           quantity: Number(t.quantity || 0),
           ticketName: String(t.ticketName || ""),
@@ -1770,6 +1773,7 @@ const EventBookingPage = () => {
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
             category: String(t.category || "generic"),
+            description: String(t.description || ""),
             price: Number(t.price || 0),
             quantity: Number(t.quantity || 0),
             ticketName: String(t.ticketName || ""),
@@ -1853,6 +1857,7 @@ const EventBookingPage = () => {
           isPrivateEvent: event.isPrivateEvent === true,
           tickets: bookedTickets.map((t) => ({
             category: String(t.category || "generic"),
+            description: String(t.description || ""),
             price: Number(t.price || 0),
             quantity: Number(t.quantity || 0),
             ticketName: String(t.ticketName || ""),
@@ -2700,7 +2705,12 @@ const EventBookingPage = () => {
                 return (
                   <div key={idx} className={`ticket-tier-card ${qty > 0 ? 'selected-tier' : ''} ${isUnavailable ? 'unavailable' : ''}`}>
                     <div className="tier-top">
-                      <h4>{ticket.ticketName}</h4>
+                      <div className="tier-title-wrap">
+                        <h4>{ticket.ticketName}</h4>
+                        {ticket.description && ticket.description.trim() ? (
+                          <p className="tier-ticket-desc">{ticket.description.trim()}</p>
+                        ) : null}
+                      </div>
                       {isUnavailable && (
                         <p className="tier-desc error-text">Sold Out</p>
                       )}
