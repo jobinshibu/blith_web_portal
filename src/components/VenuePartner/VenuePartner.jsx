@@ -23,9 +23,10 @@ import {
   Music, 
   BookOpen, 
   Smile, 
-  Send,
-  Award,
-  Layers
+  Send, 
+  Award, 
+  Layers, 
+  CheckCircle2 
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { logEvent } from 'firebase/analytics';
@@ -33,190 +34,150 @@ import { db, analytics } from '../../firebase';
 import { toast } from 'react-hot-toast';
 import './VenuePartner.scss';
 
+// CHANGED: 7. Venue Categories - High-resolution curated imagery, authentic tags and gathering ideas
 const VENUE_CATEGORIES = [
   {
     id: 'cafe',
     title: 'Cafés & Bakeries',
     icon: Coffee,
     tag: 'Cozy & Welcoming',
+    image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=900&auto=format&fit=crop',
     description: 'Perfect for intimate book clubs, creative craft sessions, board game afternoons, and relaxed morning mixers.',
-    popularTimes: 'Weekday mornings (8am - 11am), weekday afternoons (2pm - 5pm)',
-    sampleEvent: {
-      title: 'Silent Book Club & Pour-Over Tasting',
-      host: 'Bangalore Readers Circle',
-      crowd: '20-35 Seekers',
-      revenueType: 'F&B Orders + Space Share'
-    },
-    ideas: ['Book Clubs', 'Watercolor Mornings', 'Silent Reading Parties', 'Coffee Cupping Sessions']
+    ideas: ['Book Clubs', 'Watercolor Mornings', 'Silent Reading Parties', 'Coffee Tastings']
   },
   {
     id: 'studios',
     title: 'Studios & Creative Spaces',
     icon: Palette,
     tag: 'Artistic & Dynamic',
+    image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=900&auto=format&fit=crop',
     description: 'Spacious, well-lit spaces ideal for hands-on maker workshops, movement flow, pottery, and creative classes.',
-    popularTimes: 'Weekday evenings (6pm - 9pm), weekend afternoons',
-    sampleEvent: {
-      title: 'Hand-Built Pottery & Clay Therapy',
-      host: 'Clay & Flow Collective',
-      crowd: '15-25 Makers',
-      revenueType: 'Direct Hourly Ticket Share'
-    },
-    ideas: ['Pottery & Clay', 'Paint & Sip Nights', 'Sound Healing & Yoga', 'Photography Meetups']
+    ideas: ['Pottery & Clay Sessions', 'Paint & Sip Gatherings', 'Movement & Sound Healing', 'Craft Making']
   },
   {
     id: 'breweries',
     title: 'Breweries, Bars & Bistros',
     icon: Beer,
     tag: 'Lively & Social',
-    description: 'Bustling atmospheres waiting for vibrant energy before the late-night crowds arrive.',
-    popularTimes: 'Tuesday & Wednesday evenings (6pm - 9pm), Sunday afternoons',
-    sampleEvent: {
-      title: 'Pop Culture Pub Quiz & Craft Pitchers',
-      host: 'Trivia Geeks Guild',
-      crowd: '40-60 Attendees',
-      revenueType: 'High Off-Peak Bar Tabs'
-    },
-    ideas: ['Pub Trivia Leagues', 'Acoustic Evenings', 'Cocktail Mixology', 'Stand-up Comedy & Storytelling']
+    image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=900&auto=format&fit=crop',
+    description: 'Social atmospheres ready for vibrant community energy before peak evening crowds arrive.',
+    ideas: ['Pub Trivia Evenings', 'Acoustic Sets', 'Cocktail Mixology', 'Storytelling & Comedy']
   },
   {
     id: 'rooftops',
     title: 'Rooftops, Gardens & Lawns',
     icon: Sun,
     tag: 'Open-Air & Scenic',
-    description: 'Breathtaking outdoor venues designed for golden hour socials, sunset mixers, and community gatherings under the sky.',
-    popularTimes: 'Weekend mornings (7am - 10am), Sunset slots (4pm - 7pm)',
-    sampleEvent: {
-      title: 'Sunset Unplugged & Vinyl Listening',
-      host: 'Golden Hour Sound Lab',
-      crowd: '35-50 Music Seekers',
-      revenueType: 'Ticket Splits & Bar Service'
-    },
-    ideas: ['Sunset Acoustic Sets', 'Open-Air Cinema', 'Weekend Flea & Artisan Markets', 'Morning Flow & Brunch']
+    image: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?q=80&w=900&auto=format&fit=crop',
+    description: 'Open-air venues designed for golden hour socials, sunset acoustic sessions, and gatherings under the sky.',
+    ideas: ['Sunset Acoustic Sets', 'Open-Air Cinema', 'Artisan Pop-ups', 'Morning Flow & Brunch']
   },
   {
     id: 'boutique',
     title: 'Boutique & Alternative Spaces',
     icon: Compass,
     tag: 'Unique & Character-Rich',
-    description: 'Bookstores, heritage courtyards, ceramic studios, and design shops with an unmistakable character.',
-    popularTimes: 'Evenings after closing, specialized weekend slots',
-    sampleEvent: {
-      title: 'Intimate Author Salon & Candlelit Poetry',
-      host: 'The Narrative Studio',
-      crowd: '20-30 Cultural Seekers',
-      revenueType: 'Event Rental & Retail Footfall'
-    },
-    ideas: ['Author Salons & Poetry', 'Intimate Supper Clubs', 'Design Showcases', 'Listening Sessions']
+    image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=900&auto=format&fit=crop',
+    description: 'Bookstores, courtyards, ceramic studios, and design shops with an unmistakable local character.',
+    ideas: ['Author Salons & Poetry', 'Intimate Supper Circles', 'Design Showcases', 'Listening Parties']
   }
 ];
 
+// CHANGED: 7. Experiences - Visual community event formats with warm photography and concise captions
 const EXPERIENCE_TYPES = [
   {
     icon: Palette,
     title: 'Hands-On Creative Workshops',
-    description: 'Pottery, candle crafting, resin art, floral styling, and culinary masterclasses led by top local artisans.'
+    description: 'Pottery, painting, resin craft, candle making, and floral styling led by local makers.',
+    image: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?q=80&w=700&auto=format&fit=crop'
   },
   {
     icon: BookOpen,
     title: 'Social Clubs & Special Interests',
-    description: 'Book clubs, board game leagues, creative writing circles, and tech founder networking meetups.'
+    description: 'Book circles, creative writing meetups, design jams, and conversational clubs.',
+    image: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=700&auto=format&fit=crop'
   },
   {
     icon: Music,
     title: 'Acoustic Music & Listening Sessions',
-    description: 'Intimate candlelit unplugged sets, vinyl record listening parties, and open mic evenings.'
+    description: 'Intimate candlelit unplugged sets, indie listening parties, and open mic evenings.',
+    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=700&auto=format&fit=crop'
   },
   {
     icon: Smile,
-    title: 'Wellness & Mindfulness',
-    description: 'Morning yoga circles paired with coffee, guided meditation, breathwork, and sound healing.'
+    title: 'Wellness & Morning Meetups',
+    description: 'Morning movement paired with coffee, guided meditation, breathwork, and sound baths.',
+    image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=700&auto=format&fit=crop'
   },
   {
     icon: Users,
-    title: 'Interactive Games & Trivia',
-    description: 'Themed pub quiz nights, murder mystery dinners, comedy roasts, and speed friend-making.'
+    title: 'Board Games & Trivia Gatherings',
+    description: 'Themed quiz nights, tabletop strategy games, and friendly community socials.',
+    image: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?q=80&w=700&auto=format&fit=crop'
   },
   {
     icon: Layers,
-    title: 'Cultural & Supper Clubs',
-    description: 'Chef pop-ups, wine & cheese pairings, storytelling jams, and cultural exchange dinners.'
+    title: 'Cultural & Tasting Circles',
+    description: 'Chef pop-ups, coffee tastings, storytelling circles, and cultural exchange dinners.',
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=700&auto=format&fit=crop'
   }
 ];
 
+// CHANGED: 8. Why Blithe - Restrained, community-led strengths focusing on genuine support and curation
 const WHY_BLITHE_POINTS = [
   {
-    icon: ShieldCheck,
-    title: '100% Vetted, Respectful Organizers',
-    description: 'We do not allow random parties or reckless organizers. Every host is verified, passionate, and respects your venue guidelines.'
-  },
-  {
-    icon: TrendingUp,
-    title: 'Direct Footfall & Spend Uplift',
-    description: 'Attendees don’t just attend—they buy food, drinks, coffee, and return as regular loyal patrons week after week.'
-  },
-  {
     icon: HeartHandshake,
-    title: 'Zero Listing Fees or Risk',
-    description: 'Listing your space on Blithe is completely free. We work on a collaborative model where we succeed when your space thrives.'
+    title: 'Thoughtful Community Match',
+    description: 'We connect your venue with creative hosts whose ideas naturally fit your atmosphere and neighborhood vibe.'
+  },
+  {
+    icon: Users,
+    title: 'Engaged Local Audiences',
+    description: 'Blithe connects with curious locals who appreciate distinctive venues and love returning to places they discover.'
   },
   {
     icon: Calendar,
-    title: 'Seamless Ticketing & RSVP Engine',
-    description: 'Blithe handles payment processing, attendee ticketing, entry check-ins, and guest reminders smoothly.'
+    title: 'Flexible & On Your Terms',
+    description: 'You stay in full control of your venue calendar and decide which dates and times work best for your team.'
+  },
+  {
+    icon: Sparkles,
+    title: 'Seamless Event Support',
+    description: 'From event discovery to guest RSVP coordination, we help make every gathering straightforward and rewarding.'
   }
 ];
 
+// CHANGED: 9. FAQ - Accessible, grounded questions without fabricated terms
 const FAQS = [
   {
-    q: 'Does it cost anything to list my venue on Blithe?',
-    a: 'No! Listing your space on Blithe.Venue is 100% free. There are no upfront fees, subscription charges, or hidden maintenance costs. We only collaborate on ticketing or space usage when events run successfully.'
+    q: 'How does listing my venue with Blithe work?',
+    a: 'Simply share details about your space using our partner form. Our team will connect with you to learn about your venue, the atmosphere you love, and the quiet hours you would like to bring to life.'
   },
   {
-    q: 'How are event hosts and creators vetted?',
-    a: 'Every host on Blithe goes through a curation process. We review their past events, content, audience profile, and format to make sure they align with your space’s brand and noise restrictions.'
+    q: 'What types of spaces work well on Blithe?',
+    a: 'We work with a diverse variety of spaces—including cafés, bakeries, art studios, breweries, rooftops, boutique bookstores, and garden venues. If you have room and character, there is an experience that can fit.'
   },
   {
-    q: 'Do I maintain control over which events happen at my space?',
-    a: 'Always. You have 100% control. Whenever a creator or our curation team proposes an event for your venue, you receive the full concept, timing, attendee count, and requirements for your explicit approval before anything is scheduled.'
+    q: 'Do I get to choose when events happen in my space?',
+    a: 'Yes, absolutely. You retain full control over your schedule. You decide which days, hours, and formats fit comfortably into your normal operations.'
   },
   {
-    q: 'How does food and beverage revenue work?',
-    a: 'Events bring in hungry and thirsty patrons! For most venues (cafés, breweries, bistros), you can set minimum spend requirements, curate event-specific tasting menus, or simply serve off your regular menu to attendees.'
+    q: 'What kind of events take place at Blithe venues?',
+    a: 'Events range from intimate book clubs and maker craft workshops to acoustic listening sessions, wellness meetups, and trivia nights. Every gathering is tailored to respect the host space.'
   },
   {
-    q: 'What days and time slots work best?',
-    a: 'The highest-demand slots are typically quiet hours: Tuesday and Wednesday evenings, weekday afternoons (2pm - 5pm), Saturday/Sunday morning workshops, or after-hours spaces. However, you decide which hours to make available.'
-  },
-  {
-    q: 'What happens in case of accidental damage or cleanliness issues?',
-    a: 'Blithe hosts are required to leave spaces in the exact condition they found them. We establish clear ground rules with every creator before their session, and our partner support team is always on call.'
+    q: 'How do creators and organizers connect with my space?',
+    a: 'We coordinate with vetted local creators and organizers to match their gathering concepts with your available slots and house preferences.'
   }
 ];
 
-const CheckIcon = () => (
-  <span className="check-dot">
-    <svg viewBox="0 0 24 24">
-      <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>
-  </span>
-);
-
 const VenuePartner = () => {
-  const [selectedCatId, setSelectedCatId] = useState(VENUE_CATEGORIES[0].id);
+  const [selectedCatId, setSelectedCatId] = useState('cafe');
   const [openFaq, setOpenFaq] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSelectCategoryForForm = (cat) => {
-    setFormData(prev => ({
-      ...prev,
-      venueType: cat.title.includes('Café') ? 'Café / Bakery' : cat.title.includes('Studio') ? 'Studio / Creative Space' : cat.title.includes('Brewer') ? 'Brewery / Bar / Bistro' : cat.title.includes('Rooftop') ? 'Rooftop / Lawn' : 'Bookstore / Boutique',
-      availableSlots: cat.popularTimes
-    }));
-    scrollToSection('partner-form');
-  };
-
+  // Form State
   const [formData, setFormData] = useState({
     venueName: '',
     contactName: '',
@@ -232,19 +193,49 @@ const VenuePartner = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
+  const toggleFaq = (index) => {
+    setOpenFaq(openFaq === index ? null : index);
+  };
+
+  const handleFaqKeyDown = (e, index) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleFaq(index);
+    }
+  };
+
+  // CHANGED: 10. Smooth navigation accounting for fixed navbar height
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+      const navOffset = 84;
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - navOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
     }
+  };
+
+  const handleSelectCategoryForForm = (category) => {
+    setFormData((prev) => ({
+      ...prev,
+      venueType: category.title
+    }));
+    scrollToSection('partner-form');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.venueName || !formData.contactName || !formData.email || !formData.phone) {
+    if (!formData.venueName.trim() || !formData.contactName.trim() || !formData.email.trim() || !formData.phone.trim()) {
       toast.error('Please fill in all required fields.');
       return;
     }
@@ -259,7 +250,7 @@ const VenuePartner = () => {
         status: 'pending'
       });
 
-      // 2. Track analytics
+      // 2. Track analytics event
       try {
         if (analytics) {
           logEvent(analytics, 'venue_partner_inquiry', {
@@ -288,7 +279,7 @@ const VenuePartner = () => {
       });
     } catch (err) {
       console.error('Error submitting venue partner application:', err);
-      toast.error('Something went wrong. Please try again or email us directly.');
+      toast.error('Something went wrong. Please try again or reach out directly.');
     } finally {
       setIsSubmitting(false);
     }
@@ -296,337 +287,528 @@ const VenuePartner = () => {
 
   return (
     <div className="venue-partner-page">
-      {/* 1. HERO SECTION */}
+      {/* ─── 1. HERO SECTION (CHANGED: Professional layout with generous spacing and community photography) ─── */}
       <section className="venue-hero">
-        <motion.div 
-          className="hero-inner"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="eyebrow-pill">
-            <Sparkles size={13} />
-            <span>YOUR SPACE. MORE POSSIBILITIES.</span>
-          </div>
-
-          <h1 className="h1 hero-h">
-            Turn your empty hours into something <em>worth coming back for.</em>
-          </h1>
-
-          <p className="body-lg hero-sub">
-            Your space already has the vibe. We help bring the people, creators and experiences that make it come alive. List your venue with Blithe and let us help you fill those quiet hours with events, workshops, meetups and more.
-          </p>
-
-          <div className="hero-ctas">
-            <button 
-              className="btn btn-solid" 
-              onClick={() => scrollToSection('partner-form')}
+        <div className="section-container">
+          <div className="hero-content-wrapper">
+            <motion.div 
+              className="hero-inner"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
             >
-              <span>Partner With Blithe</span>
-              <ArrowRight size={16} />
-            </button>
-            <button 
-              className="btn btn-ghost" 
-              onClick={() => scrollToSection('how-it-works')}
-            >
-              <span>See How It Works</span>
-              <ArrowDown size={15} />
-            </button>
-          </div>
+              <div className="eyebrow-pill">
+                <Sparkles size={13} aria-hidden="true" />
+                <span>YOUR SPACE. MORE POSSIBILITIES.</span>
+              </div>
 
-          <div className="hero-checks-row">
-            <div className="hero-check-item">
-              <CheckIcon />
-              <span>Zero Listing Fees</span>
-            </div>
-            <div className="hero-check-item">
-              <CheckIcon />
-              <span>100% Host Vetting</span>
-            </div>
-            <div className="hero-check-item">
-              <CheckIcon />
-              <span>You Approve Every Event</span>
-            </div>
+              <h1 className="h1 hero-h">
+                Turn your empty hours into something <em>worth coming back for.</em>
+              </h1>
+
+              <p className="body-lg hero-sub">
+                Your space already has the vibe. We help bring the people, creators and experiences that make it come alive.
+              </p>
+              <p className="body-lg hero-sub secondary">
+                List your venue with Blithe and let us help you fill those quiet hours with events, workshops, meetups and more.
+              </p>
+
+              <div className="hero-ctas">
+                <button 
+                  type="button"
+                  className="btn btn-solid" 
+                  onClick={() => scrollToSection('partner-form')}
+                >
+                  <span>Partner With Blithe</span>
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+                <button 
+                  type="button"
+                  className="btn btn-ghost" 
+                  onClick={() => scrollToSection('how-it-works')}
+                >
+                  <span>See How It Works</span>
+                  <ArrowDown size={15} aria-hidden="true" />
+                </button>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              className="hero-visual"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <div className="hero-image-card">
+                <img 
+                  src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000&auto=format&fit=crop" 
+                  alt="Community workshop gathering in a welcoming local venue"
+                  loading="eager"
+                />
+                <div className="image-caption-pill">
+                  <Users size={14} aria-hidden="true" />
+                  <span>Spaces that come alive with community</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
+        </div>
       </section>
 
-      {/* 2. THE PROBLEM */}
+      {/* ─── 2. THE PROBLEM (CHANGED: Exact client copy, soft lavender container, approachable layout) ─── */}
       <section className="venue-problem-section">
-        <motion.div 
-          className="problem-box"
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.45 }}
-        >
-          <span className="label problem-label">THE REALITY</span>
-          <h2 className="h2 problem-heading">
-            Your space shouldn't have to wait for the weekend.
-          </h2>
+        <div className="section-container">
+          <motion.div 
+            className="problem-box"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.4 }}
+          >
+            <span className="label problem-label">THE REALITY</span>
+            <h2 className="h2 problem-heading">
+              Your space shouldn't have to wait for the weekend.
+            </h2>
 
-          <div className="problem-scenarios-grid">
-            <div className="scenario-card">
-              <div className="scenario-icon-wrap">☕</div>
-              <p>A great café can be quiet on a Tuesday.</p>
+            <div className="problem-scenarios-grid">
+              <div className="scenario-card">
+                <div className="scenario-icon-wrap" aria-hidden="true">☕</div>
+                <p>A great café can be quiet on a Tuesday.</p>
+              </div>
+              <div className="scenario-card">
+                <div className="scenario-icon-wrap" aria-hidden="true">🎨</div>
+                <p>A beautiful studio can sit empty between classes.</p>
+              </div>
+              <div className="scenario-card">
+                <div className="scenario-icon-wrap" aria-hidden="true">🍻</div>
+                <p>A brewery can have tables waiting for people long before the evening crowd arrives.</p>
+              </div>
             </div>
-            <div className="scenario-card">
-              <div className="scenario-icon-wrap">🎨</div>
-              <p>A beautiful studio can sit empty between classes.</p>
-            </div>
-            <div className="scenario-card">
-              <div className="scenario-icon-wrap">🍻</div>
-              <p>A brewery can have tables waiting for people long before the evening crowd arrives.</p>
-            </div>
-          </div>
 
-          <div className="problem-bridge">
-            <p className="bridge-punchline">
-              The space is there. The opportunity is there.
-            </p>
-            <p className="bridge-body">
-              You just need the right people to walk through the door. <strong>That's where Blithe comes in.</strong>
-            </p>
-          </div>
-        </motion.div>
+            <div className="problem-bridge">
+              <p className="bridge-punchline">
+                The space is there. The opportunity is there.
+              </p>
+              <p className="bridge-body">
+                You just need the right people to walk through the door. <strong>That's where Blithe comes in.</strong>
+              </p>
+            </div>
+          </motion.div>
+        </div>
       </section>
 
-      {/* 3. WHAT IS BLITHE.VENUE */}
+      {/* ─── 3. WHAT IS BLITHE.VENUE (CHANGED: Exact client copy, clean text & photo composition) ─── */}
       <section className="venue-about-section">
-        <div className="section-header center">
-          <span className="label">COMMUNITY & SPACES</span>
-          <h2 className="h2">Meet <em>Blithe.Venue</em></h2>
-          <p className="body-lg">
-            We connect character-rich neighborhood venues with verified creators, experience hosts, and local communities who need a home for their gatherings.
-          </p>
-        </div>
-
-        <div className="about-features-grid">
-          <div className="feature-item">
-            <div className="feature-icon-box">
-              <Building2 size={22} />
+        <div className="section-container">
+          <div className="about-composition-grid">
+            <div className="about-text-column">
+              <span className="label">INTRODUCING</span>
+              <h2 className="h2">Meet Blithe.Venue</h2>
+              <p className="body-lg about-lead">
+                Blithe.Venue connects spaces that have room with people who have something to bring to them.
+              </p>
+              <p className="about-desc">
+                From creative workshops and wellness sessions to community meetups and experiences, we help creators discover spaces that fit their events, and help venues turn their quieter hours into opportunities.
+              </p>
+              <div className="about-punchline-box">
+                <p className="punchline-text">
+                  More events. More footfall. More life in your space.
+                </p>
+              </div>
             </div>
-            <h3 className="h3">Space Meets Culture</h3>
-            <p className="body-sm">Turn underutilized seating into buzzing workshops, acoustic listening circles, book clubs, and art sessions.</p>
-          </div>
 
-          <div className="feature-item">
-            <div className="feature-icon-box">
-              <Users size={22} />
+            <div className="about-image-column">
+              <div className="about-image-card">
+                <img 
+                  src="https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=900&auto=format&fit=crop" 
+                  alt="Creators and attendees enjoying an experience in a partner venue"
+                  loading="lazy"
+                />
+              </div>
             </div>
-            <h3 className="h3">Curated Community</h3>
-            <p className="body-sm">We don't bring noisy, destructive crowds. We connect you with mindful organizers and eager attendees who respect your ambiance.</p>
-          </div>
-
-          <div className="feature-item">
-            <div className="feature-icon-box">
-              <TrendingUp size={22} />
-            </div>
-            <h3 className="h3">Sustainable Growth</h3>
-            <p className="body-sm">Drive predictable weekly footfall and high-margin food & beverage sales during traditionally slow time windows.</p>
           </div>
         </div>
       </section>
 
-      {/* 4. WHY PARTNER */}
+      {/* ─── 4. WHY PARTNER (CHANGED: Conversational headings, restrained benefits without corporate jargon) ─── */}
       <section className="venue-why-partner">
-        <div className="section-header">
-          <span className="label">WHY PARTNER WITH US</span>
-          <h2 className="h2">Why Venue Owners Love Blithe</h2>
-          <p className="body-lg">
-            Designed to help your space generate revenue, gain word-of-mouth recognition, and build loyal recurring patrons.
-          </p>
-        </div>
+        <div className="section-container">
+          <div className="section-header center">
+            <span className="label">WHY HOST WITH US</span>
+            <h2 className="h2">Why Partner With Blithe</h2>
+            <p className="body-lg">
+              Opening your doors to community experiences brings warmth, energy, and connection into your everyday space.
+            </p>
+          </div>
 
-        <div className="why-partner-grid">
-          <motion.div className="why-card" whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
-            <div className="why-card-icon">
-              <Clock size={24} />
-            </div>
-            <h3 className="h3">Monetize Quiet Hours</h3>
-            <p>Fill non-peak time slots—weekday afternoons, Tuesday nights, or morning windows—without running extra marketing campaigns.</p>
-          </motion.div>
+          <div className="why-partner-grid">
+            <motion.div className="why-card" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
+              <div className="why-card-icon" aria-hidden="true">
+                <Clock size={22} />
+              </div>
+              <h3 className="h3">Make more of your quiet hours</h3>
+              <p>Turn slower weekday mornings, afternoons, or off-peak evenings into active windows filled with creative gatherings.</p>
+            </motion.div>
 
-          <motion.div className="why-card" whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
-            <div className="why-card-icon">
-              <HeartHandshake size={24} />
-            </div>
-            <h3 className="h3">Lifelong New Patrons</h3>
-            <p>Event attendees discover your menu, fall in love with your vibe, and return on weekends with friends, family, and colleagues.</p>
-          </motion.div>
+            <motion.div className="why-card" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
+              <div className="why-card-icon" aria-hidden="true">
+                <Users size={22} />
+              </div>
+              <h3 className="h3">Welcome people who may come back</h3>
+              <p>Introduce your venue to workshop attendees and club members who discover their new favourite local spot.</p>
+            </motion.div>
 
-          <motion.div className="why-card" whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
-            <div className="why-card-icon">
-              <Award size={24} />
-            </div>
-            <h3 className="h3">Become a Cultural Anchor</h3>
-            <p>Stand out from ordinary commercial spots. Position your venue as the creative and social heartbeat of your neighborhood.</p>
-          </motion.div>
+            <motion.div className="why-card" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
+              <div className="why-card-icon" aria-hidden="true">
+                <HeartHandshake size={22} />
+              </div>
+              <h3 className="h3">Bring your neighbourhood together</h3>
+              <p>Position your space as a welcoming community anchor where locals meet, learn new crafts, and connect.</p>
+            </motion.div>
 
-          <motion.div className="why-card" whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
-            <div className="why-card-icon">
-              <ShieldCheck size={24} />
-            </div>
-            <h3 className="h3">Zero Operational Friction</h3>
-            <p>Creators manage the agenda and guest check-ins. Your team simply provides the hospitality and serves your signature offerings.</p>
-          </motion.div>
+            <motion.div className="why-card" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
+              <div className="why-card-icon" aria-hidden="true">
+                <Smile size={22} />
+              </div>
+              <h3 className="h3">A little help along the way</h3>
+              <p>Organizers manage their attendees and workshop agendas, allowing your team to simply provide warm hospitality.</p>
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* 5. HOW IT WORKS */}
+      {/* ─── 5. HOW IT WORKS (CHANGED: Clear 4-step sequence with short, grounded operational explanations) ─── */}
       <section id="how-it-works" className="venue-how-it-works">
-        <div className="section-header center">
-          <span className="label">SIMPLE 4-STEP PROCESS</span>
-          <h2 className="h2">How It Works</h2>
-          <p className="body-lg">
-            From your initial listing to your first bustling event, we make hosting smooth, safe, and rewarding.
-          </p>
-        </div>
-
-        <div className="steps-timeline">
-          <div className="step-card">
-            <div className="step-number">01</div>
-            <h3 className="h3">Share Your Space & Availability</h3>
-            <p>Tell us about your venue's capacity, atmosphere, amenities, and preferred slow hours you'd love to activate.</p>
+        <div className="section-container">
+          <div className="section-header center">
+            <span className="label">THE PROCESS</span>
+            <h2 className="h2">How It Works</h2>
+            <p className="body-lg">
+              From your initial space details to your first bustling gathering, we make hosting straightforward.
+            </p>
           </div>
 
-          <div className="step-card">
-            <div className="step-number">02</div>
-            <h3 className="h3">Get Matched With Vetted Creators</h3>
-            <p>We pair your space with experienced hosts and workshop organizers whose concepts naturally fit your brand and atmosphere.</p>
-          </div>
+          <div className="steps-timeline">
+            <div className="step-card">
+              <div className="step-number" aria-hidden="true">01</div>
+              <h3 className="h3">Share your space</h3>
+              <p>Tell us about your venue, the atmosphere you love, and the times of week that could use more energy.</p>
+            </div>
 
-          <div className="step-card">
-            <div className="step-number">03</div>
-            <h3 className="h3">Approve & Host Seamlessly</h3>
-            <p>You have full veto power on any event. Once approved, Blithe handles discovery and ticketing while you welcome guests.</p>
-          </div>
+            <div className="step-card">
+              <div className="step-number" aria-hidden="true">02</div>
+              <h3 className="h3">Connect with creators</h3>
+              <p>Discover local organizers, workshop hosts, and community leaders looking for a home for their ideas.</p>
+            </div>
 
-          <div className="step-card">
-            <div className="step-number">04</div>
-            <h3 className="h3">Grow Recurring Community Rituals</h3>
-            <p>Turn one-off successes into weekly or monthly residencies that keep your calendars booked and tables active.</p>
+            <div className="step-card">
+              <div className="step-number" aria-hidden="true">03</div>
+              <h3 className="h3">Host on your terms</h3>
+              <p>Coordinate timing, event details, and house guidelines so every gathering feels natural in your space.</p>
+            </div>
+
+            <div className="step-card">
+              <div className="step-number" aria-hidden="true">04</div>
+              <h3 className="h3">Build ongoing community</h3>
+              <p>Turn one-off sessions into regular rituals that keep your calendar active and your tables full.</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 6. VENUE CATEGORIES - Clean & Standard Interactive Showcase */}
+      {/* ─── 6. VENUE CATEGORIES (CHANGED: Simplified visual split showcase with photography, no unconfirmed formulas) ─── */}
       <section className="venue-categories-section">
-        <div className="section-header">
-          <span className="label">VENUE STYLES & POSSIBILITIES</span>
-          <h2 className="h2">Spaces That Thrive On Blithe</h2>
-          <p className="body-lg">
-            Select a venue style below to explore community experiences, off-peak timing windows, and revenue models tailored to your space.
-          </p>
-        </div>
+        <div className="section-container">
+          <div className="section-header">
+            <span className="label">VENUE STYLES</span>
+            <h2 className="h2">Spaces That Thrive On Blithe</h2>
+            <p className="body-lg">
+              Explore how different types of spaces host workshops, socials, and community gatherings.
+            </p>
+          </div>
 
-        <div className="venue-showcase-layout">
-          {/* Left: Clean Category Selector List */}
-          <div className="showcase-nav-column">
-            {VENUE_CATEGORIES.map((cat, index) => {
-              const Icon = cat.icon;
-              const isSelected = selectedCatId === cat.id;
-              const indexStr = String(index + 1).padStart(2, '0');
+          <div className="venue-showcase-layout">
+            {/* Left: Category Selector List */}
+            <div className="showcase-nav-column" role="tablist" aria-label="Venue category tabs">
+              {VENUE_CATEGORIES.map((cat, index) => {
+                const Icon = cat.icon;
+                const isSelected = selectedCatId === cat.id;
+                const indexStr = String(index + 1).padStart(2, '0');
 
-              return (
-                <div key={cat.id} className="nav-item-wrapper">
-                  <button
-                    className={`showcase-nav-card ${isSelected ? 'active' : ''}`}
-                    onClick={() => setSelectedCatId(cat.id)}
-                    type="button"
-                    aria-selected={isSelected}
-                  >
-                    <div className="nav-left">
-                      <div className="nav-icon-box">
-                        <Icon size={18} />
+                return (
+                  <div key={cat.id} className="nav-item-wrapper">
+                    <button
+                      className={`showcase-nav-card ${isSelected ? 'active' : ''}`}
+                      onClick={() => setSelectedCatId(cat.id)}
+                      type="button"
+                      role="tab"
+                      id={`tab-${cat.id}`}
+                      aria-selected={isSelected}
+                      aria-controls={`panel-${cat.id}`}
+                    >
+                      <div className="nav-left">
+                        <div className="nav-icon-box" aria-hidden="true">
+                          <Icon size={18} />
+                        </div>
+                        <div className="nav-text">
+                          <div className="nav-title-row">
+                            <span className="nav-index">{indexStr}</span>
+                            <h4 className="nav-title">{cat.title}</h4>
+                          </div>
+                          <span className="nav-tag">{cat.tag}</span>
+                        </div>
                       </div>
-                      <div className="nav-text">
-                        <div className="nav-title-row">
-                          <span className="nav-index">{indexStr}</span>
-                          <h4 className="nav-title">{cat.title}</h4>
-                        </div>
-                        <span className="nav-tag">{cat.tag}</span>
+                      <div className="nav-indicator" aria-hidden="true">
+                        <ArrowRight size={15} />
                       </div>
-                    </div>
-                    <div className="nav-indicator">
-                      <ArrowRight size={15} />
-                    </div>
-                  </button>
+                    </button>
 
-                  {/* Mobile-only inline expansion */}
-                  <AnimatePresence>
-                    {isSelected && (
-                      <motion.div
-                        className="mobile-inline-canvas"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.22 }}
-                      >
-                        <div className="canvas-header-block">
-                          <span className="canvas-badge">{cat.tag}</span>
-                          <h3 className="canvas-title">{cat.title}</h3>
-                          <p className="canvas-desc">{cat.description}</p>
-                        </div>
-
-                        {/* Concept Showcase Card */}
-                        <div className="concept-showcase-card">
-                          <div className="concept-badge-row">
-                            <span className="concept-badge">
-                              <Sparkles size={12} />
-                              <span>LIVE CONCEPT EXAMPLE</span>
-                            </span>
-                            <span className="concept-status">Verified Host Model</span>
+                    {/* Mobile-only inline details */}
+                    <AnimatePresence>
+                      {isSelected && (
+                        <motion.div
+                          className="mobile-inline-canvas"
+                          id={`panel-${cat.id}`}
+                          role="tabpanel"
+                          aria-labelledby={`tab-${cat.id}`}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <div className="canvas-image-wrap">
+                            <img src={cat.image} alt={cat.title} loading="lazy" />
+                            <span className="canvas-badge">{cat.tag}</span>
                           </div>
 
-                          <h4 className="concept-title">{cat.sampleEvent.title}</h4>
-                          <p className="concept-host">
-                            Organized by <strong>{cat.sampleEvent.host}</strong>
-                          </p>
-
-                          <div className="concept-metrics-row">
-                            <div className="metric-pill">
-                              <Users size={13} />
-                              <span>{cat.sampleEvent.crowd}</span>
-                            </div>
-                            <div className="metric-pill highlight">
-                              <TrendingUp size={13} />
-                              <span>{cat.sampleEvent.revenueType}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Specs Grid */}
-                        <div className="canvas-specs-grid">
-                          <div className="spec-card">
-                            <div className="spec-label">
-                              <Clock size={14} />
-                              <span>OPTIMAL TIMING WINDOWS</span>
-                            </div>
-                            <p className="spec-value">{cat.popularTimes}</p>
+                          <div className="canvas-header-block">
+                            <h3 className="canvas-title">{cat.title}</h3>
+                            <p className="canvas-desc">{cat.description}</p>
                           </div>
 
-                          <div className="spec-card">
-                            <div className="spec-label">
-                              <Layers size={14} />
-                              <span>POPULAR EVENT FORMATS</span>
-                            </div>
+                          <div className="canvas-ideas-box">
+                            <span className="spec-label">SUITABLE GATHERINGS & EXPERIENCES</span>
                             <div className="ideas-pill-list">
                               {cat.ideas.map((idea, idx) => (
                                 <span key={idx} className="idea-pill">{idea}</span>
                               ))}
                             </div>
                           </div>
+
+                          <button 
+                            type="button" 
+                            className="btn btn-solid btn-partner-cat"
+                            onClick={() => handleSelectCategoryForForm(cat)}
+                          >
+                            <span>Tell Us About Your Space</span>
+                            <ArrowRight size={15} aria-hidden="true" />
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Right: Desktop Visual Showcase Card */}
+            <div className="showcase-canvas-column desktop-only">
+              {(() => {
+                const activeCat = VENUE_CATEGORIES.find(c => c.id === selectedCatId) || VENUE_CATEGORIES[0];
+                const Icon = activeCat.icon;
+
+                return (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeCat.id}
+                      className="experience-canvas-card"
+                      id={`panel-${activeCat.id}`}
+                      role="tabpanel"
+                      aria-labelledby={`tab-${activeCat.id}`}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="canvas-top-photo-wrap">
+                        <img src={activeCat.image} alt={activeCat.title} loading="lazy" />
+                        <div className="canvas-photo-overlay">
+                          <span className="canvas-badge">{activeCat.tag}</span>
+                        </div>
+                      </div>
+
+                      <div className="canvas-body-content">
+                        <div className="canvas-top-bar">
+                          <div className="canvas-main-icon" aria-hidden="true">
+                            <Icon size={22} />
+                          </div>
+                          <h3 className="canvas-title">{activeCat.title}</h3>
                         </div>
 
-                        <button 
-                          type="button" 
+                        <p className="canvas-desc">{activeCat.description}</p>
+
+                        <div className="spec-card">
+                          <div className="spec-label">
+                            <Sparkles size={14} aria-hidden="true" />
+                            <span>SUITABLE GATHERINGS & EXPERIENCES</span>
+                          </div>
+                          <div className="ideas-pill-list">
+                            {activeCat.ideas.map((idea, idx) => (
+                              <span key={idx} className="idea-pill">{idea}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="canvas-footer-cta">
+                        <button
+                          type="button"
                           className="btn btn-solid btn-partner-cat"
-                          onClick={() => handleSelectCategoryForForm(cat)}
+                          onClick={() => handleSelectCategoryForForm(activeCat)}
                         >
-                          <span>Partner a {cat.title}</span>
-                          <ArrowRight size={15} />
+                          <span>Tell Us About Your Space</span>
+                          <ArrowRight size={15} aria-hidden="true" />
                         </button>
+                        <p className="canvas-footer-note">Flexible scheduling • Community led • You set the rules</p>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 7. EXPERIENCES (CHANGED: Visual photography grid replacing repetitive icon cards) ─── */}
+      <section className="venue-experiences-section">
+        <div className="section-container">
+          <div className="section-header center">
+            <span className="label">COMMUNITY FORMATS</span>
+            <h2 className="h2">Experiences Powered By Blithe</h2>
+            <p className="body-lg">
+              From creative workshops to soulful acoustic sessions, here is what local organizers bring to life.
+            </p>
+          </div>
+
+          <div className="experiences-visual-grid">
+            {EXPERIENCE_TYPES.map((exp, idx) => {
+              const Icon = exp.icon;
+              return (
+                <motion.div 
+                  key={idx} 
+                  className="exp-visual-card"
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="exp-img-wrapper">
+                    <img src={exp.image} alt={exp.title} loading="lazy" />
+                    <div className="exp-icon-overlay" aria-hidden="true">
+                      <Icon size={18} />
+                    </div>
+                  </div>
+                  <div className="exp-info">
+                    <h3 className="h3">{exp.title}</h3>
+                    <p>{exp.description}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 8. WHY BLITHE (CHANGED: Restrained focus on curation, support, and community connection) ─── */}
+      <section className="venue-why-blithe">
+        <div className="section-container">
+          <div className="section-header center">
+            <span className="label">THE BLITHE DIFFERENCE</span>
+            <h2 className="h2">Why Venues Choose Blithe</h2>
+            <p className="body-lg">
+              We are dedicated to building meaningful community gatherings that respect and celebrate your venue.
+            </p>
+          </div>
+
+          <div className="why-blithe-grid">
+            {WHY_BLITHE_POINTS.map((pt, idx) => {
+              const Icon = pt.icon;
+              return (
+                <motion.div 
+                  key={idx} 
+                  className="blithe-point-card"
+                  whileHover={{ y: -3 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="point-icon-box" aria-hidden="true">
+                    <Icon size={22} />
+                  </div>
+                  <h3 className="h3">{pt.title}</h3>
+                  <p>{pt.description}</p>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 9. SOCIAL PROOF (CHANGED: Restrained authentic community statement without fake statistics) ─── */}
+      <section className="venue-social-proof-section">
+        <div className="section-container">
+          <div className="social-proof-card">
+            <span className="proof-eyebrow">OUR VISION FOR SPACES</span>
+            <blockquote className="proof-quote">
+              "Great neighborhood venues are more than just four walls—they are the social living rooms of our cities. Blithe helps connect those spaces with the people and experiences that make them thrive."
+            </blockquote>
+            <p className="proof-author">— The Blithe Community Team</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 10. FAQ (CHANGED: Accessible keyboard-navigable accordion with grounded answers) ─── */}
+      <section className="venue-faq-section">
+        <div className="section-container">
+          <div className="section-header center">
+            <span className="label">COMMONLY ASKED</span>
+            <h2 className="h2">Frequently Asked Questions</h2>
+            <p className="body-lg">
+              Have questions about partnering with Blithe? Here is what you need to know.
+            </p>
+          </div>
+
+          <div className="faq-accordion-wrap">
+            {FAQS.map((faq, index) => {
+              const isOpen = openFaq === index;
+              return (
+                <div 
+                  key={index} 
+                  className={`faq-item ${isOpen ? 'open' : ''}`}
+                >
+                  <button 
+                    type="button"
+                    className="faq-question-btn"
+                    onClick={() => toggleFaq(index)}
+                    onKeyDown={(e) => handleFaqKeyDown(e, index)}
+                    aria-expanded={isOpen}
+                    aria-controls={`faq-answer-${index}`}
+                    id={`faq-btn-${index}`}
+                  >
+                    <span className="faq-q-text">{faq.q}</span>
+                    <ChevronDown size={18} className="faq-chevron" aria-hidden="true" />
+                  </button>
+
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div 
+                        id={`faq-answer-${index}`}
+                        role="region"
+                        aria-labelledby={`faq-btn-${index}`}
+                        className="faq-answer-pane"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <p>{faq.a}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -634,435 +816,213 @@ const VenuePartner = () => {
               );
             })}
           </div>
-
-          {/* Right: Desktop Clean Experience Showcase Canvas */}
-          <div className="showcase-canvas-column desktop-only">
-            {(() => {
-              const activeCat = VENUE_CATEGORIES.find(c => c.id === selectedCatId) || VENUE_CATEGORIES[0];
-              const Icon = activeCat.icon;
-
-              return (
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeCat.id}
-                    className="experience-canvas-card"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div className="canvas-top-bar">
-                      <div className="canvas-main-icon">
-                        <Icon size={24} />
-                      </div>
-                      <div className="canvas-heading-group">
-                        <div className="canvas-badge-wrap">
-                          <span className="canvas-badge">{activeCat.tag}</span>
-                        </div>
-                        <h3 className="canvas-title">{activeCat.title}</h3>
-                      </div>
-                    </div>
-
-                    <p className="canvas-desc">{activeCat.description}</p>
-
-                    {/* Standard Live Concept Showcase Card */}
-                    <div className="concept-showcase-card">
-                      <div className="concept-badge-row">
-                        <span className="concept-badge">
-                          <Sparkles size={12} />
-                          <span>LIVE CONCEPT EXAMPLE</span>
-                        </span>
-                        <span className="concept-status">Verified Host Model</span>
-                      </div>
-
-                      <h4 className="concept-title">{activeCat.sampleEvent.title}</h4>
-                      <p className="concept-host">
-                        Curated with verified host: <strong>{activeCat.sampleEvent.host}</strong>
-                      </p>
-
-                      <div className="concept-metrics-row">
-                        <div className="metric-pill">
-                          <Users size={14} />
-                          <span>{activeCat.sampleEvent.crowd}</span>
-                        </div>
-                        <div className="metric-pill highlight">
-                          <TrendingUp size={14} />
-                          <span>{activeCat.sampleEvent.revenueType}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Clean Specs Grid */}
-                    <div className="canvas-specs-grid">
-                      <div className="spec-card">
-                        <div className="spec-label">
-                          <Clock size={14} />
-                          <span>OPTIMAL TIMING WINDOWS</span>
-                        </div>
-                        <p className="spec-value">{activeCat.popularTimes}</p>
-                      </div>
-
-                      <div className="spec-card">
-                        <div className="spec-label">
-                          <Layers size={14} />
-                          <span>POPULAR EVENT FORMATS</span>
-                        </div>
-                        <div className="ideas-pill-list">
-                          {activeCat.ideas.map((idea, idx) => (
-                            <span key={idx} className="idea-pill">{idea}</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="canvas-footer-cta">
-                      <button
-                        type="button"
-                        className="btn btn-solid btn-partner-cat"
-                        onClick={() => handleSelectCategoryForForm(activeCat)}
-                      >
-                        <span>Partner Your {activeCat.title}</span>
-                        <ArrowRight size={15} />
-                      </button>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              );
-            })()}
-          </div>
         </div>
       </section>
 
-      {/* 7. EXPERIENCES */}
-      <section className="venue-experiences-section">
-        <div className="section-header center">
-          <span className="label">EVENT FORMATS</span>
-          <h2 className="h2">Experiences Powered By Blithe</h2>
-          <p className="body-lg">
-            From creative hands-on making to soulful acoustic evenings, here is what our hosts bring to life.
-          </p>
-        </div>
-
-        <div className="experiences-grid">
-          {EXPERIENCE_TYPES.map((exp, idx) => {
-            const Icon = exp.icon;
-            return (
-              <div key={idx} className="exp-card">
-                <div className="exp-icon-wrap">
-                  <Icon size={22} />
-                </div>
-                <h3 className="h3">{exp.title}</h3>
-                <p>{exp.description}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 8. WHY BLITHE */}
-      <section className="venue-why-blithe-section">
-        <div className="why-blithe-box">
-          <div className="section-header">
-            <span className="label">THE BLITHE DIFFERENCE</span>
-            <h2 className="h2">Built for Hospitality, Centered on Community</h2>
+      {/* ─── 11. FINAL CTA / PARTNER FORM (CHANGED: Client copy "Let's bring more life to your space", full Firestore integration) ─── */}
+      <section id="partner-form" className="venue-final-form-section">
+        <div className="section-container">
+          <div className="form-section-header center">
+            <div className="eyebrow-pill center-pill">
+              <Sparkles size={13} aria-hidden="true" />
+              <span>START HOSTING WITH BLITHE</span>
+            </div>
+            <h2 className="h2">Let’s bring more life to your space.</h2>
             <p className="body-lg">
-              Unlike impersonal rental marketplaces, Blithe is a partner invested in your long-term neighborhood reputation.
+              Tell us a little about your venue and the possibilities you’d like to explore.
             </p>
           </div>
 
-          <div className="why-blithe-grid">
-            {WHY_BLITHE_POINTS.map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <div key={idx} className="wb-point-card">
-                  <div className="wb-icon-box">
-                    <Icon size={22} />
-                  </div>
-                  <div>
-                    <h3 className="h3">{item.title}</h3>
-                    <p>{item.description}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* 9. SOCIAL PROOF & STATS */}
-      <section className="venue-social-proof-section">
-        <div className="stats-row">
-          <div className="stat-card">
-            <span className="stat-number">40%+</span>
-            <span className="stat-label">Footfall Boost in Slow Hours</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number">88%</span>
-            <span className="stat-label">Attendees Return as Regulars</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number">100%</span>
-            <span className="stat-label">Partner Approval on Every Host</span>
-          </div>
-        </div>
-
-        <div className="testimonials-grid">
-          <div className="testimonial-card">
-            <p className="quote">
-              "Our Tuesday evenings used to be completely dead. Now we host a recurring board game meetup and a book club that consistently brings in 25-30 people buying food and drinks."
-            </p>
-            <div className="author-info">
-              <strong>Priya S.</strong>
-              <span>Café & Bistro Owner, Indiranagar</span>
-            </div>
-          </div>
-
-          <div className="testimonial-card">
-            <p className="quote">
-              "Blithe respects our space guidelines completely. Every host who comes in has been professional, organized, and leaves the studio spotless."
-            </p>
-            <div className="author-info">
-              <strong>Arun M.</strong>
-              <span>Art & Movement Studio Founder</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 10. FAQ */}
-      <section className="venue-faq-section">
-        <div className="section-header center">
-          <span className="label">QUESTIONS & ANSWERS</span>
-          <h2 className="h2">Frequently Asked Questions</h2>
-          <p className="body-lg">
-            Everything you need to know about partnering your venue with Blithe.
-          </p>
-        </div>
-
-        <div className="faq-accordion">
-          {FAQS.map((faq, idx) => {
-            const isOpen = openFaq === idx;
-            return (
-              <div key={idx} className={`faq-item ${isOpen ? 'open' : ''}`}>
+          <div className="partner-form-container">
+            {isSubmitted ? (
+              <div className="form-success-card" role="alert">
+                <CheckCircle2 size={44} className="success-icon" aria-hidden="true" />
+                <h3 className="h3">Thank You for Reaching Out!</h3>
+                <p>We have received your venue details. A member of the Blithe community team will get in touch shortly to discuss hosting possibilities.</p>
                 <button 
-                  className="faq-question-btn" 
-                  onClick={() => setOpenFaq(isOpen ? null : idx)}
-                  aria-expanded={isOpen}
+                  type="button" 
+                  className="btn btn-solid" 
+                  onClick={() => setIsSubmitted(false)}
                 >
-                  <span>{faq.q}</span>
-                  <ChevronDown className={`faq-arrow ${isOpen ? 'rotated' : ''}`} size={18} />
+                  Submit Another Venue
                 </button>
+              </div>
+            ) : (
+              <form className="venue-partner-form" onSubmit={handleSubmit} noValidate>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label htmlFor="venueName">Venue Name *</label>
+                    <div className="input-wrap">
+                      <Building2 size={16} aria-hidden="true" />
+                      <input 
+                        type="text" 
+                        id="venueName" 
+                        name="venueName" 
+                        placeholder="e.g. The Daily Artisan Café" 
+                        value={formData.venueName} 
+                        onChange={handleInputChange} 
+                        required 
+                      />
+                    </div>
+                  </div>
 
-                <AnimatePresence>
-                  {isOpen && (
-                    <motion.div 
-                      className="faq-answer-wrap"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.22 }}
+                  <div className="form-group">
+                    <label htmlFor="contactName">Your Name *</label>
+                    <div className="input-wrap">
+                      <Users size={16} aria-hidden="true" />
+                      <input 
+                        type="text" 
+                        id="contactName" 
+                        name="contactName" 
+                        placeholder="e.g. Maya Sharma" 
+                        value={formData.contactName} 
+                        onChange={handleInputChange} 
+                        required 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label htmlFor="email">Email Address *</label>
+                    <div className="input-wrap">
+                      <Mail size={16} aria-hidden="true" />
+                      <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="e.g. maya@thedailycafe.in" 
+                        value={formData.email} 
+                        onChange={handleInputChange} 
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="phone">Phone / WhatsApp *</label>
+                    <div className="input-wrap">
+                      <Phone size={16} aria-hidden="true" />
+                      <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        placeholder="e.g. +91 98765 43210" 
+                        value={formData.phone} 
+                        onChange={handleInputChange} 
+                        required 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label htmlFor="cityArea">City & Locality *</label>
+                    <div className="input-wrap">
+                      <MapPin size={16} aria-hidden="true" />
+                      <input 
+                        type="text" 
+                        id="cityArea" 
+                        name="cityArea" 
+                        placeholder="e.g. Indiranagar, Bangalore" 
+                        value={formData.cityArea} 
+                        onChange={handleInputChange} 
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="venueType">Venue Style</label>
+                    <select 
+                      id="venueType" 
+                      name="venueType" 
+                      value={formData.venueType} 
+                      onChange={handleInputChange}
                     >
-                      <p className="faq-answer">{faq.a}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+                      <option value="Cafés & Bakeries">Cafés & Bakeries</option>
+                      <option value="Studios & Creative Spaces">Studios & Creative Spaces</option>
+                      <option value="Breweries, Bars & Bistros">Breweries, Bars & Bistros</option>
+                      <option value="Rooftops, Gardens & Lawns">Rooftops, Gardens & Lawns</option>
+                      <option value="Boutique & Alternative Spaces">Boutique & Alternative Spaces</option>
+                      <option value="Other Unique Space">Other Unique Space</option>
+                    </select>
+                  </div>
+                </div>
 
-      {/* 11. FINAL CTA / PARTNER APPLICATION FORM */}
-      <section id="partner-form" className="venue-form-section">
-        <div className="form-wrapper">
-          <div className="form-header">
-            <span className="label">GET STARTED TODAY</span>
-            <h2 className="h2">Ready to bring your space to life?</h2>
-            <p className="body-lg">
-              Fill in your details below and our team will get in touch within 24-48 hours to discuss ideas tailored to your venue.
-            </p>
-          </div>
-
-          {isSubmitted ? (
-            <motion.div 
-              className="form-success-card"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
-              <div className="success-icon">
-                <CheckIcon />
-              </div>
-              <h3 className="h2">Application Received!</h3>
-              <p>
-                Thank you for your interest in partnering with Blithe. Our community curation team will review your venue details and reach out shortly.
-              </p>
-              <button 
-                className="btn btn-solid" 
-                onClick={() => setIsSubmitted(false)}
-              >
-                Submit Another Space
-              </button>
-            </motion.div>
-          ) : (
-            <form className="partner-form" onSubmit={handleSubmit}>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Venue Name *</label>
-                  <div className="input-with-icon">
-                    <Building2 size={16} className="field-icon" />
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label htmlFor="capacity">Approx. Event Capacity (Optional)</label>
                     <input 
                       type="text" 
-                      name="venueName" 
-                      placeholder="e.g. The Roastery Café" 
-                      value={formData.venueName} 
+                      id="capacity" 
+                      name="capacity" 
+                      placeholder="e.g. 20-35 people seated" 
+                      value={formData.capacity} 
                       onChange={handleInputChange} 
-                      required 
                     />
                   </div>
-                </div>
 
-                <div className="form-group">
-                  <label>Your Name / Role *</label>
-                  <div className="input-with-icon">
-                    <Users size={16} className="field-icon" />
+                  <div className="form-group">
+                    <label htmlFor="availableSlots">Preferred Times / Quiet Windows (Optional)</label>
                     <input 
                       type="text" 
-                      name="contactName" 
-                      placeholder="e.g. Rahul (Owner / Manager)" 
-                      value={formData.contactName} 
+                      id="availableSlots" 
+                      name="availableSlots" 
+                      placeholder="e.g. Tue & Thu afternoons, Sunday mornings" 
+                      value={formData.availableSlots} 
                       onChange={handleInputChange} 
-                      required 
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Email Address *</label>
-                  <div className="input-with-icon">
-                    <Mail size={16} className="field-icon" />
-                    <input 
-                      type="email" 
-                      name="email" 
-                      placeholder="e.g. hello@yourvenue.com" 
-                      value={formData.email} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Phone / WhatsApp Number *</label>
-                  <div className="input-with-icon">
-                    <Phone size={16} className="field-icon" />
-                    <input 
-                      type="tel" 
-                      name="phone" 
-                      placeholder="e.g. +91 98765 43210" 
-                      value={formData.phone} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>City & Neighborhood *</label>
-                  <div className="input-with-icon">
-                    <MapPin size={16} className="field-icon" />
-                    <input 
-                      type="text" 
-                      name="cityArea" 
-                      placeholder="e.g. Bangalore, Indiranagar" 
-                      value={formData.cityArea} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Venue Type</label>
-                  <select 
-                    name="venueType" 
-                    value={formData.venueType} 
-                    onChange={handleInputChange}
-                  >
-                    <option value="Café / Bakery">Café / Bakery</option>
-                    <option value="Studio / Creative Space">Studio / Creative Space</option>
-                    <option value="Brewery / Bar / Bistro">Brewery / Bar / Bistro</option>
-                    <option value="Rooftop / Lawn">Rooftop / Lawn</option>
-                    <option value="Bookstore / Boutique">Bookstore / Boutique</option>
-                    <option value="Other">Other Unique Space</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Approximate Seating / Capacity</label>
+                  <label htmlFor="instagramUrl">Instagram Handle or Website (Optional)</label>
                   <input 
                     type="text" 
-                    name="capacity" 
-                    placeholder="e.g. 20-40 people" 
-                    value={formData.capacity} 
-                    onChange={handleInputChange} 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Ideal Off-Peak Times</label>
-                  <input 
-                    type="text" 
-                    name="availableSlots" 
-                    placeholder="e.g. Weekday mornings, Tuesday evenings" 
-                    value={formData.availableSlots} 
-                    onChange={handleInputChange} 
-                  />
-                </div>
-
-                <div className="form-group full-width">
-                  <label>Instagram Handle or Website Link</label>
-                  <input 
-                    type="text" 
+                    id="instagramUrl" 
                     name="instagramUrl" 
-                    placeholder="e.g. @yourvenue or https://yourvenue.com" 
+                    placeholder="e.g. @thedailycafe or https://thedailycafe.in" 
                     value={formData.instagramUrl} 
                     onChange={handleInputChange} 
                   />
                 </div>
 
-                <div className="form-group full-width">
-                  <label>Tell Us About Your Space (Optional)</label>
+                <div className="form-group">
+                  <label htmlFor="notes">Tell Us About Your Space & Ideas (Optional)</label>
                   <textarea 
+                    id="notes" 
                     name="notes" 
                     rows="3" 
-                    placeholder="Any specific vibe, equipment (projector, sound system, terrace), or thoughts you have..."
+                    placeholder="Share any special amenities (e.g. projector, outdoor lawn, sound setup) or gathering ideas you’d love to host..." 
                     value={formData.notes} 
                     onChange={handleInputChange} 
                   />
                 </div>
-              </div>
 
-              <div className="form-actions">
                 <button 
                   type="submit" 
-                  className="btn btn-solid btn-submit" 
+                  className="btn btn-solid btn-submit-partner" 
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    'Submitting Application...'
+                    <span>Sending Application...</span>
                   ) : (
                     <>
-                      <span>Submit Venue Application</span>
-                      <Send size={15} />
+                      <span>Partner With Blithe</span>
+                      <Send size={16} aria-hidden="true" />
                     </>
                   )}
                 </button>
-                <p className="form-privacy-note">
-                  🔒 We respect your privacy. No spam, ever. We will only contact you regarding venue partnerships.
+
+                <p className="form-disclaimer">
+                  By submitting, you allow Blithe to reach out regarding venue partnerships. No listing fees or obligations.
                 </p>
-              </div>
-            </form>
-          )}
+              </form>
+            )}
+          </div>
         </div>
       </section>
     </div>
