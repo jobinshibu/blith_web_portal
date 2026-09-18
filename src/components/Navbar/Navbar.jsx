@@ -152,8 +152,8 @@ const Navbar = () => {
 
         <div className="nav-links desktop-only">
           <a href="/about.html#how-it-works" className={`nav-link ${isLinkActive('/about.html#how-it-works') ? 'active' : ''}`}>How it Works</a>
-          <a href="/about.html#for-creators" className={`nav-link ${isLinkActive('/about.html#for-creators') ? 'active' : ''}`}>For Creators</a>
-          <Link to="/venue" className={`nav-link ${isLinkActive('/venue') ? 'active' : ''}`}>For Venues</Link>
+          <a href="/about.html#for-creators" className={`nav-link ${isLinkActive('/about.html#for-creators') ? 'active' : ''}`}>Creators</a>
+          <Link to="/venue" className={`nav-link ${isLinkActive('/venue') ? 'active' : ''}`}>Venues</Link>
           <a href="/about.html#discover" className={`nav-link ${isLinkActive('/about.html#discover') ? 'active' : ''}`}>Discover</a>
           <a href="/teams" className={`nav-link ${isLinkActive('/teams') ? 'active' : ''}`}>Team</a>
           <a href="/about.html" className={`nav-link ${isLinkActive('/about.html') ? 'active' : ''}`}>About Us</a>
@@ -244,8 +244,8 @@ const Navbar = () => {
                 <div className="links-center">
                   {[
                     { name: 'How it Works', path: '/about.html#how-it-works' },
-                    { name: 'For Creators', path: '/about.html#for-creators' },
-                    { name: 'For Venues', path: '/venue' },
+                    { name: 'Creators', path: '/about.html#for-creators' },
+                    { name: 'Venues', path: '/venue' },
                     { name: 'Discover', path: '/about.html#discover' },
                     { name: 'Team', path: '/teams' },
                     { name: 'About Us', path: '/about.html' }

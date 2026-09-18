@@ -1,32 +1,32 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Sparkles, 
-  Coffee, 
-  Palette, 
-  Beer, 
-  Sun, 
-  Compass, 
-  Users, 
-  Calendar, 
-  TrendingUp, 
-  ShieldCheck, 
-  HeartHandshake, 
-  ChevronDown, 
-  ArrowRight, 
-  ArrowDown, 
-  MapPin, 
-  Mail, 
-  Phone, 
-  Building2, 
-  Clock, 
-  Music, 
-  BookOpen, 
-  Smile, 
-  Send, 
-  Award, 
-  Layers, 
-  CheckCircle2 
+import {
+  Sparkles,
+  Coffee,
+  Palette,
+  Beer,
+  Sun,
+  Compass,
+  Users,
+  Calendar,
+  TrendingUp,
+  ShieldCheck,
+  HeartHandshake,
+  ChevronDown,
+  ArrowRight,
+  ArrowDown,
+  MapPin,
+  Mail,
+  Phone,
+  Building2,
+  Clock,
+  Music,
+  BookOpen,
+  Smile,
+  Send,
+  Award,
+  Layers,
+  CheckCircle2
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { logEvent } from 'firebase/analytics';
@@ -38,7 +38,7 @@ import './VenuePartner.scss';
 const VENUE_CATEGORIES = [
   {
     id: 'cafe',
-    title: 'Cafés & Bakeries',
+    title: 'Cafés',
     icon: Coffee,
     tag: 'Cozy & Welcoming',
     image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=900&auto=format&fit=crop',
@@ -180,13 +180,9 @@ const VenuePartner = () => {
   // Form State
   const [formData, setFormData] = useState({
     venueName: '',
-    contactName: '',
     email: '',
     phone: '',
     cityArea: '',
-    venueType: 'Café / Bakery',
-    capacity: '',
-    availableSlots: '',
     instagramUrl: '',
     notes: ''
   });
@@ -225,64 +221,35 @@ const VenuePartner = () => {
     }
   };
 
-  const handleSelectCategoryForForm = (category) => {
-    setFormData((prev) => ({
-      ...prev,
-      venueType: category.title
-    }));
+  const handleSelectCategoryForForm = () => {
     scrollToSection('partner-form');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.venueName.trim() || !formData.contactName.trim() || !formData.email.trim() || !formData.phone.trim()) {
+    if (!formData.venueName.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.cityArea.trim()) {
       toast.error('Please fill in all required fields.');
       return;
     }
 
     setIsSubmitting(true);
-    try {
-      // 1. Save to Firestore venue_partners collection
-      await addDoc(collection(db, 'venue_partners'), {
-        ...formData,
-        createdAt: serverTimestamp(),
-        source: 'blithe_venue_landing',
-        status: 'pending'
-      });
 
-      // 2. Track analytics event
-      try {
-        if (analytics) {
-          logEvent(analytics, 'venue_partner_inquiry', {
-            venue_name: formData.venueName,
-            venue_type: formData.venueType,
-            city_area: formData.cityArea
-          });
-        }
-      } catch (analyticsErr) {
-        console.warn('Analytics event error:', analyticsErr);
-      }
-
+    // Static / Demo Mode: Simulate submission delay for smooth UI review without creating Firestore database records
+    setTimeout(() => {
+      console.log('[Venue Partner Demo Form Data]:', formData);
       setIsSubmitted(true);
-      toast.success('Thank you! Your venue application has been received.');
+      setIsSubmitting(false);
+      toast.success('Thank you! Your venue application has been received (Demo Mode).');
+
       setFormData({
         venueName: '',
-        contactName: '',
         email: '',
         phone: '',
         cityArea: '',
-        venueType: 'Café / Bakery',
-        capacity: '',
-        availableSlots: '',
         instagramUrl: '',
         notes: ''
       });
-    } catch (err) {
-      console.error('Error submitting venue partner application:', err);
-      toast.error('Something went wrong. Please try again or reach out directly.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    }, 600);
   };
 
   return (
@@ -291,7 +258,7 @@ const VenuePartner = () => {
       <section className="venue-hero">
         <div className="section-container">
           <div className="hero-content-wrapper">
-            <motion.div 
+            <motion.div
               className="hero-inner"
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
@@ -314,17 +281,17 @@ const VenuePartner = () => {
               </p>
 
               <div className="hero-ctas">
-                <button 
+                <button
                   type="button"
-                  className="btn btn-solid" 
+                  className="btn btn-solid"
                   onClick={() => scrollToSection('partner-form')}
                 >
                   <span>Partner With Blithe</span>
                   <ArrowRight size={16} aria-hidden="true" />
                 </button>
-                <button 
+                <button
                   type="button"
-                  className="btn btn-ghost" 
+                  className="btn btn-ghost"
                   onClick={() => scrollToSection('how-it-works')}
                 >
                   <span>See How It Works</span>
@@ -333,15 +300,15 @@ const VenuePartner = () => {
               </div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               className="hero-visual"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <div className="hero-image-card">
-                <img 
-                  src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000&auto=format&fit=crop" 
+                <img
+                  src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000&auto=format&fit=crop"
                   alt="Community workshop gathering in a welcoming local venue"
                   loading="eager"
                 />
@@ -358,7 +325,7 @@ const VenuePartner = () => {
       {/* ─── 2. THE PROBLEM (CHANGED: Exact client copy, soft lavender container, approachable layout) ─── */}
       <section className="venue-problem-section">
         <div className="section-container">
-          <motion.div 
+          <motion.div
             className="problem-box"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -419,8 +386,8 @@ const VenuePartner = () => {
 
             <div className="about-image-column">
               <div className="about-image-card">
-                <img 
-                  src="https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=900&auto=format&fit=crop" 
+                <img
+                  src="https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=900&auto=format&fit=crop"
                   alt="Creators and attendees enjoying an experience in a partner venue"
                   loading="lazy"
                 />
@@ -595,8 +562,8 @@ const VenuePartner = () => {
                             </div>
                           </div>
 
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             className="btn btn-solid btn-partner-cat"
                             onClick={() => handleSelectCategoryForForm(cat)}
                           >
@@ -695,8 +662,8 @@ const VenuePartner = () => {
             {EXPERIENCE_TYPES.map((exp, idx) => {
               const Icon = exp.icon;
               return (
-                <motion.div 
-                  key={idx} 
+                <motion.div
+                  key={idx}
                   className="exp-visual-card"
                   whileHover={{ y: -4 }}
                   transition={{ duration: 0.2 }}
@@ -733,8 +700,8 @@ const VenuePartner = () => {
             {WHY_BLITHE_POINTS.map((pt, idx) => {
               const Icon = pt.icon;
               return (
-                <motion.div 
-                  key={idx} 
+                <motion.div
+                  key={idx}
                   className="blithe-point-card"
                   whileHover={{ y: -3 }}
                   transition={{ duration: 0.2 }}
@@ -779,11 +746,11 @@ const VenuePartner = () => {
             {FAQS.map((faq, index) => {
               const isOpen = openFaq === index;
               return (
-                <div 
-                  key={index} 
+                <div
+                  key={index}
                   className={`faq-item ${isOpen ? 'open' : ''}`}
                 >
-                  <button 
+                  <button
                     type="button"
                     className="faq-question-btn"
                     onClick={() => toggleFaq(index)}
@@ -798,7 +765,7 @@ const VenuePartner = () => {
 
                   <AnimatePresence>
                     {isOpen && (
-                      <motion.div 
+                      <motion.div
                         id={`faq-answer-${index}`}
                         role="region"
                         aria-labelledby={`faq-btn-${index}`}
@@ -839,9 +806,9 @@ const VenuePartner = () => {
                 <CheckCircle2 size={44} className="success-icon" aria-hidden="true" />
                 <h3 className="h3">Thank You for Reaching Out!</h3>
                 <p>We have received your venue details. A member of the Blithe community team will get in touch shortly to discuss hosting possibilities.</p>
-                <button 
-                  type="button" 
-                  className="btn btn-solid" 
+                <button
+                  type="button"
+                  className="btn btn-solid"
                   onClick={() => setIsSubmitted(false)}
                 >
                   Submit Another Venue
@@ -854,30 +821,30 @@ const VenuePartner = () => {
                     <label htmlFor="venueName">Venue Name *</label>
                     <div className="input-wrap">
                       <Building2 size={16} aria-hidden="true" />
-                      <input 
-                        type="text" 
-                        id="venueName" 
-                        name="venueName" 
-                        placeholder="e.g. The Daily Artisan Café" 
-                        value={formData.venueName} 
-                        onChange={handleInputChange} 
-                        required 
+                      <input
+                        type="text"
+                        id="venueName"
+                        name="venueName"
+                        placeholder="e.g. The Daily Artisan Café"
+                        value={formData.venueName}
+                        onChange={handleInputChange}
+                        required
                       />
                     </div>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="contactName">Your Name *</label>
+                    <label htmlFor="cityArea">City & Locality *</label>
                     <div className="input-wrap">
-                      <Users size={16} aria-hidden="true" />
-                      <input 
-                        type="text" 
-                        id="contactName" 
-                        name="contactName" 
-                        placeholder="e.g. Maya Sharma" 
-                        value={formData.contactName} 
-                        onChange={handleInputChange} 
-                        required 
+                      <MapPin size={16} aria-hidden="true" />
+                      <input
+                        type="text"
+                        id="cityArea"
+                        name="cityArea"
+                        placeholder="e.g. Indiranagar, Bangalore"
+                        value={formData.cityArea}
+                        onChange={handleInputChange}
+                        required
                       />
                     </div>
                   </div>
@@ -888,14 +855,14 @@ const VenuePartner = () => {
                     <label htmlFor="email">Email Address *</label>
                     <div className="input-wrap">
                       <Mail size={16} aria-hidden="true" />
-                      <input 
-                        type="email" 
-                        id="email" 
-                        name="email" 
-                        placeholder="e.g. maya@thedailycafe.in" 
-                        value={formData.email} 
-                        onChange={handleInputChange} 
-                        required 
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="e.g. maya@thedailycafe.in"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
                       />
                     </div>
                   </div>
@@ -904,107 +871,46 @@ const VenuePartner = () => {
                     <label htmlFor="phone">Phone / WhatsApp *</label>
                     <div className="input-wrap">
                       <Phone size={16} aria-hidden="true" />
-                      <input 
-                        type="tel" 
-                        id="phone" 
-                        name="phone" 
-                        placeholder="e.g. +91 98765 43210" 
-                        value={formData.phone} 
-                        onChange={handleInputChange} 
-                        required 
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        placeholder="e.g. +91 98765 43210"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        required
                       />
                     </div>
-                  </div>
-                </div>
-
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label htmlFor="cityArea">City & Locality *</label>
-                    <div className="input-wrap">
-                      <MapPin size={16} aria-hidden="true" />
-                      <input 
-                        type="text" 
-                        id="cityArea" 
-                        name="cityArea" 
-                        placeholder="e.g. Indiranagar, Bangalore" 
-                        value={formData.cityArea} 
-                        onChange={handleInputChange} 
-                        required 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="venueType">Venue Style</label>
-                    <select 
-                      id="venueType" 
-                      name="venueType" 
-                      value={formData.venueType} 
-                      onChange={handleInputChange}
-                    >
-                      <option value="Cafés & Bakeries">Cafés & Bakeries</option>
-                      <option value="Studios & Creative Spaces">Studios & Creative Spaces</option>
-                      <option value="Breweries, Bars & Bistros">Breweries, Bars & Bistros</option>
-                      <option value="Rooftops, Gardens & Lawns">Rooftops, Gardens & Lawns</option>
-                      <option value="Boutique & Alternative Spaces">Boutique & Alternative Spaces</option>
-                      <option value="Other Unique Space">Other Unique Space</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label htmlFor="capacity">Approx. Event Capacity (Optional)</label>
-                    <input 
-                      type="text" 
-                      id="capacity" 
-                      name="capacity" 
-                      placeholder="e.g. 20-35 people seated" 
-                      value={formData.capacity} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="availableSlots">Preferred Times / Quiet Windows (Optional)</label>
-                    <input 
-                      type="text" 
-                      id="availableSlots" 
-                      name="availableSlots" 
-                      placeholder="e.g. Tue & Thu afternoons, Sunday mornings" 
-                      value={formData.availableSlots} 
-                      onChange={handleInputChange} 
-                    />
                   </div>
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="instagramUrl">Instagram Handle or Website (Optional)</label>
-                  <input 
-                    type="text" 
-                    id="instagramUrl" 
-                    name="instagramUrl" 
-                    placeholder="e.g. @thedailycafe or https://thedailycafe.in" 
-                    value={formData.instagramUrl} 
-                    onChange={handleInputChange} 
+                  <input
+                    type="text"
+                    id="instagramUrl"
+                    name="instagramUrl"
+                    placeholder="e.g. @thedailycafe or https://thedailycafe.in"
+                    value={formData.instagramUrl}
+                    onChange={handleInputChange}
                   />
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="notes">Tell Us About Your Space & Ideas (Optional)</label>
-                  <textarea 
-                    id="notes" 
-                    name="notes" 
-                    rows="3" 
-                    placeholder="Share any special amenities (e.g. projector, outdoor lawn, sound setup) or gathering ideas you’d love to host..." 
-                    value={formData.notes} 
-                    onChange={handleInputChange} 
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    rows="3"
+                    placeholder="Share any special amenities (e.g. projector, outdoor lawn, sound setup) or gathering ideas you’d love to host..."
+                    value={formData.notes}
+                    onChange={handleInputChange}
                   />
                 </div>
 
-                <button 
-                  type="submit" 
-                  className="btn btn-solid btn-submit-partner" 
+                <button
+                  type="submit"
+                  className="btn btn-solid btn-submit-partner"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

@@ -2486,13 +2486,13 @@ const EventDetails = () => {
                           </span>
                         )}
                       </div>
-                      <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 'auto' }}>
+                      {/* <p className="portrait-card-price" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 'auto' }}>
                         <span>
                           {relatedEvent.price}
                           {relatedEvent.isPriceOnwards && <span style={{ fontSize: '0.8em', color: '#6B7280', marginLeft: '4px', fontWeight: 500 }}>onwards</span>}
                         </span>
                         {relatedEvent.priceMessage && <span className="price-message" style={{ fontSize: '0.85em', color: '#EF4444', marginLeft: '6px', fontWeight: 600 }}>{relatedEvent.priceMessage}</span>}
-                      </p>
+                      </p> */}
                     </div>
                   </Link>
                 </div>
