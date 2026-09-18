@@ -38,6 +38,53 @@ const formatSocialUrl = (url) => {
   return `https://${trimmed}`;
 };
 
+// CHANGED: Helper to normalize Instagram usernames, @handles, and URLs into valid HTTPS profile links
+const formatInstagramUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  // Case 1: Full URL with protocol (e.g. https://instagram.com/user, http://www.instagram.com/user)
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsedUrl = new URL(trimmed);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      if (hostname === 'instagram.com' || hostname.endsWith('.instagram.com') || hostname === 'instagr.am') {
+        // Upgrade http to https and keep URL intact
+        return trimmed.replace(/^http:\/\//i, 'https://');
+      }
+      // Unrelated URLs (e.g. https://facebook.com/..., https://example.com) should not be treated as Instagram links
+      return '';
+    } catch {
+      return '';
+    }
+  }
+
+  // Case 2: URL without protocol starting with instagram.com or www.instagram.com (or instagr.am)
+  if (/^(www\.)?(instagram\.com|instagr\.am)(\/|$)/i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+
+  // Case 3: Other protocols or URLs with other schemes (e.g., //example.com, mailto:, etc.)
+  if (/^[a-zA-Z0-9+.-]+:\/\//.test(trimmed) || trimmed.startsWith('//')) {
+    return '';
+  }
+
+  // Case 4: Contains slashes or path separators (and not instagram domain) -> unrelated URL/path, not a clean username
+  if (trimmed.includes('/') || trimmed.includes('\\') || trimmed.includes('?')) {
+    return '';
+  }
+
+  // Case 5: Instagram username (e.g. "username", "@username")
+  const cleanUsername = trimmed.replace(/^@+/, '');
+  if (/^[a-zA-Z0-9._]{1,30}$/.test(cleanUsername)) {
+    return `https://www.instagram.com/${cleanUsername}/`;
+  }
+
+  return '';
+};
+
+
 // Helper to parse text and render clickable anchor tags for URLs
 const renderTextWithLinks = (text) => {
   if (!text) return null;
@@ -2090,10 +2137,11 @@ const EventDetails = () => {
                       <Check size={12} strokeWidth={3} className="check-icon" />
                       Verified Organiser
                     </span>
-                    {(organiser.instagramUrl || organiser.websiteUrl) && (
+                    {(formatInstagramUrl(organiser.instagramUrl) || organiser.websiteUrl) && (
                       <div className="organiser-socials">
-                        {organiser.instagramUrl && (
-                          <a href={formatSocialUrl(organiser.instagramUrl)} target="_blank" rel="noopener noreferrer" className="social-link instagram" aria-label="Instagram">
+                        {/* CHANGED: Normalize Instagram URL/handle (supports usernames, @handles, and full URLs) */}
+                        {formatInstagramUrl(organiser.instagramUrl) && (
+                          <a href={formatInstagramUrl(organiser.instagramUrl)} target="_blank" rel="noopener noreferrer" className="social-link instagram" aria-label="Instagram">
                             <InstagramIcon size={22} />
                           </a>
                         )}
