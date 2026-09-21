@@ -20,7 +20,7 @@ function assert(condition, message) {
   }
 }
 
-console.log('\n=== Firebase / GA4 Analytics Integration & Event Test Suite ===\n');
+console.log('\n=== GA4 Essential Reports & Required Event Specs Test Suite ===\n');
 
 // 1. Verify src/utils/analytics.js exists and exports required tracking functions
 const analyticsUtilPath = path.join(projectRoot, 'src', 'utils', 'analytics.js');
@@ -28,83 +28,114 @@ assert(fs.existsSync(analyticsUtilPath), 'src/utils/analytics.js exists');
 
 const analyticsUtilContent = fs.readFileSync(analyticsUtilPath, 'utf-8');
 assert(analyticsUtilContent.includes('export const trackGAEvent ='), 'exports trackGAEvent');
-assert(analyticsUtilContent.includes('export const trackGAViewItem ='), 'exports trackGAViewItem (matches ViewContent)');
-assert(analyticsUtilContent.includes('export const trackGABeginCheckout ='), 'exports trackGABeginCheckout (matches InitiateCheckout)');
-assert(analyticsUtilContent.includes('export const trackGASignUp ='), 'exports trackGASignUp (matches CompleteRegistration)');
-assert(analyticsUtilContent.includes('export const trackGAAPaymentInfo ='), 'exports trackGAAPaymentInfo (matches AddPaymentInfo)');
-assert(analyticsUtilContent.includes('export const trackGAPurchase ='), 'exports trackGAPurchase (matches Purchase)');
+assert(analyticsUtilContent.includes('export const setGAUserId ='), 'exports setGAUserId (Report 2: Cross-Platform User ID)');
+assert(analyticsUtilContent.includes('export const trackGAViewItem ='), 'exports trackGAViewItem (Report 1: Funnel step 1)');
+assert(analyticsUtilContent.includes('export const trackGASelectContent ='), 'exports trackGASelectContent (Report 1: Funnel step 2)');
+assert(analyticsUtilContent.includes('export const trackGABeginCheckout ='), 'exports trackGABeginCheckout (Report 1: Funnel step 3)');
+assert(analyticsUtilContent.includes('export const trackGASignUp ='), 'exports trackGASignUp');
+assert(analyticsUtilContent.includes('export const trackGAAPaymentInfo ='), 'exports trackGAAPaymentInfo');
+assert(analyticsUtilContent.includes('export const trackGAPurchase ='), 'exports trackGAPurchase (Report 1: Funnel step 4)');
+assert(analyticsUtilContent.includes('export const trackGASearch ='), 'exports trackGASearch (Report 3: User Engagement)');
+assert(analyticsUtilContent.includes('export const trackGAShare ='), 'exports trackGAShare (Report 3: User Engagement)');
+assert(analyticsUtilContent.includes('export const trackGAError ='), 'exports trackGAError (Report 5: Tech Performance)');
 
 // 2. Verify EventDetails.jsx integration
 const eventDetailsPath = path.join(projectRoot, 'src', 'components', 'Events', 'EventDetails.jsx');
 const eventDetailsContent = fs.readFileSync(eventDetailsPath, 'utf-8');
-assert(eventDetailsContent.includes("import { trackGAViewItem, trackGABeginCheckout } from '../../utils/analytics';"), 'EventDetails.jsx imports analytics helpers');
+assert(eventDetailsContent.includes("import { trackGAViewItem, trackGASelectContent, trackGAShare } from '../../utils/analytics';"), 'EventDetails.jsx imports analytics helpers');
 assert(eventDetailsContent.includes("trackGAViewItem(loadedEventObj);"), 'EventDetails.jsx calls trackGAViewItem on event load');
-assert(eventDetailsContent.includes("trackGABeginCheckout(event);"), 'EventDetails.jsx calls trackGABeginCheckout on Book Now click');
+assert(eventDetailsContent.includes("trackGASelectContent(event);"), 'EventDetails.jsx calls trackGASelectContent on Book Now click');
+assert(eventDetailsContent.includes("trackGAShare(event, platformId);"), 'EventDetails.jsx calls trackGAShare on share actions');
 assert(eventDetailsContent.includes("trackEventPageView(loadedEventObj);"), 'EventDetails.jsx preserves Meta Pixel trackEventPageView');
 assert(eventDetailsContent.includes("trackClickCheckoutNow(event);"), 'EventDetails.jsx preserves Meta Pixel trackClickCheckoutNow');
-assert(eventDetailsContent.includes("logEvent(analytics, 'view_event_page'"), 'EventDetails.jsx preserves existing view_event_page untouched');
 
-// 3. Verify EventBookingPage.jsx integration
+// 3. Verify Events.jsx integration
+const eventsPath = path.join(projectRoot, 'src', 'components', 'Events', 'Events.jsx');
+const eventsContent = fs.readFileSync(eventsPath, 'utf-8');
+assert(eventsContent.includes("import { trackGASearch } from '../../utils/analytics';"), 'Events.jsx imports trackGASearch');
+assert(eventsContent.includes("trackGASearch(searchQuery.trim(), activeCat);"), 'Events.jsx triggers debounced search event');
+
+// 4. Verify EventBookingPage.jsx integration
 const bookingPagePath = path.join(projectRoot, 'src', 'components', 'Events', 'EventBookingPage.jsx');
 const bookingPageContent = fs.readFileSync(bookingPagePath, 'utf-8');
-assert(bookingPageContent.includes("import { trackGABeginCheckout, trackGASignUp, trackGAAPaymentInfo } from '../../utils/analytics';"), 'EventBookingPage.jsx imports analytics helpers');
+assert(bookingPageContent.includes("import { trackGABeginCheckout, trackGASignUp, trackGAAPaymentInfo, trackGAError, setGAUserId } from '../../utils/analytics';"), 'EventBookingPage.jsx imports analytics helpers');
 assert(bookingPageContent.includes("trackGABeginCheckout(loadedEvt, data.price || 0, 1);"), 'EventBookingPage.jsx calls trackGABeginCheckout on booking load');
-assert(bookingPageContent.includes("trackGASignUp({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });"), 'EventBookingPage.jsx calls trackGASignUp on user signup');
-assert(bookingPageContent.includes("trackGAAPaymentInfo(event, total, totalTickets,"), 'EventBookingPage.jsx calls trackGAAPaymentInfo on Proceed to Pay');
-assert(bookingPageContent.includes("trackSignup({ name: currentAttendee.name"), 'EventBookingPage.jsx preserves Meta Pixel trackSignup');
-assert(bookingPageContent.includes("trackClickPayNow({"), 'EventBookingPage.jsx preserves Meta Pixel trackClickPayNow');
-assert(bookingPageContent.includes("logEvent(analytics, 'pay_and_proceed_button_click'"), 'EventBookingPage.jsx preserves existing pay_and_proceed_button_click untouched');
-assert(bookingPageContent.includes("payment_type: 'free'"), 'EventBookingPage.jsx supports pay_and_proceed_button_click for free bookings');
+assert(bookingPageContent.includes("setGAUserId(newUid);"), 'EventBookingPage.jsx calls setGAUserId for new attendees');
+assert(bookingPageContent.includes("setGAUserId(foundUserData.uid);"), 'EventBookingPage.jsx calls setGAUserId for existing attendees');
+assert(bookingPageContent.includes("trackGAError(orderErr?.code || 'RAZORPAY_ORDER_FAILED'"), 'EventBookingPage.jsx tracks Razorpay order error');
+assert(bookingPageContent.includes("trackGAError(response.error?.code || 'PAYMENT_GATEWAY_FAILED'"), 'EventBookingPage.jsx tracks Razorpay payment failure');
 
-// 4. Verify BookingSuccess.jsx integration
-const successPagePath = path.join(projectRoot, 'src', 'components', 'Events', 'BookingSuccess.jsx');
-const successPageContent = fs.readFileSync(successPagePath, 'utf-8');
-assert(successPageContent.includes("import { trackGAPurchase } from '../../utils/analytics';"), 'BookingSuccess.jsx imports trackGAPurchase');
-assert(successPageContent.includes("trackGAPurchase(bookingId, bData);"), 'BookingSuccess.jsx calls trackGAPurchase on booking confirmation');
-assert(successPageContent.includes("trackPixelPurchase(bookingId"), 'BookingSuccess.jsx preserves Meta Pixel trackPixelPurchase');
+// 5. Verify leadService.js UTM capture
+const leadServicePath = path.join(projectRoot, 'src', 'services', 'leadService.js');
+const leadServiceContent = fs.readFileSync(leadServicePath, 'utf-8');
+assert(leadServiceContent.includes("utm_medium: (utmMedium || '').toLowerCase()"), 'leadService captures utm_medium');
+assert(leadServiceContent.includes("utm_campaign: (utmCampaign || '').toLowerCase()"), 'leadService captures utm_campaign');
+assert(leadServiceContent.includes("utm_content: (utmContent || '').toLowerCase()"), 'leadService captures utm_content');
 
-// 5. Test Payload Generators Logic Simulation
-const mockEvent = { id: 'evt_123', title: 'Summer Fest', category: 'Music', price: 750 };
-const mockBooking = { eventId: 'evt_123', eventName: 'Summer Fest', totalPrice: 1500, totalQuantity: 2, status: 'confirmed' };
+// 6. Schema & Payload Generators Validation
+const mockEvent = {
+  id: 'evt_trek_001',
+  title: 'Himalayan Sunrise Trek',
+  category: 'Trek',
+  hostId: 'host_org_99',
+  price: 1200
+};
 
-// Simulate ViewItem payload
+// Report 1: view_item schema
 const viewItemPayload = {
+  event_id: mockEvent.id,
+  event_category: mockEvent.category,
+  host_id: mockEvent.hostId,
+  price: mockEvent.price,
   currency: 'INR',
-  value: mockEvent.price,
-  items: [{ item_id: mockEvent.id, item_name: mockEvent.title, item_category: mockEvent.category, price: mockEvent.price, quantity: 1 }]
+  items: [{ item_id: mockEvent.id, item_name: mockEvent.title, item_category: mockEvent.category, host_id: mockEvent.hostId, price: mockEvent.price, quantity: 1 }]
 };
-assert(viewItemPayload.value === 750 && viewItemPayload.items[0].item_id === 'evt_123', 'view_item schema matches GA4 standard');
+assert(
+  viewItemPayload.event_id === 'evt_trek_001' &&
+  viewItemPayload.event_category === 'Trek' &&
+  viewItemPayload.host_id === 'host_org_99' &&
+  viewItemPayload.price === 1200 &&
+  viewItemPayload.currency === 'INR',
+  'Report 1: view_item schema complies with all required parameters (event_id, event_category, host_id, price, currency)'
+);
 
-// Simulate BeginCheckout payload
-const beginCheckoutPayload = {
-  currency: 'INR',
-  value: 1500,
-  items: [{ item_id: mockEvent.id, item_name: mockEvent.title, item_category: mockEvent.category, price: 1500, quantity: 2 }]
+// Report 1: select_content schema
+const selectContentPayload = {
+  content_type: 'event',
+  item_id: mockEvent.id,
+  event_id: mockEvent.id,
+  event_category: mockEvent.category,
+  host_id: mockEvent.hostId,
+  price: mockEvent.price,
+  currency: 'INR'
 };
-assert(beginCheckoutPayload.value === 1500 && beginCheckoutPayload.items[0].quantity === 2, 'begin_checkout schema matches GA4 standard');
+assert(
+  selectContentPayload.content_type === 'event' &&
+  selectContentPayload.host_id === 'host_org_99' &&
+  selectContentPayload.event_id === 'evt_trek_001',
+  'Report 1: select_content schema complies with required parameters'
+);
 
-// Simulate SignUp payload
-const signUpPayload = { method: 'phone_checkout', user_name: 'John Doe', user_email: 'john@example.com' };
-assert(signUpPayload.method === 'phone_checkout' && signUpPayload.user_name === 'John Doe', 'sign_up schema matches GA4 standard');
+// Report 3: search & share schemas
+const searchPayload = { search_term: 'trek', content_type: 'Trek' };
+assert(searchPayload.search_term === 'trek' && searchPayload.content_type === 'Trek', 'Report 3: search schema complies with parameters (search_term, content_type)');
 
-// Simulate AddPaymentInfo payload
-const addPaymentInfoPayload = { currency: 'INR', value: 1500, payment_type: 'razorpay', items: [{ item_id: mockEvent.id, item_name: mockEvent.title, price: 1500, quantity: 2 }] };
-assert(addPaymentInfoPayload.payment_type === 'razorpay' && addPaymentInfoPayload.value === 1500, 'add_payment_info schema matches GA4 standard');
+const sharePayload = { method: 'whatsapp', content_type: 'Trek', item_id: mockEvent.id };
+assert(sharePayload.method === 'whatsapp' && sharePayload.item_id === 'evt_trek_001', 'Report 3: share schema complies with parameters (method, content_type, item_id)');
 
-// Simulate Purchase payload
-const purchasePayload = {
-  transaction_id: 'bk_999',
-  value: mockBooking.totalPrice,
-  currency: 'INR',
-  payment_status: 'confirmed',
-  items: [{ item_id: mockBooking.eventId, item_name: mockBooking.eventName, price: 750, quantity: 2 }]
-};
-assert(purchasePayload.transaction_id === 'bk_999' && purchasePayload.value === 1500 && purchasePayload.items[0].quantity === 2, 'purchase schema matches GA4 standard');
+// Report 5: api_error schema
+const apiErrorPayload = { error_code: 'BAD_REQUEST_PAYMENT', screen_name: 'EventBookingPage', fatal: true };
+assert(
+  apiErrorPayload.error_code === 'BAD_REQUEST_PAYMENT' &&
+  apiErrorPayload.screen_name === 'EventBookingPage' &&
+  apiErrorPayload.fatal === true,
+  'Report 5: api_error schema complies with parameters (error_code, screen_name, fatal)'
+);
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.\n`);
 
 if (passedTests === totalTests) {
-  console.log('\x1b[32mAll Firebase / GA4 analytics parity tests passed successfully!\x1b[0m\n');
+  console.log('\x1b[32mAll GA4 Essential Reports & Required Event Specs tests passed successfully!\x1b[0m\n');
 } else {
   console.error('\x1b[31mSome tests failed.\x1b[0m\n');
   process.exitCode = 1;

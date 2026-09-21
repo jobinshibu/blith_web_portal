@@ -10,7 +10,7 @@ import { fetchEventsThunk } from '../../store/eventsSlice';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { updateUserInterests } from '../../services/userService';
 import { trackEventPageView, trackEventCategoryView, trackClickCheckoutNow } from '../../utils/pixel';
-import { trackGAViewItem, trackGABeginCheckout } from '../../utils/analytics';
+import { trackGAViewItem, trackGASelectContent, trackGAShare } from '../../utils/analytics';
 import Button from '../Button/Button';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
@@ -264,12 +264,14 @@ const ShareModal = ({ event, onClose, onShare }) => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2500);
       }
+      trackGAShare(event, platformId);
       if (onShare) onShare();
     }
     return success;
   };
 
   const handleSocialClick = async (e, s) => {
+    trackGAShare(event, s.id);
     if (s.id === 'instagram') {
       e.preventDefault();
 
@@ -2443,7 +2445,7 @@ const EventDetails = () => {
                       return;
                     }
                     trackClickCheckoutNow(event);
-                    trackGABeginCheckout(event);
+                    trackGASelectContent(event);
                     navigate(`/events/${event.id}/book`);
                   }}
                   disabled={isEventExpired || isSoldOut || isBookingClosed}
@@ -2588,7 +2590,7 @@ const EventDetails = () => {
               return;
             }
             trackClickCheckoutNow(event);
-            trackGABeginCheckout(event);
+            trackGASelectContent(event);
             navigate(`/events/${event.id}/book`);
           }}
           disabled={isEventExpired || isSoldOut || isBookingClosed}

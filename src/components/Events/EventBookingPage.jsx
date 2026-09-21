@@ -14,7 +14,7 @@ import {
   checkHasBookings,
 } from '../../services/couponService';
 import { trackClickCheckoutNow, trackClickPayNow, trackSignup, trackPixelPurchase } from '../../utils/pixel';
-import { trackGABeginCheckout, trackGASignUp, trackGAAPaymentInfo } from '../../utils/analytics';
+import { trackGABeginCheckout, trackGASignUp, trackGAAPaymentInfo, trackGAError, setGAUserId } from '../../utils/analytics';
 import Button from '../Button/Button';
 import { toast } from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
@@ -747,6 +747,7 @@ const EventBookingPage = () => {
             localStorage.setItem('blithe_checkout_attendee', userPayload);
             sessionStorage.setItem('blithe_checkout_attendee', userPayload);
             window.dispatchEvent(new CustomEvent('session-user-changed'));
+            setGAUserId(foundUserData.uid);
           } catch (err) {
             console.warn("Failed to save checkout details to session on resolve:", err);
           }
@@ -760,6 +761,7 @@ const EventBookingPage = () => {
           await setDoc(newDocRef, newUserDoc);
           trackSignup({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
           trackGASignUp({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
+          setGAUserId(newUid);
           console.log(`[User Form] Created new user document in Firestore for UID: ${newUid}`);
 
           setResolvedUserId(newUid);
@@ -2460,6 +2462,7 @@ const EventBookingPage = () => {
           orderId = order.id;
         } catch (orderErr) {
           console.error("Razorpay Order API failed:", orderErr);
+          trackGAError(orderErr?.code || 'RAZORPAY_ORDER_FAILED', 'EventBookingPage', true);
           await releaseTicketSlots(uId, dateStr);
           toast.error("Failed to initiate payment. Please try again.");
           return;
@@ -2571,11 +2574,16 @@ const EventBookingPage = () => {
         }
 
         const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+          console.error("Razorpay payment failed:", response.error);
+          trackGAError(response.error?.code || 'PAYMENT_GATEWAY_FAILED', 'EventBookingPage', false);
+        });
         rzp.open();
       }
 
     } catch (err) {
       console.error("Error in booking flow:", err);
+      trackGAError(err?.code || err?.message || 'BOOKING_FLOW_ERROR', 'EventBookingPage', true);
       toast.error(navigator.onLine ? `Failed to proceed: ${err.message || err}` : 'Failed to proceed. Please check your internet connection and try again.');
     } finally {
       setIsVerifyingUser(false);

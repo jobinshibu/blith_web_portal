@@ -11,6 +11,7 @@ import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { logEvent } from 'firebase/analytics';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { trackHomeLandingPageView } from '../../utils/pixel';
+import { trackGASearch } from '../../utils/analytics';
 import { isSoundLikeMatch } from '../../utils/soundLike';
 
 
@@ -429,6 +430,16 @@ const Events = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
+
+  // GA4 User Engagement: Search tracking (debounced)
+  useEffect(() => {
+    if (!searchQuery || searchQuery.trim().length < 2) return;
+    const timer = setTimeout(() => {
+      const activeCat = selectedCategories.length > 0 ? selectedCategories.join(', ') : 'all_events';
+      trackGASearch(searchQuery.trim(), activeCat);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategories]);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [isNearbyFilterActive, setIsNearbyFilterActive] = useState(false);
