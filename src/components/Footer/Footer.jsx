@@ -80,7 +80,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
           </Link>
 
           <p>
-            The risk-free platform for creators to host events and seekers to find experiences based on their mood.
+            The risk-free platform for organisors to host events and seekers to find experiences based on their mood.
           </p>
 
           {/* SOCIAL ICONS (TOP) */}
@@ -118,7 +118,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
           <h5>Explore</h5>
           <ul>
             <li><a href="/about.html#how-it-works">How it Works</a></li>
-            <li><a href="/about.html#for-creators">For Creators</a></li>
+            <li><a href="/about.html#for-creators">For Organisors</a></li>
             <li><a href="/about.html#discover">Discover</a></li>
             <li><a href="/about.html#testimonials">Testimonials</a></li>
           </ul>

@@ -166,8 +166,8 @@ const FAQS = [
     a: 'Events range from intimate book clubs and maker craft workshops to acoustic listening sessions, wellness meetups, and trivia nights. Every gathering is tailored to respect the host space.'
   },
   {
-    q: 'How do creators and organizers connect with my space?',
-    a: 'We coordinate with vetted local creators and organizers to match their gathering concepts with your available slots and house preferences.'
+    q: 'How do organisors connect with my space?',
+    a: 'We coordinate with vetted local organisors to match their gathering concepts with your available slots and house preferences.'
   }
 ];
 
@@ -274,7 +274,7 @@ const VenuePartner = () => {
               </h1>
 
               <p className="body-lg hero-sub">
-                Your space already has the vibe. We help bring the people, creators and experiences that make it come alive.
+                Your space already has the vibe. We help bring the people, organisors and experiences that make it come alive.
               </p>
               <p className="body-lg hero-sub secondary">
                 List your venue with Blithe and let us help you fill those quiet hours with events, workshops, meetups and more.
@@ -375,7 +375,7 @@ const VenuePartner = () => {
                 Blithe.Venue connects spaces that have room with people who have something to bring to them.
               </p>
               <p className="about-desc">
-                From creative workshops and wellness sessions to community meetups and experiences, we help creators discover spaces that fit their events, and help venues turn their quieter hours into opportunities.
+                From creative workshops and wellness sessions to community meetups and experiences, we help organisors discover spaces that fit their events, and help venues turn their quieter hours into opportunities.
               </p>
               <div className="about-punchline-box">
                 <p className="punchline-text">
@@ -388,7 +388,7 @@ const VenuePartner = () => {
               <div className="about-image-card">
                 <img
                   src="https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=900&auto=format&fit=crop"
-                  alt="Creators and attendees enjoying an experience in a partner venue"
+                  alt="Organisors and attendees enjoying an experience in a partner venue"
                   loading="lazy"
                 />
               </div>
@@ -438,7 +438,7 @@ const VenuePartner = () => {
                 <Smile size={22} />
               </div>
               <h3 className="h3">A little help along the way</h3>
-              <p>Organizers manage their attendees and workshop agendas, allowing your team to simply provide warm hospitality.</p>
+              <p>Organisors manage their attendees and workshop agendas, allowing your team to simply provide warm hospitality.</p>
             </motion.div>
           </div>
         </div>
@@ -464,8 +464,8 @@ const VenuePartner = () => {
 
             <div className="step-card">
               <div className="step-number" aria-hidden="true">02</div>
-              <h3 className="h3">Connect with creators</h3>
-              <p>Discover local organizers, workshop hosts, and community leaders looking for a home for their ideas.</p>
+              <h3 className="h3">Connect with organisors</h3>
+              <p>Discover local organisors, workshop hosts, and community leaders looking for a home for their ideas.</p>
             </div>
 
             <div className="step-card">
@@ -654,7 +654,7 @@ const VenuePartner = () => {
             <span className="label">COMMUNITY FORMATS</span>
             <h2 className="h2">Experiences Powered By Blithe</h2>
             <p className="body-lg">
-              From creative workshops to soulful acoustic sessions, here is what local organizers bring to life.
+              From creative workshops to soulful acoustic sessions, here is what local organisors bring to life.
             </p>
           </div>
 
