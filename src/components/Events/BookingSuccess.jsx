@@ -368,6 +368,13 @@ const BookingSuccess = () => {
           finalRelated = [...finalRelated, ...additions];
         }
 
+        // Order final list by event start date
+        finalRelated.sort((a, b) => {
+          const dateA = a.eventStartDate ? parseDate(a.eventStartDate) : new Date(8640000000000000);
+          const dateB = b.eventStartDate ? parseDate(b.eventStartDate) : new Date(8640000000000000);
+          return dateA - dateB;
+        });
+
         // Format to standard event card fields
         const formatted = finalRelated.map(e => {
           const startDateObj = e.eventStartDate ? parseDate(e.eventStartDate) : new Date();

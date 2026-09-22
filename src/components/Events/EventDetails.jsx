@@ -1692,6 +1692,13 @@ const EventDetails = () => {
           topRelated = [...topRelated, ...sortedOther.slice(0, needed)];
         }
 
+        // Order final list by event start date
+        topRelated.sort((a, b) => {
+          const dateA = a.eventStartDate ? (typeof a.eventStartDate.toDate === 'function' ? a.eventStartDate.toDate() : new Date(a.eventStartDate)) : new Date(8640000000000000);
+          const dateB = b.eventStartDate ? (typeof b.eventStartDate.toDate === 'function' ? b.eventStartDate.toDate() : new Date(b.eventStartDate)) : new Date(8640000000000000);
+          return dateA - dateB;
+        });
+
         setRelatedEvents(topRelated);
       } catch (err) {
         console.error("Error fetching related events from Redux", err);
