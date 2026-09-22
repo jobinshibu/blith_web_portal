@@ -234,22 +234,37 @@ const VenuePartner = () => {
 
     setIsSubmitting(true);
 
-    // Static / Demo Mode: Simulate submission delay for smooth UI review without creating Firestore database records
-    setTimeout(() => {
-      console.log('[Venue Partner Demo Form Data]:', formData);
-      setIsSubmitted(true);
-      setIsSubmitting(false);
-      toast.success('Thank you! Your venue application has been received (Demo Mode).');
-
-      setFormData({
-        venueName: '',
-        email: '',
-        phone: '',
-        cityArea: '',
-        instagramUrl: '',
-        notes: ''
+    try {
+      const response = await fetch('http://localhost:8000/test-mail.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       });
-    }, 600);
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        setIsSubmitted(true);
+        toast.success('Your application has been submitted and the test email was sent successfully!');
+        setFormData({
+          venueName: '',
+          email: '',
+          phone: '',
+          cityArea: '',
+          instagramUrl: '',
+          notes: ''
+        });
+      } else {
+        toast.error('Failed to send email: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error sending mail:', error);
+      toast.error('An error occurred while sending the email.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
