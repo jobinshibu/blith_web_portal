@@ -235,7 +235,7 @@ const VenuePartner = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:8000/test-mail.php', {
+      const response = await fetch('http://localhost:8000/venue-mail-api.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

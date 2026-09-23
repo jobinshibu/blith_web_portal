@@ -10,13 +10,13 @@
   --rule: #E5E7EB;
   --bg: #FFFFFF;
   --off: #F9FAFB;
-  --v: #7C3AED;        // Primary Violet
-  --v2: #A78BFA;       // Soft Purple
-  --v3: #DDD6FE;       // Light Lilac
-  --v4: #FAF5FF;       // Background Tint
+  --v: #7C3AED; // Primary Violet
+  --v2: #A78BFA; // Soft Purple
+  --v3: #DDD6FE; // Light Lilac
+  --v4: #FAF5FF; // Background Tint
   --v-surface: #F5F3FF;
 
-  font-family: var(--font-body);
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: var(--ink);
   background: var(--bg);
   line-height: 1.55;
@@ -29,7 +29,10 @@
 
   // Reduced motion support
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+
+    *,
+    *::before,
+    *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
@@ -46,7 +49,6 @@
 
   // Common Typography
   .h1 {
-    font-family: var(--font-heading);
     font-size: clamp(34px, 4.2vw, 56px);
     font-weight: 800;
     line-height: 1.14;
@@ -61,7 +63,6 @@
   }
 
   .h2 {
-    font-family: var(--font-heading);
     font-size: clamp(26px, 3.2vw, 40px);
     font-weight: 800;
     line-height: 1.2;
@@ -71,7 +72,6 @@
   }
 
   .h3 {
-    font-family: var(--font-heading);
     font-size: 17.5px;
     font-weight: 700;
     line-height: 1.35;
@@ -130,7 +130,7 @@
     font-size: 14.5px;
     font-weight: 600;
     cursor: pointer;
-    font-family: var(--font-body);
+    font-family: 'Poppins', sans-serif;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     border: none;
     text-decoration: none;
@@ -643,7 +643,7 @@
           text-align: left;
           cursor: pointer;
           transition: all 0.2s ease;
-          font-family: var(--font-body);
+          font-family: 'Poppins', sans-serif;
 
           &:hover {
             border-color: #D4D4D8;
@@ -1233,7 +1233,7 @@
           background: none;
           border: none;
           text-align: left;
-          font-family: var(--font-body);
+          font-family: 'Poppins', sans-serif;
           cursor: pointer;
 
           &:focus-visible {
@@ -1361,13 +1361,15 @@
             }
           }
 
-          input, select, textarea {
+          input,
+          select,
+          textarea {
             width: 100%;
             padding: 12px 14px;
             border-radius: 8px;
             border: 1px solid var(--rule);
             background: #FFFFFF;
-            font-family: var(--font-body);
+            font-family: 'Poppins', sans-serif;
             font-size: 14px;
             color: var(--ink);
             transition: border-color 0.2s ease, box-shadow 0.2s ease;

@@ -1519,18 +1519,19 @@
       width: 100vw !important;
       max-width: none !important;
       height: auto !important;
-      aspect-ratio: 387 / 484 !important;
+      aspect-ratio: auto !important;
       max-height: none;
       margin-left: calc(-50vw + 50%) !important;
       border-radius: 0 !important;
       border: none;
       margin-bottom: 0;
+      padding-bottom: 3rem !important;
 
       .carousel-slide-image {
         border-radius: 0 !important;
-        object-fit: cover !important;
+        object-fit: contain !important;
         width: 100vw !important;
-        height: 100% !important;
+        height: auto !important;
       }
     }
 
