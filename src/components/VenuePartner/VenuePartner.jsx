@@ -34,6 +34,21 @@ import { db, analytics } from '../../firebase';
 import { toast } from 'react-hot-toast';
 import './VenuePartner.scss';
 
+// Custom Curated HD Venue & Community Images
+import heroVenueImg from '../../assets/venue/hero_venue.jpg';
+import aboutVenueImg from '../../assets/venue/about_venue.jpg';
+import catCafeImg from '../../assets/venue/cat_cafe.jpg';
+import catStudiosImg from '../../assets/venue/cat_studios.jpg';
+import catBreweriesImg from '../../assets/venue/cat_breweries.jpg';
+import catRooftopsImg from '../../assets/venue/cat_rooftops.jpg';
+import catBoutiqueImg from '../../assets/venue/cat_boutique.jpg';
+import expWorkshopsImg from '../../assets/venue/exp_workshops.jpg';
+import expSocialClubsImg from '../../assets/venue/exp_socialclubs.jpg';
+import expAcousticImg from '../../assets/venue/exp_acoustic.jpg';
+import expWellnessImg from '../../assets/venue/exp_wellness.jpg';
+import expBoardGamesImg from '../../assets/venue/exp_boardgames.jpg';
+import expCulturalTastingImg from '../../assets/venue/exp_culturaltasting.jpg';
+
 // CHANGED: 7. Venue Categories - High-resolution curated imagery, authentic tags and gathering ideas
 const VENUE_CATEGORIES = [
   {
@@ -41,7 +56,7 @@ const VENUE_CATEGORIES = [
     title: 'Cafés',
     icon: Coffee,
     tag: 'Cozy & Welcoming',
-    image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=900&auto=format&fit=crop',
+    image: catCafeImg,
     description: 'Perfect for intimate book clubs, creative craft sessions, board game afternoons, and relaxed morning mixers.',
     ideas: ['Book Clubs', 'Watercolor Mornings', 'Silent Reading Parties', 'Coffee Tastings']
   },
@@ -50,7 +65,7 @@ const VENUE_CATEGORIES = [
     title: 'Studios & Creative Spaces',
     icon: Palette,
     tag: 'Artistic & Dynamic',
-    image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=900&auto=format&fit=crop',
+    image: catStudiosImg,
     description: 'Spacious, well-lit spaces ideal for hands-on maker workshops, movement flow, pottery, and creative classes.',
     ideas: ['Pottery & Clay Sessions', 'Paint & Sip Gatherings', 'Movement & Sound Healing', 'Craft Making']
   },
@@ -59,7 +74,7 @@ const VENUE_CATEGORIES = [
     title: 'Breweries, Bars & Bistros',
     icon: Beer,
     tag: 'Lively & Social',
-    image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=900&auto=format&fit=crop',
+    image: catBreweriesImg,
     description: 'Social atmospheres ready for vibrant community energy before peak evening crowds arrive.',
     ideas: ['Pub Trivia Evenings', 'Acoustic Sets', 'Cocktail Mixology', 'Storytelling & Comedy']
   },
@@ -68,7 +83,7 @@ const VENUE_CATEGORIES = [
     title: 'Rooftops, Gardens & Lawns',
     icon: Sun,
     tag: 'Open-Air & Scenic',
-    image: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?q=80&w=900&auto=format&fit=crop',
+    image: catRooftopsImg,
     description: 'Open-air venues designed for golden hour socials, sunset acoustic sessions, and gatherings under the sky.',
     ideas: ['Sunset Acoustic Sets', 'Open-Air Cinema', 'Artisan Pop-ups', 'Morning Flow & Brunch']
   },
@@ -77,7 +92,7 @@ const VENUE_CATEGORIES = [
     title: 'Boutique & Alternative Spaces',
     icon: Compass,
     tag: 'Unique & Character-Rich',
-    image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=900&auto=format&fit=crop',
+    image: catBoutiqueImg,
     description: 'Bookstores, courtyards, ceramic studios, and design shops with an unmistakable local character.',
     ideas: ['Author Salons & Poetry', 'Intimate Supper Circles', 'Design Showcases', 'Listening Parties']
   }
@@ -89,37 +104,37 @@ const EXPERIENCE_TYPES = [
     icon: Palette,
     title: 'Hands-On Creative Workshops',
     description: 'Pottery, painting, resin craft, candle making, and floral styling led by local makers.',
-    image: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?q=80&w=700&auto=format&fit=crop'
+    image: expWorkshopsImg
   },
   {
     icon: BookOpen,
     title: 'Social Clubs & Special Interests',
     description: 'Book circles, creative writing meetups, design jams, and conversational clubs.',
-    image: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=700&auto=format&fit=crop'
+    image: expSocialClubsImg
   },
   {
     icon: Music,
     title: 'Acoustic Music & Listening Sessions',
     description: 'Intimate candlelit unplugged sets, indie listening parties, and open mic evenings.',
-    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=700&auto=format&fit=crop'
+    image: expAcousticImg
   },
   {
     icon: Smile,
     title: 'Wellness & Morning Meetups',
     description: 'Morning movement paired with coffee, guided meditation, breathwork, and sound baths.',
-    image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=700&auto=format&fit=crop'
+    image: expWellnessImg
   },
   {
     icon: Users,
     title: 'Board Games & Trivia Gatherings',
     description: 'Themed quiz nights, tabletop strategy games, and friendly community socials.',
-    image: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?q=80&w=700&auto=format&fit=crop'
+    image: expBoardGamesImg
   },
   {
     icon: Layers,
     title: 'Cultural & Tasting Circles',
     description: 'Chef pop-ups, coffee tastings, storytelling circles, and cultural exchange dinners.',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=700&auto=format&fit=crop'
+    image: expCulturalTastingImg
   }
 ];
 
@@ -323,7 +338,7 @@ const VenuePartner = () => {
             >
               <div className="hero-image-card">
                 <img
-                  src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000&auto=format&fit=crop"
+                  src={heroVenueImg}
                   alt="Community workshop gathering in a welcoming local venue"
                   loading="eager"
                 />
@@ -402,7 +417,7 @@ const VenuePartner = () => {
             <div className="about-image-column">
               <div className="about-image-card">
                 <img
-                  src="https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=900&auto=format&fit=crop"
+                  src={aboutVenueImg}
                   alt="Organisors and attendees enjoying an experience in a partner venue"
                   loading="lazy"
                 />

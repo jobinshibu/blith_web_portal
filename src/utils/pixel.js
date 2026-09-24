@@ -161,8 +161,7 @@ export const trackSignup = (userData = {}) => {
   const params = {
     status: 'success',
     registration_method: userData?.method || 'web_checkout',
-    user_name: userData?.name || '',
-    user_email: userData?.email || ''
+    content_name: 'User Registration'
   };
 
   return trackPixelEvent('CompleteRegistration', params);

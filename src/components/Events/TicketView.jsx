@@ -668,12 +668,13 @@ const TicketView = () => {
                       booking.tickets.map((t, idx) => {
                         const qty = Number(t.quantity || t.totalQuantity || 1);
                         const name = t.ticketName || t.name || 'Generic Ticket';
-                        const itemPrice = t.totalPrice !== undefined
-                          ? Number(t.totalPrice)
-                          : (t.price ? Number(t.price) * qty : 0);
-                        const attendedCount = t.totalAttendedQuantity !== undefined
-                          ? Number(t.totalAttendedQuantity)
-                          : (t.attendedQuantity !== undefined ? Number(t.attendedQuantity) : 0);
+                        const actualUnitPrice = (t.price !== undefined && t.price !== null)
+                          ? Number(t.price)
+                          : (t.actualPrice !== undefined ? Number(t.actualPrice) : 0);
+                        const itemPrice = actualUnitPrice * qty;
+                        const attendedCount = t.attendedQuantity !== undefined
+                          ? Number(t.attendedQuantity)
+                          : (t.totalAttendedQuantity !== undefined ? Number(t.totalAttendedQuantity) : 0);
 
                         return (
                           <div key={idx} className="type-item">
@@ -684,7 +685,7 @@ const TicketView = () => {
                               ) : null}
                               <span className="attended-tag">Event Attended: {attendedCount}/{qty}</span>
                             </div>
-                            <span className="price">₹{(itemPrice || 0).toFixed(2)}</span>
+                            <span className="price">{itemPrice > 0 ? `₹${itemPrice.toFixed(2)}` : 'Free'}</span>
                           </div>
                         );
                       })

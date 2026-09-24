@@ -21,11 +21,12 @@ export const fetchEventsThunk = createAsyncThunk(
       let querySnapshot;
 
       try {
-        // Try optimized query with date filter to retrieve events ending from 7 days ago onwards
+        // Try optimized query with date filter to retrieve events ending from 7 days ago onwards with status 0
         eventsQuery = query(
           collection(db, "event"),
           where("deleted", "==", false),
           where("block", "==", false),
+          where("status", "==", 0),
           where("eventEndDate", ">=", startDate)
         );
         querySnapshot = await getDocs(eventsQuery);
@@ -40,11 +41,12 @@ export const fetchEventsThunk = createAsyncThunk(
           console.error("Error executing optimized query, falling back:", indexError);
         }
 
-        // Fallback query without range condition (will retrieve all non-deleted/non-blocked events)
+        // Fallback query without range condition (will retrieve all non-deleted/non-blocked events with status 0)
         eventsQuery = query(
           collection(db, "event"),
           where("deleted", "==", false),
-          where("block", "==", false)
+          where("block", "==", false),
+          where("status", "==", 0)
         );
         querySnapshot = await getDocs(eventsQuery);
       }
@@ -54,9 +56,28 @@ export const fetchEventsThunk = createAsyncThunk(
         eventsQuery = query(
           collection(db, "event"),
           where("deleted", "==", false),
-          where("block", "==", false)
+          where("block", "==", false),
+          where("status", "==", 0)
         );
         querySnapshot = await getDocs(eventsQuery);
+      }
+
+      // Fallback in case status is stored as string '0' in Firestore
+      if (querySnapshot.empty) {
+        try {
+          const stringStatusQuery = query(
+            collection(db, "event"),
+            where("deleted", "==", false),
+            where("block", "==", false),
+            where("status", "==", "0")
+          );
+          const stringSnap = await getDocs(stringStatusQuery);
+          if (!stringSnap.empty) {
+            querySnapshot = stringSnap;
+          }
+        } catch (e) {
+          console.warn("String status '0' query fallback:", e);
+        }
       }
 
       console.log("Events count retrieved from Firestore (where condition applied):", querySnapshot.size);

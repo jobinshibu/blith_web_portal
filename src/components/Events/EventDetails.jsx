@@ -1252,14 +1252,15 @@ const EventDetails = () => {
           const isDeleted = data.deleted === true;
           const isExpired = data.isExpired === true || isEventExpired;
           const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
+          const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
 
-          // Allow deleted events for testing (e.g., BLEV-1779346952601-851)
-          if (isBlocked || (isPrivate && isExpired)) {
+          // Block if blocked, status is not 0, or private expired
+          if (isBlocked || !isStatusZero || (isPrivate && isExpired)) {
             setEvent({
               id: docSnap.id,
               isPrivateEvent: isPrivate,
               isUnavailablePrivateEvent: isPrivate && isExpired,
-              isBlocked: isBlocked,
+              isBlocked: isBlocked || !isStatusZero,
               deleted: isDeleted,
               isExpired: isExpired
             });
@@ -1529,8 +1530,9 @@ const EventDetails = () => {
             const endD = toDateObj(data.eventEndDate);
             const isNotExpired = endD ? endD >= now : true;
             const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
+            const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
 
-            if (isNotBlocked && isNotExpired && hasNoPaymentUrl) {
+            if (isNotBlocked && isNotExpired && hasNoPaymentUrl && isStatusZero) {
               const startDateObj = data.eventStartDate ? toDateObj(data.eventStartDate) : new Date();
               const formattedDate = startDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 

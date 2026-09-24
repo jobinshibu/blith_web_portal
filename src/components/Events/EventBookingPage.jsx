@@ -221,8 +221,8 @@ const EventBookingPage = () => {
       (t) => t && t.deleted !== true && t.deleted !== 'true' && t.isDeleted !== true && t.isDeleted !== 'true' && t.delete !== true && t.delete !== 'true' && t.isDelete !== true && t.isDelete !== 'true'
     );
     return [...rawTickets].sort((a, b) => {
-      const priceA = Number(a?.blithePrice ?? a?.price ?? 0);
-      const priceB = Number(b?.blithePrice ?? b?.price ?? 0);
+      const priceA = Number(a?.actualPrice ?? a?.price ?? 0);
+      const priceB = Number(b?.actualPrice ?? b?.price ?? 0);
       return priceA - priceB;
     });
   }, [event?.tickets]);
@@ -514,13 +514,14 @@ const EventBookingPage = () => {
           const isDeleted = data.deleted === true;
           const isExpired = data.isExpired === true || isEventExpired;
           const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
+          const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
 
-          if (isBlocked || isDeleted || (isPrivate && isExpired)) {
+          if (isBlocked || isDeleted || !isStatusZero || (isPrivate && isExpired)) {
             setEvent({
               id: docSnap.id,
               isPrivateEvent: isPrivate,
               isUnavailablePrivateEvent: isPrivate && isExpired,
-              isBlocked: isBlocked,
+              isBlocked: isBlocked || !isStatusZero,
               deleted: isDeleted,
               isExpired: isExpired
             });
@@ -1224,7 +1225,10 @@ const EventBookingPage = () => {
 
 
   const subtotal = tickets.reduce((sum, ticket, idx) => {
-    return sum + (quantities[idx] || 0) * (ticket.blithePrice || 0);
+    const aPrice = ticket.actualPrice !== undefined && ticket.actualPrice !== null
+      ? Number(ticket.actualPrice)
+      : Number(ticket.price || 0);
+    return sum + (quantities[idx] || 0) * aPrice;
   }, 0);
 
   // Use event.platformFee directly when present; fall back to 0 only if the field is genuinely absent.
@@ -1412,22 +1416,25 @@ const EventBookingPage = () => {
       gstPercentage: Number(priceDetails.gstPercentage || 0),
       platformFee: Number(priceDetails.platformFee || 0),
       platformFeePercentage: Number(priceDetails.platformFeePercentage || 0),
+      totalBlithePrice: Number(priceDetails.totalBlithePrice || 0),
       totalDiscount: Number(priceDetails.totalDiscount || 0),
       totalPrice: Number(priceDetails.totalPrice || 0),
       totalTicketPrice: Number(priceDetails.totalTicketPrice || 0)
     };
 
     const preparedTickets = bookedTickets.map((t) => ({
+      attendedQuantity: 0,
+      blithePrice: Number(t.blithePrice !== undefined ? t.blithePrice : (t.price || 0)),
       category: String(t.category || "generic"),
-      description: String(t.description || ""),
       price: Number(t.price || 0),
       quantity: Number(t.quantity || 0),
-      ticketName: String(t.ticketName || ""),
-      totalPrice: Number(t.totalPrice || 0),
-      totalQuantity: Number(t.totalQuantity || 0)
+      ticketName: String(t.ticketName || "")
     }));
 
     const bookingData = {
+      approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
+      approvalNeeded: event.approvalNeeded === true,
+      approvalQuestion: formattedApprovalQuestions,
       bookingDate: serverTimestamp(),
       bookingId: bId,
       coupon: couponMap,
@@ -1440,21 +1447,25 @@ const EventBookingPage = () => {
       eventLong: Number(event.long || event.longitude || 0.0),
       eventName: String(event.eventName || event.title || ""),
       eventType: String(event.eventType || "Online"),
+      isPrivateEvent: event.isPrivateEvent === true,
       isRated: false,
       isSkipped: false,
+      paymentId: "",
+      paymentStatus: "pending",
       platform: "Web",
       priceDetails: formattedPriceDetails,
+      razorpayOrderId: orderId,
+      refund: false,
+      refundId: "",
       searchList: finalBookingSearchList,
       serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
       status: "pending",
-      approvalQuestion: formattedApprovalQuestions,
-      approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
-      approvalNeeded: event.approvalNeeded === true,
-      isPrivateEvent: event.isPrivateEvent === true,
+      ticketScanedUserEmail: "",
       tickets: preparedTickets,
       totalAttendedQuantity: 0,
       totalPrice: Number(total),
       totalQuantity: Number(totalTickets),
+      updatedAt: serverTimestamp(),
       userEmail: String(attendee.email),
       userId: String(uId),
       userName: String(attendee.name),
@@ -1646,13 +1657,19 @@ const EventBookingPage = () => {
       const checkoutGstAmount = platformFeeVal * (checkoutGstPercentage / 100);
       const checkoutTotal = Math.max(0, (subtotal - discountAmount) + platformFeeVal + checkoutGstAmount);
 
-      // Construct price details
+      const totalBlithePriceCalc = tickets.reduce((sum, ticket, idx) => {
+        const aPrice = ticket.actualPrice !== undefined && ticket.actualPrice !== null ? Number(ticket.actualPrice) : Number(ticket.price || 0);
+        const bPrice = ticket.blithePrice !== undefined && ticket.blithePrice !== null ? Number(ticket.blithePrice) : aPrice;
+        return sum + (quantities[idx] || 0) * bPrice;
+      }, 0);
+
       const priceDetails = {
         couponDiscountPrice: discountAmount,
         gstAmount: checkoutGstAmount,
         gstPercentage: checkoutGstPercentage,
         platformFee: platformFeeVal,
         platformFeePercentage: platformFeeRate,
+        totalBlithePrice: totalBlithePriceCalc,
         totalDiscount: discountAmount,
         totalPrice: checkoutTotal,
         totalTicketPrice: subtotal
@@ -1665,13 +1682,16 @@ const EventBookingPage = () => {
       tickets.forEach((ticket, idx) => {
         const qty = quantities[idx] || 0;
         if (qty > 0) {
+          const aPrice = ticket.actualPrice !== undefined && ticket.actualPrice !== null ? Number(ticket.actualPrice) : Number(ticket.price || 0);
+          const bPrice = ticket.blithePrice !== undefined && ticket.blithePrice !== null ? Number(ticket.blithePrice) : aPrice;
           bookedTickets.push({
             category: ticket.category || "generic",
             description: ticket.description || "",
-            price: ticket.blithePrice || 0,
+            price: aPrice,
+            blithePrice: bPrice,
             quantity: qty,
             ticketName: ticket.ticketName || "",
-            totalPrice: subtotal > 0 ? (qty * (ticket.blithePrice || 0) / subtotal) * checkoutTotal : 0,
+            totalPrice: subtotal > 0 ? (qty * bPrice / subtotal) * checkoutTotal : 0,
             totalQuantity: qty,
             userEmail: attendee.email,
             userId: uId,
@@ -1716,15 +1736,14 @@ const EventBookingPage = () => {
           formattedUserPhone
         );
 
-        // Prepare booked tickets with matching properties
+        // Prepare booked tickets strictly with Mobile App schema (6 fields)
         const preparedTickets = bookedTickets.map((t) => ({
+          attendedQuantity: 0,
+          blithePrice: Number(t.blithePrice !== undefined ? t.blithePrice : (t.price || 0)),
           category: String(t.category || "generic"),
-          description: String(t.description || ""),
           price: Number(t.price || 0),
           quantity: Number(t.quantity || 0),
-          ticketName: String(t.ticketName || ""),
-          totalPrice: Number(t.totalPrice || 0),
-          totalQuantity: Number(t.totalQuantity || 0)
+          ticketName: String(t.ticketName || "")
         }));
 
         const couponMap = appliedCoupon ? {
@@ -1736,72 +1755,28 @@ const EventBookingPage = () => {
         } : {};
 
         const formattedPriceDetails = {
-          couponDiscountPrice: Number(priceDetails.couponDiscountPrice),
-          gstAmount: Number(priceDetails.gstAmount),
-          gstPercentage: Number(priceDetails.gstPercentage),
-          platformFee: Number(priceDetails.platformFee),
-          platformFeePercentage: Number(priceDetails.platformFeePercentage),
-          totalDiscount: Number(priceDetails.totalDiscount),
-          totalPrice: Number(priceDetails.totalPrice),
-          totalTicketPrice: Number(priceDetails.totalTicketPrice)
+          couponDiscountPrice: Number(priceDetails.couponDiscountPrice || 0),
+          gstAmount: Number(priceDetails.gstAmount || 0),
+          gstPercentage: Number(priceDetails.gstPercentage || 0),
+          platformFee: Number(priceDetails.platformFee || 0),
+          platformFeePercentage: Number(priceDetails.platformFeePercentage || 0),
+          totalBlithePrice: Number(priceDetails.totalBlithePrice || 0),
+          totalDiscount: Number(priceDetails.totalDiscount || 0),
+          totalPrice: Number(priceDetails.totalPrice || 0),
+          totalTicketPrice: Number(priceDetails.totalTicketPrice || 0)
         };
 
         const isFree = paymentId === "free";
 
-        const myBookingData = isFree ? {
-          bookingDate: serverTimestamp(),
-          bookingId: bId,
-          coupon: couponMap,
-          createdDate: serverTimestamp(),
-          eventDate: selectedDateVal,
-          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
-          eventId: event.id,
-          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
-          eventLat: Number(event.lat || event.latitude || 0.0),
-          eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
-          eventLong: Number(event.long || event.longitude || 0.0),
-          eventName: String(event.eventName || event.title || ""),
-          eventType: String(event.eventType || "Online"),
-          isRated: false,
-          isSkipped: false,
-          platform: "Web",
-          priceDetails: formattedPriceDetails,
-          searchList: searchList,
-          serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
-          status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: formattedApprovalQuestions,
+        const baseBookingRecord = {
           approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
-          isPrivateEvent: event.isPrivateEvent === true,
-          tickets: bookedTickets.map((t) => ({
-            category: String(t.category || "generic"),
-            description: String(t.description || ""),
-            price: Number(t.price || 0),
-            quantity: Number(t.quantity || 0),
-            ticketName: String(t.ticketName || ""),
-            totalAttendedQuantity: 0,
-            totalPrice: Number(t.totalPrice || 0),
-            totalQuantity: Number(t.quantity || t.totalQuantity || 0),
-            userEmail: String(t.userEmail || attendee.email),
-            userId: String(t.userId || uId),
-            userName: String(t.userName || attendee.name),
-            userPhone: formatPhoneWithPlus91(t.userPhone || attendee.phone),
-            userProfileImage: String(t.userProfileImage || userProfileImage || "")
-          })),
-          totalPrice: Number(checkoutTotal),
-          totalQuantity: Number(totalTickets),
-          userEmail: String(attendee.email),
-          userId: String(uId),
-          userName: String(attendee.name),
-          userPhone: formattedUserPhone,
-          userProfileImage: String(userProfileImage || "")
-        } : {
+          approvalQuestion: formattedApprovalQuestions,
           bookingDate: serverTimestamp(),
           bookingId: bId,
           coupon: couponMap,
           createdDate: serverTimestamp(),
           eventDate: selectedDateVal,
-          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
           eventId: event.id,
           eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
           eventLat: Number(event.lat || event.latitude || 0.0),
@@ -1809,21 +1784,24 @@ const EventBookingPage = () => {
           eventLong: Number(event.long || event.longitude || 0.0),
           eventName: String(event.eventName || event.title || ""),
           eventType: String(event.eventType || "Online"),
+          isPrivateEvent: event.isPrivateEvent === true,
           isRated: false,
           isSkipped: false,
-          paymentId: String(paymentId),
+          paymentId: isFree ? "free" : String(paymentId),
           paymentStatus: String(paymentStatusVal),
           platform: "Web",
           priceDetails: formattedPriceDetails,
-          razorpayOrderId: String(orderId),
+          razorpayOrderId: isFree ? "" : String(orderId),
+          refund: false,
+          refundId: "",
           searchList: searchList,
           serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
           status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: formattedApprovalQuestions,
-          approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
-          approvalNeeded: event.approvalNeeded === true,
-          isPrivateEvent: event.isPrivateEvent === true,
+          ticketScanedUserEmail: "",
           tickets: preparedTickets,
+          totalAttendedQuantity: 0,
+          totalPrice: Number(checkoutTotal),
+          totalQuantity: Number(totalTickets),
           updatedAt: serverTimestamp(),
           userEmail: String(attendee.email),
           userId: String(uId),
@@ -1832,89 +1810,8 @@ const EventBookingPage = () => {
           userProfileImage: String(userProfileImage || "")
         };
 
-        const eventBookingData = isFree ? {
-          bookingDate: serverTimestamp(),
-          bookingId: bId,
-          coupon: couponMap,
-          createdDate: serverTimestamp(),
-          eventDate: selectedDateVal,
-          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
-          eventId: event.id,
-          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
-          eventLat: Number(event.lat || event.latitude || 0.0),
-          eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
-          eventLong: Number(event.long || event.longitude || 0.0),
-          eventName: String(event.eventName || event.title || ""),
-          eventType: String(event.eventType || "Online"),
-          isRated: false,
-          isSkipped: false,
-          platform: "Web",
-          priceDetails: formattedPriceDetails,
-          searchList: searchList,
-          serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
-          status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: formattedApprovalQuestions,
-          approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
-          approvalNeeded: event.approvalNeeded === true,
-          isPrivateEvent: event.isPrivateEvent === true,
-          tickets: bookedTickets.map((t) => ({
-            category: String(t.category || "generic"),
-            description: String(t.description || ""),
-            price: Number(t.price || 0),
-            quantity: Number(t.quantity || 0),
-            ticketName: String(t.ticketName || ""),
-            totalAttendedQuantity: 0,
-            totalPrice: Number(t.totalPrice || 0),
-            totalQuantity: Number(t.quantity || t.totalQuantity || 0),
-            userEmail: String(t.userEmail || attendee.email),
-            userId: String(t.userId || uId),
-            userName: String(t.userName || attendee.name),
-            userPhone: formatPhoneWithPlus91(t.userPhone || attendee.phone),
-            userProfileImage: String(t.userProfileImage || userProfileImage || "")
-          })),
-          totalPrice: Number(checkoutTotal),
-          totalQuantity: Number(totalTickets),
-          userEmail: String(attendee.email),
-          userId: String(uId),
-          userName: String(attendee.name),
-          userPhone: formattedUserPhone,
-          userProfileImage: String(userProfileImage || "")
-        } : {
-          bookingDate: serverTimestamp(),
-          bookingId: bId,
-          coupon: couponMap,
-          createdDate: serverTimestamp(),
-          eventDate: selectedDateVal,
-          eventTime: String(event.eventTime || event.time || event.startTime || event.eventStartTime || ""),
-          eventId: event.id,
-          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
-          eventLat: Number(event.lat || event.latitude || 0.0),
-          eventLocation: String(event.eventLocation || event.location || event.address || event.venue || ""),
-          eventLong: Number(event.long || event.longitude || 0.0),
-          eventName: String(event.eventName || event.title || ""),
-          eventType: String(event.eventType || "Online"),
-          isRated: false,
-          isSkipped: false,
-          paymentId: String(paymentId),
-          paymentStatus: String(paymentStatusVal),
-          platform: "Web",
-          priceDetails: formattedPriceDetails,
-          razorpayOrderId: String(orderId),
-          searchList: searchList,
-          serviceCode: String(event.serviceCode || settings?.serviceCode || settingsDoc?.serviceCode || ""),
-          status: event.approvalNeeded ? "pending" : "confirmed",
-          approvalQuestion: formattedApprovalQuestions,
-          approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
-          approvalNeeded: event.approvalNeeded === true,
-          isPrivateEvent: event.isPrivateEvent === true,
-          tickets: preparedTickets,
-          updatedAt: serverTimestamp(),
-          userEmail: String(attendee.email),
-          userId: String(uId),
-          userName: String(attendee.name),
-          userPhone: formattedUserPhone,
-          userProfileImage: String(userProfileImage || "")
-        };
+        const myBookingData = { ...baseBookingRecord };
+        const eventBookingData = { ...baseBookingRecord };
 
         const eventRef = doc(db, "event", event.id);
         const availabilityRef = doc(db, "event", event.id, "availability", dateStr);
@@ -1928,8 +1825,9 @@ const EventBookingPage = () => {
             throw new Error("Event not found");
           }
           const eventDbData = eventSnap.data();
-          if (eventDbData.block === true || eventDbData.blocked === true || eventDbData.isBlocked === true || eventDbData.deleted === true) {
-            throw new Error("This event has been blocked or removed, and is no longer available for booking.");
+          const isStatusZero = (eventDbData.status === 0 || eventDbData.status === '0' || Number(eventDbData.status) === 0) && eventDbData.status !== null && eventDbData.status !== undefined && eventDbData.status !== '';
+          if (eventDbData.block === true || eventDbData.blocked === true || eventDbData.isBlocked === true || eventDbData.deleted === true || !isStatusZero) {
+            throw new Error("This event has been blocked, concluded, or removed, and is no longer available for booking.");
           }
 
           // 2. Notifications References
@@ -2725,12 +2623,12 @@ const EventBookingPage = () => {
                     </div>
                     <div className="tier-bottom">
                       <span className="tier-price">
-                        {(Number(ticket.actualPrice || 0) > Number(ticket.blithePrice || 0)) && (
-                          <span className="original-price" style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: '0.4rem', fontSize: '0.85em', fontWeight: 500 }}>
-                            ₹ {ticket.actualPrice}
-                          </span>
-                        )}
-                        {(!ticket.blithePrice || Number(ticket.blithePrice) === 0) ? 'FREE' : `₹ ${ticket.blithePrice}`}
+                        {(() => {
+                          const aPrice = ticket.actualPrice !== undefined && ticket.actualPrice !== null
+                            ? Number(ticket.actualPrice)
+                            : Number(ticket.price || 0);
+                          return (!aPrice || aPrice === 0) ? 'FREE' : `₹ ${aPrice}`;
+                        })()}
                       </span>
                       <div className="tier-selector">
                         <button type="button" className="qty-btn" disabled={qty <= 0} onClick={() => updateQuantity(idx, -1)}>-</button>
@@ -2918,7 +2816,7 @@ const EventBookingPage = () => {
           )}
 
           {/* Coupons Section — hidden for free events */}
-          {tickets.some(t => t.blithePrice && t.blithePrice > 0) && <div className="section-block coupons-block glass">
+          {tickets.some(t => Number(t.actualPrice ?? t.price ?? 0) > 0) && <div className="section-block coupons-block glass">
             <h3>{isMultiDay ? '4. Available Offers' : '3. Available Offers'}</h3>
 
             {/* Promo Code Search bar */}
@@ -3146,7 +3044,12 @@ const EventBookingPage = () => {
                   return (
                     <div key={idx} className="ticket-item-row">
                       <span>{qty}x {ticket.ticketName}</span>
-                      <span>{(!ticket.blithePrice || Number(ticket.blithePrice) === 0) ? 'Free' : `₹ ${qty * Number(ticket.blithePrice)}`}</span>
+                      <span>{(() => {
+                        const aPrice = ticket.actualPrice !== undefined && ticket.actualPrice !== null
+                          ? Number(ticket.actualPrice)
+                          : Number(ticket.price || 0);
+                        return (!aPrice || aPrice === 0) ? 'Free' : `₹ ${qty * aPrice}`;
+                      })()}</span>
                     </div>
                   );
                 }

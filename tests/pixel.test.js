@@ -117,6 +117,8 @@ global.window.fbqCalls = [];
 trackSignup({ name: 'John Doe', email: 'john@example.com', method: 'web_checkout' });
 assert(global.window.fbqCalls.length === 1, "trackSignup triggers 1 standard fbq call (CompleteRegistration)");
 assert(global.window.fbqCalls[0][0] === 'track' && global.window.fbqCalls[0][1] === 'CompleteRegistration', "CompleteRegistration standard event fired");
+assert(global.window.fbqCalls[0][2]?.user_email === undefined, "CompleteRegistration does not include user_email (PII compliance)");
+assert(global.window.fbqCalls[0][2]?.user_name === undefined, "CompleteRegistration does not include user_name (PII compliance)");
 assert(global.window.fbqCalls[0][3]?.test_event_code === 'TEST13665', "CompleteRegistration event includes test_event_code: TEST13665");
 
 // Test Purchase tracking

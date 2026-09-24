@@ -48,7 +48,8 @@ const LinkTree = () => {
           const paymentUrlVal = data.paymentUrl || data.paymentURl || data.paymentURL || "";
           const isBlitheEvent = !paymentUrlVal || paymentUrlVal.trim() === "";
           const isNotPrivate = data.isPrivateEvent !== true;
-          return isNotBlocked && isNotExpired && isBlitheEvent && isNotPrivate;
+          const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
+          return isNotBlocked && isNotExpired && isBlitheEvent && isNotPrivate && isStatusZero;
         })
         .sort((a, b) => {
           const dateA = a.eventStartDate ? toDateObj(a.eventStartDate) : new Date();
