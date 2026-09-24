@@ -737,6 +737,23 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
 let lastLoggedEventId = null;
 let lastLoggedEventTime = 0;
 
+// Module-level in-memory caches to prevent redundant Firestore operations & maximize performance
+const organiserCache = new Map();
+const attendeesCache = new Map();
+const ATTENDEES_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+let cachedSettingsData = null;
+let lastSettingsFetchTime = 0;
+const SETTINGS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+let cachedCategoriesList = null;
+let cachedClustersList = null;
+let lastClusterFetchTime = 0;
+const CLUSTER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+let cachedUserProfile = null;
+let lastUserCacheKey = '';
+
 const EventDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -777,6 +794,12 @@ const EventDetails = () => {
         const cachedDetails = localStorage.getItem('blithe_checkout_attendee') || sessionStorage.getItem('blithe_checkout_attendee');
         console.log("[CurrentUser Debug] cachedDetails from sessionStorage:", cachedDetails);
         if (cachedDetails) {
+          if (cachedUserProfile && cachedDetails === lastUserCacheKey) {
+            console.log("[CurrentUser Debug] Using cached resolved user profile:", cachedUserProfile);
+            setCurrentUser(cachedUserProfile);
+            return;
+          }
+
           const parsed = JSON.parse(cachedDetails);
           const email = parsed.email?.trim().toLowerCase();
           const phone = parsed.phone?.trim();
@@ -789,6 +812,8 @@ const EventDetails = () => {
             const userSnap = await getDoc(userDocRef);
             if (userSnap.exists()) {
               const uData = { uid: userSnap.id, ...userSnap.data() };
+              cachedUserProfile = uData;
+              lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
               console.log("[CurrentUser Debug] Resolved user profile from Firestore by UID:", uData);
               return;
@@ -806,6 +831,8 @@ const EventDetails = () => {
             if (!querySnapshot.empty) {
               const userDoc = querySnapshot.docs[0];
               const uData = { uid: userDoc.id, ...userDoc.data() };
+              cachedUserProfile = uData;
+              lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
               console.log("[CurrentUser Debug] Resolved user profile from Firestore by email:", uData);
               return;
@@ -821,6 +848,8 @@ const EventDetails = () => {
             if (!querySnapshot.empty) {
               const userDoc = querySnapshot.docs[0];
               const uData = { uid: userDoc.id, ...userDoc.data() };
+              cachedUserProfile = uData;
+              lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
               console.log("[CurrentUser Debug] Resolved user profile from Firestore by phoneNo:", uData);
               return;
@@ -836,11 +865,15 @@ const EventDetails = () => {
               phoneNo: parsed.phone || '',
               profilePic: parsed.profilePic || ''
             };
+            cachedUserProfile = fallbackUser;
+            lastUserCacheKey = cachedDetails;
             setCurrentUser(fallbackUser);
             console.log("[CurrentUser Debug] Fell back to cached session user (not found in Firestore):", fallbackUser);
           }
         } else {
           console.log("[CurrentUser Debug] No cached user found in sessionStorage.");
+          cachedUserProfile = null;
+          lastUserCacheKey = '';
           setCurrentUser(null);
         }
       } catch (err) {
@@ -850,6 +883,8 @@ const EventDetails = () => {
     fetchCurrentUserProfile();
 
     const handleSessionChange = () => {
+      cachedUserProfile = null;
+      lastUserCacheKey = '';
       fetchCurrentUserProfile();
     };
 
@@ -905,10 +940,18 @@ const EventDetails = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
+        const now = Date.now();
+        if (cachedSettingsData && (now - lastSettingsFetchTime < SETTINGS_CACHE_TTL)) {
+          setSettings(cachedSettingsData);
+          return;
+        }
+
         const docRef = doc(db, 'settings', 'settings');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+          cachedSettingsData = data;
+          lastSettingsFetchTime = now;
           setSettings(data);
         }
       } catch (err) {
@@ -926,24 +969,16 @@ const EventDetails = () => {
       if (!id) return;
       try {
         let bookings = [];
+        const now = Date.now();
+        const cached = attendeesCache.get(id);
 
-        // 1. Try querying collectionGroup "myBookings"
-        try {
-          const bookingsQuery = query(
-            collectionGroup(db, 'myBookings'),
-            where('eventId', '==', id),
-            where('status', '==', 'confirmed')
-          );
-          const bookingsSnapshot = await getDocs(bookingsQuery);
-          bookingsSnapshot.forEach(docSnap => {
-            bookings.push(docSnap.data());
-          });
-        } catch (cgErr) {
-          console.warn("[Attendees] collectionGroup 'myBookings' failed, trying 'mybooking':", cgErr);
-          // 2. Try collectionGroup "mybooking" if "myBookings" fails (e.g. index issue or collection naming)
+        if (cached && (now - cached.time < ATTENDEES_CACHE_TTL)) {
+          bookings = cached.data;
+        } else {
+          // 1. Try querying collectionGroup "myBookings"
           try {
             const bookingsQuery = query(
-              collectionGroup(db, 'mybooking'),
+              collectionGroup(db, 'myBookings'),
               where('eventId', '==', id),
               where('status', '==', 'confirmed')
             );
@@ -951,23 +986,39 @@ const EventDetails = () => {
             bookingsSnapshot.forEach(docSnap => {
               bookings.push(docSnap.data());
             });
-          } catch (cgErr2) {
-            console.warn("[Attendees] collectionGroup 'mybooking' failed:", cgErr2);
+          } catch (cgErr) {
+            console.warn("[Attendees] collectionGroup 'myBookings' failed, trying 'mybooking':", cgErr);
+            // 2. Try collectionGroup "mybooking" if "myBookings" fails (e.g. index issue or collection naming)
+            try {
+              const bookingsQuery = query(
+                collectionGroup(db, 'mybooking'),
+                where('eventId', '==', id),
+                where('status', '==', 'confirmed')
+              );
+              const bookingsSnapshot = await getDocs(bookingsQuery);
+              bookingsSnapshot.forEach(docSnap => {
+                bookings.push(docSnap.data());
+              });
+            } catch (cgErr2) {
+              console.warn("[Attendees] collectionGroup 'mybooking' failed:", cgErr2);
+            }
           }
-        }
 
-        // 3. Fallback to eventBookings subcollection under the event document
-        if (bookings.length === 0) {
-          try {
-            const eventBookingsRef = collection(db, "event", id, "eventBookings");
-            const q = query(eventBookingsRef, where('status', '==', 'confirmed'));
-            const snap = await getDocs(q);
-            snap.forEach(docSnap => {
-              bookings.push(docSnap.data());
-            });
-          } catch (fallbackErr) {
-            console.error("[Attendees] Fallback fetch from eventBookings failed:", fallbackErr);
+          // 3. Fallback to eventBookings subcollection under the event document
+          if (bookings.length === 0) {
+            try {
+              const eventBookingsRef = collection(db, "event", id, "eventBookings");
+              const q = query(eventBookingsRef, where('status', '==', 'confirmed'));
+              const snap = await getDocs(q);
+              snap.forEach(docSnap => {
+                bookings.push(docSnap.data());
+              });
+            } catch (fallbackErr) {
+              console.error("[Attendees] Fallback fetch from eventBookings failed:", fallbackErr);
+            }
           }
+
+          attendeesCache.set(id, { time: now, data: bookings });
         }
 
         // Process bookings to filter unique attendees and extract names and profile images
@@ -1324,37 +1375,42 @@ const EventDetails = () => {
 
           const organizerId = data.oId || data.oid || "";
           if (organizerId) {
-            try {
+            if (organiserCache.has(organizerId)) {
+              setOrganiser(organiserCache.get(organizerId));
+            } else {
               const organiserRef = doc(db, "organisers", organizerId);
-              const organiserSnap = await getDoc(organiserRef);
-              if (organiserSnap.exists()) {
-                const orgData = organiserSnap.data();
-                console.log("DEBUG_ORGANISER_PHONE_FIELDS_JSON:", JSON.stringify({
-                  phone: orgData.phone,
-                  phoneNumber: orgData.phoneNumber,
-                  contact: orgData.contact,
-                  contactNumber: orgData.contactNumber,
-                  supportNumber: orgData.supportNumber,
-                  orgEventSupportNumber: orgData.orgEventSupportNumber,
-                  mobile: orgData.mobile,
-                  allKeys: Object.keys(orgData).filter(k => /phone|support|contact|mobile|number/i.test(k)).map(k => ({ [k]: orgData[k] }))
-                }));
-                setOrganiser({
-                  id: organiserSnap.id,
-                  name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
-                  image: orgData.profileImage || orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
-                  about: orgData.about || orgData.description || orgData.bio || "",
-                  facebookUrl: orgData.facebookUrl || orgData.facebook || "",
-                  instagramUrl: orgData.instagramUrl || orgData.instagram || "",
-                  twitterUrl: orgData.twitterUrl || orgData.twitter || "",
-                  websiteUrl: orgData.websiteUrl || orgData.website || ""
-                });
-              } else {
+              getDoc(organiserRef).then(organiserSnap => {
+                if (organiserSnap.exists()) {
+                  const orgData = organiserSnap.data();
+                  console.log("DEBUG_ORGANISER_PHONE_FIELDS_JSON:", JSON.stringify({
+                    phone: orgData.phone,
+                    phoneNumber: orgData.phoneNumber,
+                    contact: orgData.contact,
+                    contactNumber: orgData.contactNumber,
+                    supportNumber: orgData.supportNumber,
+                    orgEventSupportNumber: orgData.orgEventSupportNumber,
+                    mobile: orgData.mobile,
+                    allKeys: Object.keys(orgData).filter(k => /phone|support|contact|mobile|number/i.test(k)).map(k => ({ [k]: orgData[k] }))
+                  }));
+                  const orgObj = {
+                    id: organiserSnap.id,
+                    name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
+                    image: orgData.profileImage || orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
+                    about: orgData.about || orgData.description || orgData.bio || "",
+                    facebookUrl: orgData.facebookUrl || orgData.facebook || "",
+                    instagramUrl: orgData.instagramUrl || orgData.instagram || "",
+                    twitterUrl: orgData.twitterUrl || orgData.twitter || "",
+                    websiteUrl: orgData.websiteUrl || orgData.website || ""
+                  };
+                  organiserCache.set(organizerId, orgObj);
+                  setOrganiser(orgObj);
+                } else {
+                  setOrganiser(null);
+                }
+              }).catch(err => {
+                console.error("Error fetching organiser: ", err);
                 setOrganiser(null);
-              }
-            } catch (err) {
-              console.error("Error fetching organiser: ", err);
-              setOrganiser(null);
+              });
             }
           } else {
             setOrganiser(null);
@@ -1406,6 +1462,7 @@ const EventDetails = () => {
           };
 
           setEvent(loadedEventObj);
+          setLoading(false);
           trackEventPageView(loadedEventObj);
 
           try {
@@ -1436,7 +1493,6 @@ const EventDetails = () => {
       }
     };
     fetchEvent();
-    fetchEvent();
   }, [id]);
 
   useEffect(() => {
@@ -1444,11 +1500,24 @@ const EventDetails = () => {
       if (!event || !event.category) return;
       let names = [];
       try {
-        const categoriesSnap = await getDocs(query(collection(db, "eventCategories"), where("deleted", "==", false)));
-        const categoriesList = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const now = Date.now();
+        let categoriesList = [];
+        let clustersList = [];
 
-        const clustersSnap = await getDocs(query(collection(db, "cluster_categories"), where("isDeleted", "==", false)));
-        const clustersList = clustersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (cachedCategoriesList && cachedClustersList && (now - lastClusterFetchTime < CLUSTER_CACHE_TTL)) {
+          categoriesList = cachedCategoriesList;
+          clustersList = cachedClustersList;
+        } else {
+          const categoriesSnap = await getDocs(query(collection(db, "eventCategories"), where("deleted", "==", false)));
+          categoriesList = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          const clustersSnap = await getDocs(query(collection(db, "cluster_categories"), where("isDeleted", "==", false)));
+          clustersList = clustersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          cachedCategoriesList = categoriesList;
+          cachedClustersList = clustersList;
+          lastClusterFetchTime = now;
+        }
 
         const currentEventCategoryDoc = categoriesList.find(
           cat => cat.categoryName?.toLowerCase() === event.category?.toLowerCase()

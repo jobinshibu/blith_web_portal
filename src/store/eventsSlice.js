@@ -91,6 +91,18 @@ export const fetchEventsThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.message);
     }
+  },
+  {
+    condition: (force, { getState }) => {
+      if (force) return true;
+      const { events } = getState();
+      const CACHE_DURATION = 5 * 60 * 1000;
+      const now = Date.now();
+      if (events.events.length > 0 && (now - events.lastFetched < CACHE_DURATION)) {
+        return false; // Skip dispatching pending and payload creator
+      }
+      return true;
+    }
   }
 );
 
@@ -122,6 +134,18 @@ export const fetchCategoriesThunk = createAsyncThunk(
       return categoriesData;
     } catch (error) {
       return rejectWithValue(error.message);
+    }
+  },
+  {
+    condition: (force, { getState }) => {
+      if (force) return true;
+      const { events } = getState();
+      const CACHE_DURATION = 5 * 60 * 1000;
+      const now = Date.now();
+      if (events.categories.length > 0 && (now - events.categoriesLastFetched < CACHE_DURATION)) {
+        return false; // Skip dispatching pending and payload creator
+      }
+      return true;
     }
   }
 );

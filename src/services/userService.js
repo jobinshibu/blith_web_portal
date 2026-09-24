@@ -318,6 +318,11 @@ export const registerNewUser = async (userData) => {
  * @param {string} categoryNameOrId - Category name or ID
  * @param {number} score - Interest score to add (e.g. 5)
  */
+// In-memory cache for event categories mapping to minimize Firestore reads
+let cachedUserCategories = null;
+let lastUserCategoriesFetchTime = 0;
+const USER_CATEGORIES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const updateUserInterests = async (uid, categoryNameOrId, score) => {
   console.log(`[Interests Debug] updateUserInterests called. uid: '${uid}', categoryNameOrId: '${categoryNameOrId}', score: ${score}`);
   try {
@@ -329,18 +334,30 @@ export const updateUserInterests = async (uid, categoryNameOrId, score) => {
     let categoryId = categoryNameOrId;
 
     try {
-      const categoriesRef = collection(db, 'eventCategories');
-      const q = query(categoriesRef, where('deleted', '==', false));
-      const querySnapshot = await getDocs(q);
-      console.log(`[Interests Debug] Fetched ${querySnapshot.size} eventCategories.`);
+      const now = Date.now();
+      let categoryList = [];
+
+      if (cachedUserCategories && (now - lastUserCategoriesFetchTime < USER_CATEGORIES_CACHE_TTL)) {
+        categoryList = cachedUserCategories;
+      } else {
+        const categoriesRef = collection(db, 'eventCategories');
+        const q = query(categoriesRef, where('deleted', '==', false));
+        const querySnapshot = await getDocs(q);
+        categoryList = querySnapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          name: docSnap.data().categoryName || docSnap.data().name || docSnap.data().title || ""
+        }));
+        cachedUserCategories = categoryList;
+        lastUserCategoriesFetchTime = now;
+        console.log(`[Interests Debug] Fetched and cached ${categoryList.length} eventCategories.`);
+      }
 
       let foundIdByDocId = null;
       let foundIdByName = null;
 
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const docId = docSnap.id;
-        const name = data.categoryName || data.name || data.title || "";
+      categoryList.forEach(item => {
+        const docId = item.id;
+        const name = item.name;
 
         if (docId.toLowerCase() === categoryNameOrId.toLowerCase()) {
           foundIdByDocId = docId;
