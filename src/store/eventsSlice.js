@@ -1,10 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export const fetchEventsThunk = createAsyncThunk(
   'events/fetchEvents',
-  async (force = false, { getState, rejectWithValue }) => {
+  async (force = false, { getState, dispatch, rejectWithValue }) => {
     try {
       const { events } = getState();
       const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
@@ -17,77 +17,92 @@ export const fetchEventsThunk = createAsyncThunk(
       const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       startDate.setHours(0, 0, 0, 0);
 
-      let eventsQuery;
-      let querySnapshot;
+      const executeQuery = async (queryLimit = null) => {
+        let q;
+        let snap;
 
-      try {
-        // Try optimized query with date filter to retrieve events ending from 7 days ago onwards with status 0
-        eventsQuery = query(
-          collection(db, "event"),
-          where("deleted", "==", false),
-          where("block", "==", false),
-          where("status", "==", 0),
-          where("eventEndDate", ">=", startDate)
-        );
-        querySnapshot = await getDocs(eventsQuery);
-      } catch (indexError) {
-        // Handle missing composite index error gracefully
-        if (indexError.message?.includes('index') || indexError.code === 'failed-precondition') {
-          console.warn(
-            "Firestore composite index is missing for optimized event queries. Please create the index using this link:\n",
-            indexError.message
-          );
-        } else {
-          console.error("Error executing optimized query, falling back:", indexError);
-        }
-
-        // Fallback query without range condition (will retrieve all non-deleted/non-blocked events with status 0)
-        eventsQuery = query(
-          collection(db, "event"),
-          where("deleted", "==", false),
-          where("block", "==", false),
-          where("status", "==", 0)
-        );
-        querySnapshot = await getDocs(eventsQuery);
-      }
-
-      // Fallback if primary query returns empty
-      if (querySnapshot.empty) {
-        eventsQuery = query(
-          collection(db, "event"),
-          where("deleted", "==", false),
-          where("block", "==", false),
-          where("status", "==", 0)
-        );
-        querySnapshot = await getDocs(eventsQuery);
-      }
-
-      // Fallback in case status is stored as string '0' in Firestore
-      if (querySnapshot.empty) {
         try {
-          const stringStatusQuery = query(
-            collection(db, "event"),
+          // Try optimized query with date filter
+          const conditions = [
             where("deleted", "==", false),
             where("block", "==", false),
-            where("status", "==", "0")
-          );
-          const stringSnap = await getDocs(stringStatusQuery);
-          if (!stringSnap.empty) {
-            querySnapshot = stringSnap;
+            where("status", "==", 0),
+            where("eventEndDate", ">=", startDate)
+          ];
+          if (queryLimit) conditions.push(limit(queryLimit));
+          q = query(collection(db, "event"), ...conditions);
+          snap = await getDocs(q);
+        } catch (indexError) {
+          if (indexError.message?.includes('index') || indexError.code === 'failed-precondition') {
+            console.warn(
+              "Firestore composite index is missing for optimized event queries:\n",
+              indexError.message
+            );
           }
-        } catch (e) {
-          console.warn("String status '0' query fallback:", e);
+          const fallbackConditions = [
+            where("deleted", "==", false),
+            where("block", "==", false),
+            where("status", "==", 0)
+          ];
+          if (queryLimit) fallbackConditions.push(limit(queryLimit));
+          q = query(collection(db, "event"), ...fallbackConditions);
+          snap = await getDocs(q);
         }
-      }
 
-      console.log("Events count retrieved from Firestore (where condition applied):", querySnapshot.size);
+        if (snap.empty) {
+          const fallbackConditions = [
+            where("deleted", "==", false),
+            where("block", "==", false),
+            where("status", "==", 0)
+          ];
+          if (queryLimit) fallbackConditions.push(limit(queryLimit));
+          q = query(collection(db, "event"), ...fallbackConditions);
+          snap = await getDocs(q);
+        }
 
-      const eventsData = querySnapshot.docs.map(doc => ({
+        if (snap.empty) {
+          try {
+            const stringConditions = [
+              where("deleted", "==", false),
+              where("block", "==", false),
+              where("status", "==", "0")
+            ];
+            if (queryLimit) stringConditions.push(limit(queryLimit));
+            snap = await getDocs(query(collection(db, "event"), ...stringConditions));
+          } catch (e) {
+            console.warn("String status '0' query fallback:", e);
+          }
+        }
+
+        return snap;
+      };
+
+      // 1. Fetch initial batch with limit(6) for instant first-screen rendering
+      const initialSnapshot = await executeQuery(6);
+
+      const mapEvents = (snap) => snap.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })).filter(event => event.isPrivateEvent !== true);
 
-      return eventsData;
+      const initialEvents = mapEvents(initialSnapshot);
+
+      // 2. If initial batch filled limit, stream complete events in background without blocking initial paint
+      if (initialSnapshot.size >= 6) {
+        setTimeout(async () => {
+          try {
+            const fullSnapshot = await executeQuery(null);
+            if (fullSnapshot && !fullSnapshot.empty) {
+              const fullEvents = mapEvents(fullSnapshot);
+              dispatch(eventsSlice.actions.setAllEvents(fullEvents));
+            }
+          } catch (bgErr) {
+            console.warn("Background full events fetch error:", bgErr);
+          }
+        }, 150);
+      }
+
+      return initialEvents;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -166,6 +181,10 @@ const eventsSlice = createSlice({
     clearCache: (state) => {
       state.lastFetched = 0;
       state.categoriesLastFetched = 0;
+    },
+    setAllEvents: (state, action) => {
+      state.events = action.payload;
+      state.lastFetched = Date.now();
     }
   },
   extraReducers: (builder) => {
@@ -206,5 +225,5 @@ const eventsSlice = createSlice({
   }
 });
 
-export const { clearCache } = eventsSlice.actions;
+export const { clearCache, setAllEvents } = eventsSlice.actions;
 export default eventsSlice.reducer;

@@ -388,6 +388,67 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return distance;
 };
 
+const EventsSkeleton = ({ isSlowConnection, onRetry }) => (
+  <div className="events-skeleton-container" style={{ padding: '0 24px', maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
+    {/* Hero Carousel Skeleton */}
+    <div className="skeleton-shimmer" style={{ width: '100%', height: '340px', borderRadius: '24px', marginBottom: '2rem', marginTop: '1.5rem' }} />
+
+    {/* Categories Skeleton */}
+    <div style={{ display: 'flex', gap: '12px', overflowX: 'hidden', marginBottom: '2rem', padding: '4px 0' }}>
+      {[...Array(8)].map((_, i) => (
+        <div key={i} className="skeleton-shimmer" style={{ width: '130px', height: '46px', borderRadius: '14px', flexShrink: 0 }} />
+      ))}
+    </div>
+
+    {/* Filter Pills Skeleton */}
+    <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
+      <div className="skeleton-shimmer" style={{ width: '130px', height: '38px', borderRadius: '20px' }} />
+      <div className="skeleton-shimmer" style={{ width: '90px', height: '38px', borderRadius: '20px' }} />
+      <div className="skeleton-shimmer" style={{ width: '90px', height: '38px', borderRadius: '20px' }} />
+      <div className="skeleton-shimmer" style={{ width: '100px', height: '38px', borderRadius: '20px' }} />
+    </div>
+
+    {/* Events Grid Skeleton */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px', marginBottom: '3rem' }}>
+      {[...Array(8)].map((_, i) => (
+        <div key={i} style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', background: '#fff', padding: '12px' }}>
+          <div className="skeleton-shimmer" style={{ width: '100%', height: '300px', borderRadius: '12px', marginBottom: '14px' }} />
+          <div className="skeleton-shimmer" style={{ width: '40%', height: '16px', marginBottom: '10px' }} />
+          <div className="skeleton-shimmer" style={{ width: '85%', height: '20px', marginBottom: '10px' }} />
+          <div className="skeleton-shimmer" style={{ width: '60%', height: '16px', marginBottom: '14px' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="skeleton-shimmer" style={{ width: '30%', height: '22px' }} />
+            <div className="skeleton-shimmer" style={{ width: '35%', height: '32px', borderRadius: '8px' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {isSlowConnection && (
+      <div style={{ margin: '2rem auto', textAlign: 'center', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.3)', maxWidth: '500px' }}>
+        <p style={{ color: '#D97706', fontSize: '0.95rem', margin: '0 0 1rem 0', fontWeight: 600 }}>
+          Connection seems slow. Please check your internet connection.
+        </p>
+        <button
+          onClick={onRetry}
+          style={{
+            backgroundColor: '#7C3AED',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '0.5rem',
+            padding: '0.5rem 1.5rem',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+        >
+          Retry Loading
+        </button>
+      </div>
+    )}
+  </div>
+);
+
 let lastLandingPageLogTime = 0;
 
 const Events = () => {
@@ -1390,41 +1451,13 @@ const Events = () => {
   return (
     <div className="events-page">
       {loading ? (
-        <div className="loading-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center', padding: '0 1rem' }}>
-          <motion.img
-            src={logo}
-            alt="Loading..."
-            style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)' }}
-            animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading blithe events...</h2>
-          {isSlowConnection && (
-            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-              <p style={{ color: '#F59E0B', fontSize: '0.95rem', margin: 0 }}>
-                Connection seems slow. Please check your internet connection.
-              </p>
-              <button
-                onClick={() => {
-                  dispatch(fetchEventsThunk(true));
-                  dispatch(fetchCategoriesThunk(true));
-                }}
-                style={{
-                  backgroundColor: 'rgba(124, 58, 237, 0.15)',
-                  color: '#A78BFA',
-                  border: '1px solid #7C3AED',
-                  borderRadius: '0.5rem',
-                  padding: '0.4rem 1rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Retry Loading
-              </button>
-            </div>
-          )}
-        </div>
+        <EventsSkeleton
+          isSlowConnection={isSlowConnection}
+          onRetry={() => {
+            dispatch(fetchEventsThunk(true));
+            dispatch(fetchCategoriesThunk(true));
+          }}
+        />
       ) : error ? (
         <div className="error-container" style={{ padding: '5rem 1rem', textAlign: 'center' }}>
           <h2 style={{ color: '#EF4444', marginBottom: '1rem' }}>Unable to load events</h2>

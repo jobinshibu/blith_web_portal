@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText, AlertTriangle } from 'lucide-react';
-import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText, AlertTriangle, WifiOff } from 'lucide-react';
+import { collection, query, where, getDocs, setDoc, doc, getDoc, onSnapshot, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db, analytics } from '../../firebase';
+import { useNetworkStatus, checkIsOnline } from '../../hooks/useNetworkStatus';
 import { logEvent } from 'firebase/analytics';
 import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
 import {
@@ -177,6 +178,8 @@ const createRazorpayOrder = async (amount, bookingId, keyId, keySecret) => {
 const EventBookingPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isOnline } = useNetworkStatus(false);
+  const [isFetchOffline, setIsFetchOffline] = useState(false);
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSlowConnection, setIsSlowConnection] = useState(false);
@@ -479,19 +482,16 @@ const EventBookingPage = () => {
   const [dailyAvailability, setDailyAvailability] = useState({});
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
-  // Fetch Event Details
+  // Subscribe to Live Real-time Event Details
   useEffect(() => {
-    const fetchEvent = async () => {
-      setLoading(true);
-      try {
-        let docSnap = null;
-        try {
-          const docRef = doc(db, "event", id);
-          docSnap = await getDoc(docRef);
-        } catch (e) {
-          console.warn("Firestore event fetch failed:", e);
-        }
+    if (!id) return;
+    setLoading(true);
 
+    const docRef = doc(db, "event", id);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
+        setLoading(false);
         if (docSnap && docSnap.exists()) {
           const data = docSnap.data();
 
@@ -515,15 +515,27 @@ const EventBookingPage = () => {
           const isExpired = data.isExpired === true || isEventExpired;
           const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
           const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
+          const isSoldOut = data.soldOut === true || data.isSoldOut === true;
 
-          if (isBlocked || isDeleted || !isStatusZero || (isPrivate && isExpired)) {
+          // Check if all tickets in the event are sold out or deleted
+          const rawTicketsList = data.tickets || [];
+          const hasAvailableTickets = rawTicketsList.length > 0 && rawTicketsList.some(t => {
+            if (!t) return false;
+            const isTDeleted = t.deleted === true || t.isDeleted === true || t.delete === true || t.isDelete === true;
+            const isTSoldOut = t.soldOut === true || t.isSoldOut === true;
+            return !isTDeleted && !isTSoldOut;
+          });
+          const allTicketsSoldOut = rawTicketsList.length > 0 && !hasAvailableTickets;
+
+          if (isBlocked || isDeleted || !isStatusZero || (isPrivate && isExpired) || isSoldOut || allTicketsSoldOut) {
             setEvent({
               id: docSnap.id,
               isPrivateEvent: isPrivate,
               isUnavailablePrivateEvent: isPrivate && isExpired,
               isBlocked: isBlocked || !isStatusZero,
               deleted: isDeleted,
-              isExpired: isExpired
+              isExpired: isExpired,
+              isSoldOut: isSoldOut || allTicketsSoldOut
             });
             return;
           }
@@ -532,14 +544,22 @@ const EventBookingPage = () => {
           setEvent(loadedEvt);
           trackClickCheckoutNow(loadedEvt, data.price || 0, 1);
           trackGABeginCheckout(loadedEvt, data.price || 0, 1);
+        } else if (!docSnap && !navigator.onLine) {
+          setIsFetchOffline(true);
+        } else {
+          setEvent(null);
         }
-      } catch (err) {
-        console.error("Error fetching event:", err);
-      } finally {
+      },
+      (err) => {
+        console.warn("Real-time event listener error:", err);
         setLoading(false);
+        if (!navigator.onLine) {
+          setIsFetchOffline(true);
+        }
       }
-    };
-    if (id) fetchEvent();
+    );
+
+    return () => unsubscribe();
   }, [id]);
 
   // Handle Dates
@@ -1498,6 +1518,18 @@ const EventBookingPage = () => {
 
   const handleCheckout = async (e, bypassTermsCheck = false) => {
     if (e && e.preventDefault) e.preventDefault();
+
+    // Strict Offline Check before any checkout operations
+    if (!navigator.onLine || !isOnline) {
+      toast.error("You are offline. Please reconnect to the internet to complete your payment.", { id: 'offline-block' });
+      return;
+    }
+    const isActuallyOnline = await checkIsOnline();
+    if (!isActuallyOnline) {
+      toast.error("Internet connection appears offline or unstable. Please check your connection.", { id: 'offline-block' });
+      return;
+    }
+
     const isFormValid =
       totalTickets > 0 &&
       (isMultiDay ? selectedDate !== null : true) &&
@@ -1521,6 +1553,29 @@ const EventBookingPage = () => {
       return;
     }
     setShowErrors(false);
+
+    // Fresh Live Check before proceeding with payment
+    try {
+      const freshSnap = await getDoc(doc(db, "event", id));
+      if (!freshSnap.exists()) {
+        toast.error("Event not found or removed.", { id: 'soldout-block' });
+        return;
+      }
+      const freshData = freshSnap.data();
+      const isFreshSoldOut = freshData.soldOut === true || freshData.isSoldOut === true;
+      const isFreshBlocked = freshData.block === true || freshData.blocked === true || freshData.isBlocked === true || freshData.deleted === true;
+      if (isFreshSoldOut || isFreshBlocked) {
+        toast.error("This event has just sold out or is no longer available.", { id: 'soldout-block' });
+        setEvent(prev => ({
+          ...prev,
+          isSoldOut: isFreshSoldOut,
+          isBlocked: isFreshBlocked
+        }));
+        return;
+      }
+    } catch (checkErr) {
+      console.warn("Pre-checkout fresh check failed:", checkErr);
+    }
 
     // Fire Meta Pixel Click Pay Now Button Event
     trackClickPayNow({
@@ -1828,6 +1883,9 @@ const EventBookingPage = () => {
           const isStatusZero = (eventDbData.status === 0 || eventDbData.status === '0' || Number(eventDbData.status) === 0) && eventDbData.status !== null && eventDbData.status !== undefined && eventDbData.status !== '';
           if (eventDbData.block === true || eventDbData.blocked === true || eventDbData.isBlocked === true || eventDbData.deleted === true || !isStatusZero) {
             throw new Error("This event has been blocked, concluded, or removed, and is no longer available for booking.");
+          }
+          if (eventDbData.soldOut === true || eventDbData.isSoldOut === true) {
+            throw new Error("Sorry, this event is sold out. No further bookings can be completed.");
           }
 
           // 2. Notifications References
@@ -2525,7 +2583,50 @@ const EventBookingPage = () => {
     );
   }
 
-  if (!event || event.isBlocked || event.deleted || event.isUnavailablePrivateEvent) {
+  if (!event || event.isBlocked || event.deleted || event.isUnavailablePrivateEvent || event.isSoldOut || isFetchOffline) {
+    if (isFetchOffline || (!navigator.onLine && !event)) {
+      return (
+        <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
+          <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.25rem', borderRadius: '50%', color: '#EF4444' }}>
+            <WifiOff size={48} />
+          </div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827' }}>
+            No Internet Connection
+          </h2>
+          <p style={{ color: '#6B7280', maxWidth: '420px', fontSize: '1rem', lineHeight: '1.5' }}>
+            You appear to be offline. Please check your internet connection to access the booking page.
+          </p>
+          <button onClick={() => window.location.reload()} className="back-btn" style={{ padding: '0.75rem 1.75rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+            Retry Loading
+          </button>
+        </div>
+      );
+    }
+
+    if (event?.isSoldOut) {
+      return (
+        <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
+          <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.25rem', borderRadius: '50%', color: '#EF4444' }}>
+            <AlertTriangle size={48} />
+          </div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827' }}>
+            Event Sold Out
+          </h2>
+          <p style={{ color: '#6B7280', maxWidth: '420px', fontSize: '1rem', lineHeight: '1.5' }}>
+            All tickets for this event have been completely sold out. No further bookings can be accepted.
+          </p>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button onClick={() => navigate(`/events/${id}`)} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', cursor: 'pointer', fontWeight: 600 }}>
+              Back to Event
+            </button>
+            <button onClick={() => navigate('/events')} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+              Explore Other Events
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1rem', textAlign: 'center', padding: '2rem' }}>
         <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '50%', color: '#EF4444' }}>
@@ -2561,6 +2662,29 @@ const EventBookingPage = () => {
           <h1 className="page-title">Secure Checkout</h1>
         </div>
       </div>
+
+      {!isOnline && (
+        <div className="container" style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>
+          <div style={{
+            background: '#FEF2F2',
+            border: '1px solid #FCA5A5',
+            color: '#B91C1C',
+            padding: '12px 18px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontWeight: 500,
+            fontSize: '0.925rem',
+            boxShadow: '0 2px 8px rgba(220, 38, 38, 0.08)'
+          }}>
+            <WifiOff size={22} color="#DC2626" style={{ flexShrink: 0 }} />
+            <div>
+              <strong>No Internet Connection:</strong> You are currently offline. Payment processing is temporarily disabled until your connection is restored.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="container main-content checkout-layout two-col">
         {/* LEFT COLUMN: User Input & Tickets */}
@@ -3146,10 +3270,20 @@ const EventBookingPage = () => {
               type="button"
               className="pay-btn"
               onClick={handleCheckout}
-              disabled={isVerifyingUser}
-              style={{ width: '100%' }}
+              disabled={isVerifyingUser || !isOnline}
+              style={{
+                width: '100%',
+                opacity: !isOnline ? 0.65 : 1,
+                cursor: !isOnline ? 'not-allowed' : 'pointer'
+              }}
             >
-              {isVerifyingUser ? 'Processing...' : 'Proceed to Payment'} <CreditCard size={18} style={{ marginLeft: '8px' }} />
+              {!isOnline ? (
+                <>Offline - Reconnect to Pay <WifiOff size={18} style={{ marginLeft: '8px' }} /></>
+              ) : isVerifyingUser ? (
+                'Processing...'
+              ) : (
+                <>Proceed to Payment <CreditCard size={18} style={{ marginLeft: '8px' }} /></>
+              )}
             </Button>
 
             <div className="payment-security-note" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>

@@ -45,6 +45,7 @@ function App() {
             <Route path="/events/terms" element={<Terms />} />
             <Route path="/events/:id" element={<EventDetails />} />
             <Route path="/events/:id/book" element={<EventBookingPage />} />
+            <Route path="/:id/book" element={<EventBookingPage />} />
             <Route path="/ticketView/:eventId/:bookingId" element={<TicketView />} />
             <Route path="/booking-success" element={<BookingSuccess />} />
             <Route path="/blithelink" element={<LinkTree />} />

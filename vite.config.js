@@ -14,5 +14,19 @@ export default defineConfig(({ command }) => ({
         rewrite: (path) => path.replace(/^\/razorpay-api/, '')
       }
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/analytics'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+          'vendor-icons': ['lucide-react']
+        }
+      }
+    }
   }
 }))

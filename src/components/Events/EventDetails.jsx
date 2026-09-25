@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages, Lock, XCircle } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages, Lock, XCircle, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
 import { db, analytics } from '../../firebase';
@@ -754,6 +754,70 @@ const CLUSTER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let cachedUserProfile = null;
 let lastUserCacheKey = '';
 
+const EventDetailsSkeleton = ({ isSlowConnection }) => (
+  <div className="event-details-skeleton-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
+    {/* Breadcrumbs Skeleton */}
+    <div className="skeleton-shimmer" style={{ width: '160px', height: '18px', marginBottom: '1.5rem', borderRadius: '4px' }} />
+
+    {/* Main Grid: Responsive 2 Columns */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', alignItems: 'start' }}>
+      {/* Left Column: Media Banner & Overview */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="skeleton-shimmer" style={{ width: '100%', height: '380px', borderRadius: '20px' }} />
+        <div className="skeleton-shimmer" style={{ width: '70%', height: '32px', borderRadius: '8px' }} />
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="skeleton-shimmer" style={{ width: '130px', height: '36px', borderRadius: '18px' }} />
+          <div className="skeleton-shimmer" style={{ width: '110px', height: '36px', borderRadius: '18px' }} />
+        </div>
+        <div className="skeleton-shimmer" style={{ width: '100%', height: '100px', borderRadius: '12px' }} />
+        <div className="skeleton-shimmer" style={{ width: '100%', height: '160px', borderRadius: '12px' }} />
+      </div>
+
+      {/* Right Column: Ticket Card & Organizer Bio */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ border: '1px solid rgba(0,0,0,0.06)', borderRadius: '20px', padding: '1.5rem', background: '#fff' }}>
+          <div className="skeleton-shimmer" style={{ width: '45%', height: '24px', marginBottom: '1.25rem', borderRadius: '6px' }} />
+          <div className="skeleton-shimmer" style={{ width: '100%', height: '64px', borderRadius: '12px', marginBottom: '1rem' }} />
+          <div className="skeleton-shimmer" style={{ width: '100%', height: '64px', borderRadius: '12px', marginBottom: '1.25rem' }} />
+          <div className="skeleton-shimmer" style={{ width: '100%', height: '48px', borderRadius: '12px' }} />
+        </div>
+        <div style={{ border: '1px solid rgba(0,0,0,0.06)', borderRadius: '20px', padding: '1.25rem', background: '#fff' }}>
+          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+            <div className="skeleton-shimmer" style={{ width: '52px', height: '52px', borderRadius: '50%', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div className="skeleton-shimmer" style={{ width: '65%', height: '18px', marginBottom: '8px', borderRadius: '4px' }} />
+              <div className="skeleton-shimmer" style={{ width: '40%', height: '14px', borderRadius: '4px' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {isSlowConnection && (
+      <div style={{ margin: '2rem auto', textAlign: 'center', padding: '1.25rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.3)', maxWidth: '480px' }}>
+        <p style={{ color: '#D97706', fontSize: '0.95rem', margin: '0 0 0.75rem 0', fontWeight: 600 }}>
+          Connection seems slow. Please check your internet connection.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            backgroundColor: '#7C3AED',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '0.5rem',
+            padding: '0.4rem 1.25rem',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+        >
+          Reload Page
+        </button>
+      </div>
+    )}
+  </div>
+);
+
 const EventDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -1080,6 +1144,7 @@ const EventDetails = () => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSlowConnection, setIsSlowConnection] = useState(false);
+  const [isOfflineError, setIsOfflineError] = useState(false);
 
   useEffect(() => {
     if (loading) {
@@ -1485,9 +1550,14 @@ const EventDetails = () => {
           } catch (analyticsErr) {
             console.warn("Failed to log event analytics in EventDetails:", analyticsErr);
           }
+        } else if (!docSnap && !navigator.onLine) {
+          setIsOfflineError(true);
         }
       } catch (error) {
         console.error("Error fetching event details: ", error);
+        if (!navigator.onLine) {
+          setIsOfflineError(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -1855,38 +1925,22 @@ const EventDetails = () => {
   }, [mediaList.length, currentIndex]);
 
   if (loading) {
+    return <EventDetailsSkeleton isSlowConnection={isSlowConnection} />;
+  }
+
+  if (isOfflineError || (!navigator.onLine && !event)) {
     return (
-      <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center', padding: '0 1rem' }}>
-        <motion.img
-          src={logo}
-          alt="Loading..."
-          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)' }}
-          animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading event details...</h2>
-        {isSlowConnection && (
-          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-            <p style={{ color: '#F59E0B', fontSize: '0.95rem', margin: 0 }}>
-              Connection seems slow. Please check your internet connection.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                backgroundColor: 'rgba(124, 58, 237, 0.15)',
-                color: '#A78BFA',
-                border: '1px solid #7C3AED',
-                borderRadius: '0.5rem',
-                padding: '0.4rem 1rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Reload Page
-            </button>
-          </div>
-        )}
+      <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
+        <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.25rem', borderRadius: '50%', color: '#EF4444' }}>
+          <WifiOff size={48} />
+        </div>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827' }}>No Internet Connection</h2>
+        <p style={{ color: '#6B7280', maxWidth: '420px', fontSize: '1rem', lineHeight: '1.5' }}>
+          You appear to be offline. Please check your internet connection and retry to view this event.
+        </p>
+        <button onClick={() => window.location.reload()} className="back-btn" style={{ padding: '0.75rem 1.75rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+          Retry Loading
+        </button>
       </div>
     );
   }
