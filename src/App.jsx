@@ -15,6 +15,7 @@ const TicketView = lazy(() => import('./components/Events/TicketView'))
 const LinkTree = lazy(() => import('./components/LinkTree/LinkTree'))
 const Terms = lazy(() => import('./components/Terms/Terms'))
 const VenuePartner = lazy(() => import('./components/VenuePartner/VenuePartner'))
+const DeleteAccount = lazy(() => import('./components/DeleteAccount/DeleteAccount'))
 
 import { useNetworkStatus } from './hooks/useNetworkStatus'
 
@@ -54,6 +55,8 @@ function App() {
             <Route path="/venues" element={<VenuePartner />} />
             <Route path="/events/venue" element={<VenuePartner />} />
             <Route path="/events/venues" element={<VenuePartner />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
+            <Route path="/events/delete-account" element={<DeleteAccount />} />
           </Routes>
         </Suspense>
       </main>

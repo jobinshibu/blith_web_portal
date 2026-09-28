@@ -723,9 +723,14 @@ const EventBookingPage = () => {
           const q = query(usersRef, where("email", "==", trimmedEmail));
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
-            const userDoc = querySnapshot.docs[0];
-            foundUserData = { uid: userDoc.id, ...userDoc.data() };
-            console.log(`[User Form] Found user by email:`, foundUserData.uid);
+            const activeDoc = querySnapshot.docs.find(d => {
+              const data = d.data();
+              return data.deleted !== true && data.block !== true;
+            });
+            if (activeDoc) {
+              foundUserData = { uid: activeDoc.id, ...activeDoc.data() };
+              console.log(`[User Form] Found active user by email:`, foundUserData.uid);
+            }
           }
         }
 
@@ -735,9 +740,14 @@ const EventBookingPage = () => {
           const q = query(usersRef, where("phoneNo", "==", trimmedPhone));
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
-            const userDoc = querySnapshot.docs[0];
-            foundUserData = { uid: userDoc.id, ...userDoc.data() };
-            console.log(`[User Form] Found user by phone:`, foundUserData.uid);
+            const activeDoc = querySnapshot.docs.find(d => {
+              const data = d.data();
+              return data.deleted !== true && data.block !== true;
+            });
+            if (activeDoc) {
+              foundUserData = { uid: activeDoc.id, ...activeDoc.data() };
+              console.log(`[User Form] Found active user by phone:`, foundUserData.uid);
+            }
           }
         }
 

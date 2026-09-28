@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Phone, LogOut } from 'lucide-react';
+import { User, Mail, Phone, LogOut, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import logoTransparent from '../../assets/logo-transparent.png';
+import DeleteAccountModal from '../Common/DeleteAccountModal';
+import { softDeleteUser } from '../../services/userService';
 
 const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Helper to format date
   const formatDate = (dateVal) => {
     if (!dateVal) return 'TBA';
@@ -11,89 +17,146 @@ const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const handleDeleteAccountConfirm = async () => {
+    if (!user || !user.uid) {
+      toast.error("Unable to find user account ID.");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await softDeleteUser(user.uid);
+      
+      // Clear all attendee session tokens and storage
+      localStorage.removeItem('blithe_checkout_attendee');
+      sessionStorage.removeItem('blithe_checkout_attendee');
+      window.dispatchEvent(new CustomEvent('session-user-changed'));
+      
+      toast.success("Your Blithe account has been deleted successfully.");
+      setIsDeleteModalOpen(false);
+      if (onClose) onClose();
+    } catch (err) {
+      console.error("[ProfileDashboardModal] Error deleting account:", err);
+      toast.error(err.message || "Failed to delete account. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        className="profile-dropdown-card glass"
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div className="profile-modal-header">
-          <div className="profile-avatar-large">
-            {user?.profilePic ? (
-              <img src={user.profilePic} alt={user.name} />
-            ) : (
-              <span>{user?.name ? user.name.charAt(0).toUpperCase() : <User size={24} />}</span>
-            )}
-          </div>
-          <div className="profile-title-group">
-            <h3>{user?.name || 'User Profile'}</h3>
-            {/* <p>Member since {formatDate(user?.createdTime || new Date())}</p> */}
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="profile-tabs-content">
-          <div className="tab-pane-profile">
-            {/* User Info Details */}
-            <div className="user-details-card">
-              <div className="detail-item">
-                <User size={16} className="detail-icon" />
-                <div>
-                  <span className="label">Full Name</span>
-                  <span className="value">{user?.name || '—'}</span>
-                </div>
-              </div>
-              <div className="detail-item">
-                <Mail size={16} className="detail-icon" />
-                <div>
-                  <span className="label">Email Address</span>
-                  <span className="value">{user?.email || '—'}</span>
-                </div>
-              </div>
-              <div className="detail-item">
-                <Phone size={16} className="detail-icon" />
-                <div>
-                  <span className="label">Mobile Number</span>
-                  <span className="value">{user?.phone || user?.phoneNo || '—'}</span>
-                </div>
-              </div>
-              <button
-                onClick={onLogout}
-                style={{
-                  marginTop: '1.25rem',
-                  width: '100%',
-                  padding: '0.6rem',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: '#EF4444',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontSize: '0.9rem',
-                  transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                }}
-              >
-                <LogOut size={16} />
-                Log Out
-              </button>
+    <>
+      <AnimatePresence>
+        <motion.div
+          className="profile-dropdown-card glass"
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="profile-modal-header">
+            <div className="profile-avatar-large">
+              {user?.profilePic ? (
+                <img src={user.profilePic} alt={user.name} />
+              ) : (
+                <span>{user?.name ? user.name.charAt(0).toUpperCase() : <User size={24} />}</span>
+              )}
             </div>
+            <div className="profile-title-group">
+              <h3>{user?.name || 'User Profile'}</h3>
+              {/* <p>Member since {formatDate(user?.createdTime || new Date())}</p> */}
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className="profile-tabs-content">
+            <div className="tab-pane-profile">
+              {/* User Info Details */}
+              <div className="user-details-card">
+                <div className="detail-item">
+                  <User size={16} className="detail-icon" />
+                  <div>
+                    <span className="label">Full Name</span>
+                    <span className="value">{user?.name || '—'}</span>
+                  </div>
+                </div>
+                <div className="detail-item">
+                  <Mail size={16} className="detail-icon" />
+                  <div>
+                    <span className="label">Email Address</span>
+                    <span className="value">{user?.email || '—'}</span>
+                  </div>
+                </div>
+                <div className="detail-item">
+                  <Phone size={16} className="detail-icon" />
+                  <div>
+                    <span className="label">Mobile Number</span>
+                    <span className="value">{user?.phone || user?.phoneNo || '—'}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.25rem' }}>
+                  <button
+                    onClick={onLogout}
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem',
+                      background: 'rgba(100, 116, 139, 0.08)',
+                      color: '#475569',
+                      border: '1px solid rgba(203, 213, 225, 0.8)',
+                      borderRadius: '0.5rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = 'rgba(100, 116, 139, 0.15)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'rgba(100, 116, 139, 0.08)';
+                    }}
+                  >
+                    <LogOut size={16} />
+                    Log Out
+                  </button>
+
+                  <button
+                    onClick={() => setIsDeleteModalOpen(true)}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      color: '#DC2626',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      borderRadius: '0.5rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.85rem',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                    }}
+                  >
+                    <Trash2 size={15} />
+                    Delete Blithe Account
+                  </button>
+                </div>
+              </div>
 
             {/* App Download Info Banner */}
             <div className="app-download-section">
@@ -129,6 +192,15 @@ const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
         </div>
       </motion.div>
     </AnimatePresence>
+
+    <DeleteAccountModal
+      isOpen={isDeleteModalOpen}
+      onClose={() => setIsDeleteModalOpen(false)}
+      onConfirm={handleDeleteAccountConfirm}
+      isDeleting={isDeleting}
+      user={user}
+    />
+  </>
   );
 };
 

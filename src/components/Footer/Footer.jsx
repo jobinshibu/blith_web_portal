@@ -141,6 +141,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
           <ul>
             <li><a href="/terms-and-conditions.php" target="_blank" rel="noreferrer">Terms</a></li>
             <li><a href="/Privacy-Policy.php" target="_blank" rel="noreferrer">Privacy</a></li>
+            <li><Link to="/delete-account">Delete Account</Link></li>
           </ul>
         </div>
 

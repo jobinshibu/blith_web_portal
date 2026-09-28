@@ -1,0 +1,238 @@
+@import '../../styles/variables';
+
+.delete-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+
+.delete-modal-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 1.25rem;
+  padding: 2.25rem 2rem;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  text-align: center;
+  box-sizing: border-box;
+  animation: fadeIn 0.2s ease-out;
+
+  @media (max-width: 480px) {
+    padding: 1.75rem 1.25rem;
+  }
+
+  .delete-modal-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #f1f5f9;
+      color: #334155;
+    }
+  }
+
+  .delete-modal-icon-badge {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.25rem;
+    border-radius: 50%;
+    background: #fef2f2;
+    border: 2px solid #fee2e2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .trash-icon {
+      color: #ef4444;
+      position: relative;
+      z-index: 2;
+    }
+
+    .icon-pulse {
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.12);
+      animation: deletePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  }
+
+  .delete-modal-title {
+    font-family: $font-heading;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .delete-modal-subtitle {
+    font-family: $font-body;
+    font-size: 0.95rem;
+    color: #64748b;
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+
+  .delete-modal-user-summary {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 0.65rem 1rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+
+    .summary-name {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+
+    .summary-identifier {
+      font-size: 0.825rem;
+      color: #64748b;
+    }
+  }
+
+  .delete-modal-notice-box {
+    background: #fff8f8;
+    border: 1px solid #fee2e2;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    margin-bottom: 1.5rem;
+
+    ul {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: #991b1b;
+      font-size: 0.825rem;
+      line-height: 1.55;
+
+      li {
+        margin-bottom: 0.35rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+
+  .delete-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+
+    @media (max-width: 400px) {
+      flex-direction: column-reverse;
+    }
+
+    .btn-cancel {
+      flex: 1;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #475569;
+      font-weight: 600;
+      font-size: 0.925rem;
+      border-radius: 0.625rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: #f1f5f9;
+        color: #1e293b;
+        border-color: #94a3b8;
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    .btn-confirm-delete {
+      flex: 1.2;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: none;
+      background: #ef4444;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.925rem;
+      border-radius: 0.625rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: #dc2626;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+      }
+
+      &:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      .spin-loader {
+        animation: spin 1s linear infinite;
+      }
+    }
+  }
+}
+
+@keyframes deletePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.15;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

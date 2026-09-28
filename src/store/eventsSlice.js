@@ -22,11 +22,10 @@ export const fetchEventsThunk = createAsyncThunk(
         let snap;
 
         try {
-          // Try optimized query with date filter
+          // Optimized query with date filter (retrieves active and recently ended events from the last 7 days)
           const conditions = [
             where("deleted", "==", false),
             where("block", "==", false),
-            where("status", "==", 0),
             where("eventEndDate", ">=", startDate)
           ];
           if (queryLimit) conditions.push(limit(queryLimit));
@@ -41,8 +40,7 @@ export const fetchEventsThunk = createAsyncThunk(
           }
           const fallbackConditions = [
             where("deleted", "==", false),
-            where("block", "==", false),
-            where("status", "==", 0)
+            where("block", "==", false)
           ];
           if (queryLimit) fallbackConditions.push(limit(queryLimit));
           q = query(collection(db, "event"), ...fallbackConditions);
@@ -52,57 +50,25 @@ export const fetchEventsThunk = createAsyncThunk(
         if (snap.empty) {
           const fallbackConditions = [
             where("deleted", "==", false),
-            where("block", "==", false),
-            where("status", "==", 0)
+            where("block", "==", false)
           ];
           if (queryLimit) fallbackConditions.push(limit(queryLimit));
           q = query(collection(db, "event"), ...fallbackConditions);
           snap = await getDocs(q);
         }
 
-        if (snap.empty) {
-          try {
-            const stringConditions = [
-              where("deleted", "==", false),
-              where("block", "==", false),
-              where("status", "==", "0")
-            ];
-            if (queryLimit) stringConditions.push(limit(queryLimit));
-            snap = await getDocs(query(collection(db, "event"), ...stringConditions));
-          } catch (e) {
-            console.warn("String status '0' query fallback:", e);
-          }
-        }
-
         return snap;
       };
 
-      // 1. Fetch initial batch with limit(6) for instant first-screen rendering
-      const initialSnapshot = await executeQuery(6);
+      const fullSnapshot = await executeQuery(null);
 
       const mapEvents = (snap) => snap.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })).filter(event => event.isPrivateEvent !== true);
 
-      const initialEvents = mapEvents(initialSnapshot);
-
-      // 2. If initial batch filled limit, stream complete events in background without blocking initial paint
-      if (initialSnapshot.size >= 6) {
-        setTimeout(async () => {
-          try {
-            const fullSnapshot = await executeQuery(null);
-            if (fullSnapshot && !fullSnapshot.empty) {
-              const fullEvents = mapEvents(fullSnapshot);
-              dispatch(eventsSlice.actions.setAllEvents(fullEvents));
-            }
-          } catch (bgErr) {
-            console.warn("Background full events fetch error:", bgErr);
-          }
-        }, 150);
-      }
-
-      return initialEvents;
+      const fullEvents = mapEvents(fullSnapshot);
+      return fullEvents;
     } catch (error) {
       return rejectWithValue(error.message);
     }

@@ -839,7 +839,8 @@ const Events = () => {
           const isNotExpired = endD ? endD >= new Date() : true;
           const hasNoPaymentUrl = !data.paymentUrl || data.paymentUrl.trim() === "";
           const isNotPrivate = data.isPrivateEvent !== true;
-          return isNotBlocked && isNotExpired && hasNoPaymentUrl && isNotPrivate;
+          const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) || data.status === undefined || data.status === null;
+          return isNotBlocked && isNotExpired && hasNoPaymentUrl && isNotPrivate && isStatusZero;
         })
         .map(formatEventData);
 
@@ -889,7 +890,8 @@ const Events = () => {
           const isNotBlocked = data.block === false;
           const isNotPrivate = data.isPrivateEvent !== true;
           const status = Number(data.status);
-          const hasValidStatus = [1, 2, 3].includes(status) || [1, 2, 3].includes(data.status);
+          const isNotStatusZero = data.status !== 0 && data.status !== '0' && status !== 0 && data.status !== null && data.status !== undefined;
+          const hasValidStatus = isNotStatusZero && ([1, 2, 3].includes(status) || [1, 2, 3].includes(data.status));
 
           if (!isNotBlocked || !isNotPrivate || !hasValidStatus) return false;
 

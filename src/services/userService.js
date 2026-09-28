@@ -398,3 +398,89 @@ export const updateUserInterests = async (uid, categoryNameOrId, score) => {
     console.error("[Interests Debug] Failed to update user interests:", err);
   }
 };
+
+/**
+ * Soft deletes a customer/user account in Firestore.
+ * Sets deleted: true, records the timestamp, and clears active session tokens.
+ * @param {string} uid - User ID
+ * @returns {Promise<boolean>}
+ */
+export const softDeleteUser = async (uid) => {
+  if (!uid) {
+    throw new Error("User ID is required for account deletion.");
+  }
+  console.log(`[userService] Initiating soft delete for user: ${uid}`);
+  try {
+    const userDocRef = doc(db, 'users', uid);
+    await setDoc(userDocRef, {
+      deleted: true,
+      deletedAt: serverTimestamp(),
+      online: false,
+      token: []
+    }, { merge: true });
+    console.log(`[userService] Successfully soft-deleted user: ${uid}`);
+    return true;
+  } catch (error) {
+    console.error("[userService] Error during soft deletion of user:", error);
+    throw new Error("Failed to delete account. Please try again later.");
+  }
+};
+
+/**
+ * Looks up an active (non-deleted, non-blocked) user by registered email or mobile number.
+ * @param {string} identifier - Email or phone number string
+ * @returns {Promise<Object|null>}
+ */
+export const findActiveUserByIdentifier = async (identifier) => {
+  if (!identifier || !identifier.trim()) {
+    throw new Error("Please enter your registered mobile number or email address.");
+  }
+  const cleaned = identifier.trim();
+  const usersRef = collection(db, 'users');
+
+  // 1. Search by email
+  try {
+    const emailQuery = query(usersRef, where('email', '==', cleaned));
+    const emailSnap = await getDocs(emailQuery);
+    const activeEmailDoc = emailSnap.docs.find(d => {
+      const data = d.data();
+      return data.deleted !== true && data.block !== true;
+    });
+    if (activeEmailDoc) {
+      return { uid: activeEmailDoc.id, ...activeEmailDoc.data() };
+    }
+  } catch (e) {
+    console.warn("[userService] Error searching user by email:", e);
+  }
+
+  // 2. Search by phone number variants
+  try {
+    const digitsOnly = cleaned.replace(/\D/g, '');
+    const last10 = digitsOnly.slice(-10);
+    const phoneVariants = Array.from(new Set([
+      cleaned,
+      digitsOnly,
+      last10,
+      `+91${last10}`,
+      `91${last10}`,
+      `0${last10}`
+    ])).filter(Boolean);
+
+    for (const p of phoneVariants) {
+      const phoneQuery = query(usersRef, where('phoneNo', '==', p));
+      const phoneSnap = await getDocs(phoneQuery);
+      const activePhoneDoc = phoneSnap.docs.find(d => {
+        const data = d.data();
+        return data.deleted !== true && data.block !== true;
+      });
+      if (activePhoneDoc) {
+        return { uid: activePhoneDoc.id, ...activePhoneDoc.data() };
+      }
+    }
+  } catch (e) {
+    console.warn("[userService] Error searching user by phone:", e);
+  }
+
+  return null;
+};
+

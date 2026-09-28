@@ -1370,13 +1370,14 @@ const EventDetails = () => {
           const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
           const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
 
-          // Block if blocked, status is not 0, or private expired
-          if (isBlocked || !isStatusZero || (isPrivate && isExpired)) {
+          // Block if explicitly blocked, private expired, or unapproved active event (status !== 0 and not expired)
+          const isBlockedStatus = isBlocked || (!isStatusZero && !isExpired);
+          if (isBlockedStatus || (isPrivate && isExpired)) {
             setEvent({
               id: docSnap.id,
               isPrivateEvent: isPrivate,
               isUnavailablePrivateEvent: isPrivate && isExpired,
-              isBlocked: isBlocked || !isStatusZero,
+              isBlocked: isBlockedStatus,
               deleted: isDeleted,
               isExpired: isExpired
             });
@@ -2510,7 +2511,7 @@ const EventDetails = () => {
                     fontSize: '0.9rem'
                   }}>
                     <AlertTriangle size={18} style={{ color: '#DC2626', flexShrink: 0 }} />
-                    <span>Event Closed: Booking is no longer available.</span>
+                    <span>Event Expired: Booking is no longer available.</span>
                   </div>
                 )}
                 {isBookingClosed && !isEventExpired && (
@@ -2585,7 +2586,7 @@ const EventDetails = () => {
                   {isEventExpired ? (
                     <>
                       <Calendar size={18} style={{ flexShrink: 0 }} />
-                      <span>Event Closed</span>
+                      <span>Event Expired</span>
                     </>
                   ) : isSoldOut ? (
                     <>
