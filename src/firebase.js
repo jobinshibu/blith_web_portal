@@ -17,11 +17,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-const isDevelopment = typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-if (isDevelopment && typeof window !== 'undefined') {
-  window['ga-disable-G-GZTJXH7BGC'] = true;
+// Ensure Google Analytics is active for development testing and DebugView
+if (typeof window !== 'undefined') {
+  window['ga-disable-G-GZTJXH7BGC'] = false;
 }
 
 // Asynchronous non-blocking analytics initialization

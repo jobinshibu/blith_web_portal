@@ -517,13 +517,25 @@ const EventBookingPage = () => {
           const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
           const isSoldOut = data.soldOut === true || data.isSoldOut === true;
 
-          // Check if all tickets in the event are sold out or deleted
+          // Check if all tickets in the event are sold out, disabled, or deleted
           const rawTicketsList = data.tickets || [];
           const hasAvailableTickets = rawTicketsList.length > 0 && rawTicketsList.some(t => {
             if (!t) return false;
-            const isTDeleted = t.deleted === true || t.isDeleted === true || t.delete === true || t.isDelete === true;
+            const isTDeleted = t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true';
             const isTSoldOut = t.soldOut === true || t.isSoldOut === true;
-            return !isTDeleted && !isTSoldOut;
+            const isTStatusFalse = t.status === false || t.status === 'false';
+            const remainingSlots = Number(t.remainingSlots);
+            const isOutOfSlots = isNaN(remainingSlots) || remainingSlots <= 0;
+            let isTExpired = false;
+            if (t.endDate) {
+              const ticketEndDate = parseTimestampToDate(t.endDate);
+              if (ticketEndDate && !isNaN(ticketEndDate.getTime())) {
+                const tDate = new Date(ticketEndDate);
+                tDate.setHours(0, 0, 0, 0);
+                if (tDate < today) isTExpired = true;
+              }
+            }
+            return !isTDeleted && !isTSoldOut && !isTStatusFalse && !isOutOfSlots && !isTExpired;
           });
           const allTicketsSoldOut = rawTicketsList.length > 0 && !hasAvailableTickets;
 
@@ -1574,11 +1586,23 @@ const EventBookingPage = () => {
       const freshData = freshSnap.data();
       const isFreshSoldOut = freshData.soldOut === true || freshData.isSoldOut === true;
       const isFreshBlocked = freshData.block === true || freshData.blocked === true || freshData.isBlocked === true || freshData.deleted === true;
-      if (isFreshSoldOut || isFreshBlocked) {
+      const rawFreshTickets = freshData.tickets || [];
+      const hasFreshAvailableTickets = rawFreshTickets.length > 0 && rawFreshTickets.some(t => {
+        if (!t) return false;
+        const isTDeleted = t.deleted === true || t.deleted === 'true' || t.isDeleted === true || t.isDeleted === 'true' || t.delete === true || t.delete === 'true' || t.isDelete === true || t.isDelete === 'true';
+        const isTSoldOut = t.soldOut === true || t.isSoldOut === true;
+        const isTStatusFalse = t.status === false || t.status === 'false';
+        const remainingSlots = Number(t.remainingSlots);
+        const isOutOfSlots = isNaN(remainingSlots) || remainingSlots <= 0;
+        return !isTDeleted && !isTSoldOut && !isTStatusFalse && !isOutOfSlots;
+      });
+      const allFreshTicketsSoldOut = rawFreshTickets.length > 0 && !hasFreshAvailableTickets;
+
+      if (isFreshSoldOut || allFreshTicketsSoldOut || isFreshBlocked) {
         toast.error("This event has just sold out or is no longer available.", { id: 'soldout-block' });
         setEvent(prev => ({
           ...prev,
-          isSoldOut: isFreshSoldOut,
+          isSoldOut: isFreshSoldOut || allFreshTicketsSoldOut,
           isBlocked: isFreshBlocked
         }));
         return;

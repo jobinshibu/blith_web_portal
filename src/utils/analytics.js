@@ -9,14 +9,50 @@
  */
 
 import { logEvent, setUserId } from 'firebase/analytics';
-import { analytics } from '../firebase.js';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { analytics, db } from '../firebase.js';
 import { getLeadSourceProps } from '../services/leadService.js';
 
 /**
- * Safe wrapper to log standard GA4 events with lead source parameters & console logging
+ * Checks if the current environment is running in debug/development mode.
+ */
+const isDebugOrDevelopment = () => {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.search.includes('debug_mode=true') ||
+    window.__BLITHE_DEBUG_MODE__ === true ||
+    sessionStorage.getItem('ga_debug_mode') === 'true'
+  );
+};
+
+// Expose helpful debugging methods in browser window for developer & QA testing
+if (typeof window !== 'undefined') {
+  if (!window.__BLITHE_ANALYTICS_LOGS__) {
+    window.__BLITHE_ANALYTICS_LOGS__ = [];
+  }
+  window.getAnalyticsDebugLogs = () => window.__BLITHE_ANALYTICS_LOGS__ || [];
+  window.clearAnalyticsDebugLogs = () => {
+    window.__BLITHE_ANALYTICS_LOGS__ = [];
+    console.log('%c[Firebase Analytics] Cleared in-memory debug logs.', 'color: #3B82F6;');
+  };
+  window.enableAnalyticsDebug = (enable = true) => {
+    sessionStorage.setItem('ga_debug_mode', enable ? 'true' : 'false');
+    window.__BLITHE_DEBUG_MODE__ = Boolean(enable);
+    console.log(
+      `%c[Firebase Analytics] Debug mode is now ${enable ? 'ENABLED (events will route to GA4 DebugView & Firestore)' : 'DISABLED'}`,
+      'color: #10B981; font-weight: bold;'
+    );
+  };
+}
+
+/**
+ * Safe wrapper to log standard GA4 events with lead source parameters, DebugView routing & Firestore logging
  */
 export const trackGAEvent = (eventName, params = {}) => {
   try {
+    const isDev = isDebugOrDevelopment();
     const leadProps = typeof getLeadSourceProps === 'function' ? getLeadSourceProps() : {};
     const fullParams = {
       ...leadProps,
@@ -24,13 +60,44 @@ export const trackGAEvent = (eventName, params = {}) => {
       platform: 'web'
     };
 
+    // GA4 DebugView activation flag
+    if (isDev) {
+      fullParams.debug_mode = true;
+    }
+
+    // 1. Dispatch to Firebase / Google Analytics 4
     if (analytics) {
       logEvent(analytics, eventName, fullParams);
     }
 
+    // 2. Save in-memory log for local console testing
+    if (typeof window !== 'undefined') {
+      window.__BLITHE_ANALYTICS_LOGS__ = window.__BLITHE_ANALYTICS_LOGS__ || [];
+      window.__BLITHE_ANALYTICS_LOGS__.push({
+        event: eventName,
+        params: fullParams,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // 3. Save to Firestore in debug_analytics collection for developer auditing
+    if (isDev && db) {
+      try {
+        addDoc(collection(db, 'analytics_debug_logs'), {
+          event: eventName,
+          params: fullParams,
+          url: typeof window !== 'undefined' ? window.location.href : '',
+          created_at: new Date().toISOString(),
+          timestamp: serverTimestamp()
+        }).catch(() => {});
+      } catch (_) {
+        // Non-blocking fire-and-forget
+      }
+    }
+
     console.log(
-      `%c[Firebase Analytics] Standard event: ${eventName}`,
-      'color: #F58220; font-weight: bold;',
+      `%c[Firebase Analytics - GA4 Debug] ${eventName}`,
+      'color: #F58220; font-weight: bold; background: #FFF4E5; padding: 2px 6px; border-radius: 4px;',
       fullParams
     );
     return true;
@@ -47,7 +114,27 @@ export const setGAUserId = (userId) => {
   try {
     if (analytics && userId) {
       setUserId(analytics, String(userId));
-      console.log(`%c[Firebase Analytics] setUserId: ${userId}`, 'color: #10B981; font-weight: bold;');
+      console.log(
+        `%c[Firebase Analytics - GA4 Debug] setUserId: ${userId}`,
+        'color: #10B981; font-weight: bold; background: #E6FBF2; padding: 2px 6px; border-radius: 4px;'
+      );
+
+      const isDev = isDebugOrDevelopment();
+      if (typeof window !== 'undefined') {
+        window.__BLITHE_CURRENT_USER_ID__ = String(userId);
+      }
+
+      // Log setUserId to Firestore in debug mode
+      if (isDev && db) {
+        try {
+          addDoc(collection(db, 'analytics_debug_logs'), {
+            event: 'set_user_id',
+            userId: String(userId),
+            created_at: new Date().toISOString(),
+            timestamp: serverTimestamp()
+          }).catch(() => {});
+        } catch (_) {}
+      }
       return true;
     }
   } catch (err) {
