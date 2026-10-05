@@ -493,7 +493,17 @@ const EventBookingPage = () => {
       (docSnap) => {
         setLoading(false);
         if (docSnap && docSnap.exists()) {
+          // If the user is genuinely offline, block booking checkout
+          if (!navigator.onLine) {
+            setIsFetchOffline(true);
+            return;
+          }
+
           const data = docSnap.data();
+          if (!data) {
+            setEvent(null);
+            return;
+          }
 
           // Check if it's a private event that is expired or deleted
           const today = new Date();
@@ -514,7 +524,7 @@ const EventBookingPage = () => {
           const isDeleted = data.deleted === true;
           const isExpired = data.isExpired === true || isEventExpired;
           const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
-          const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
+          const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) || data.status === undefined || data.status === null || data.status === '';
           const isSoldOut = data.soldOut === true || data.isSoldOut === true;
 
           // Check if all tickets in the event are sold out, disabled, or deleted
@@ -1161,54 +1171,7 @@ const EventBookingPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="booking-page-loading" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem' }}>
-        <motion.img
-          src={logo}
-          alt="Loading..."
-          style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)' }}
-          animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <h2 style={{ color: '#7C3AED', fontWeight: 'bold', fontSize: '1.25rem' }}>Loading booking details...</h2>
-      </div>
-    );
-  }
 
-  if (!event) {
-    return (
-      <div className="error-page container">
-        <div className="error-icon-wrapper not-found">
-          <AlertTriangle size={48} />
-        </div>
-        <h2>Event Not Found</h2>
-        <p>
-          The event checkout could not be loaded. This event may have been removed.
-        </p>
-        <Link to="/" className="back-btn">
-          Explore Other Events
-        </Link>
-      </div>
-    );
-  }
-
-  if (event.isUnavailablePrivateEvent) {
-    return (
-      <div className="error-page container">
-        <div className="error-icon-wrapper">
-          <Lock size={48} />
-        </div>
-        <h2>Checkout Unavailable</h2>
-        <p>
-          Registration for this private event is no longer open because the event has expired or been cancelled.
-        </p>
-        <Link to="/" className="back-btn">
-          Back to Events
-        </Link>
-      </div>
-    );
-  }
 
 
   const getTicketRemainingSlots = (ticket) => {
@@ -1914,7 +1877,7 @@ const EventBookingPage = () => {
             throw new Error("Event not found");
           }
           const eventDbData = eventSnap.data();
-          const isStatusZero = (eventDbData.status === 0 || eventDbData.status === '0' || Number(eventDbData.status) === 0) && eventDbData.status !== null && eventDbData.status !== undefined && eventDbData.status !== '';
+          const isStatusZero = (eventDbData.status === 0 || eventDbData.status === '0' || Number(eventDbData.status) === 0) || eventDbData.status === undefined || eventDbData.status === null || eventDbData.status === '';
           if (eventDbData.block === true || eventDbData.blocked === true || eventDbData.isBlocked === true || eventDbData.deleted === true || !isStatusZero) {
             throw new Error("This event has been blocked, concluded, or removed, and is no longer available for booking.");
           }
@@ -2580,6 +2543,25 @@ const EventBookingPage = () => {
     }
   };
 
+  if (!navigator.onLine || !isOnline || isFetchOffline) {
+    return (
+      <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
+        <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.25rem', borderRadius: '50%', color: '#EF4444' }}>
+          <WifiOff size={48} />
+        </div>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827' }}>
+          No Internet Connection
+        </h2>
+        <p style={{ color: '#6B7280', maxWidth: '420px', fontSize: '1rem', lineHeight: '1.5' }}>
+          You appear to be offline or viewing cached data. An active internet connection is required to book tickets and complete checkout.
+        </p>
+        <button onClick={() => navigate(`/events/${id}`)} className="back-btn" style={{ padding: '0.75rem 1.75rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+          Back to Event Details
+        </button>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="loading-container container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1.5rem', textAlign: 'center', padding: '0 1rem' }}>
@@ -2617,25 +2599,7 @@ const EventBookingPage = () => {
     );
   }
 
-  if (!event || event.isBlocked || event.deleted || event.isUnavailablePrivateEvent || event.isSoldOut || isFetchOffline) {
-    if (isFetchOffline || (!navigator.onLine && !event)) {
-      return (
-        <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
-          <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.25rem', borderRadius: '50%', color: '#EF4444' }}>
-            <WifiOff size={48} />
-          </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827' }}>
-            No Internet Connection
-          </h2>
-          <p style={{ color: '#6B7280', maxWidth: '420px', fontSize: '1rem', lineHeight: '1.5' }}>
-            You appear to be offline. Please check your internet connection to access the booking page.
-          </p>
-          <button onClick={() => window.location.reload()} className="back-btn" style={{ padding: '0.75rem 1.75rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-            Retry Loading
-          </button>
-        </div>
-      );
-    }
+  if (!event || event.isBlocked || event.deleted || event.isUnavailablePrivateEvent || event.isSoldOut) {
 
     if (event?.isSoldOut) {
       return (
@@ -2676,9 +2640,14 @@ const EventBookingPage = () => {
               ? "This event has been removed by the organizer."
               : "The event you are trying to book is no longer active or available."}
         </p>
-        <button onClick={() => navigate('/')} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-          Explore Other Events
-        </button>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button onClick={() => navigate(`/events/${id}`)} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', cursor: 'pointer', fontWeight: 600 }}>
+            Back to Event
+          </button>
+          <button onClick={() => navigate('/events')} className="back-btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+            Explore Other Events
+          </button>
+        </div>
       </div>
     );
   }

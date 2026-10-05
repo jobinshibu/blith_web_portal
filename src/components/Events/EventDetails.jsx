@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages, Lock, XCircle, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc, collection, collectionGroup, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, collectionGroup, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
 import logoTransparent from '../../assets/logo-transparent.png';
 import './EventDetails.scss';
+import { getCachedEventDetails, getCachedEventDetail, saveEventDetailsToCache, saveEventDetailToCache, getCachedEvents, getCachedImageUrl, cacheImageBlob } from '../../utils/cacheManager';
 
 // Custom SVG Brand Icons since they were removed from Lucide v1.0+
 const FacebookIcon = ({ size = 20 }) => (
@@ -1145,6 +1146,8 @@ const EventDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isSlowConnection, setIsSlowConnection] = useState(false);
   const [isOfflineError, setIsOfflineError] = useState(false);
+  const [isUsingCachedEvent, setIsUsingCachedEvent] = useState(false);
+  const backendEventLoadedRef = useRef(false);
 
   useEffect(() => {
     if (loading) {
@@ -1312,230 +1315,274 @@ const EventDetails = () => {
   }, [event, organiser, isAboutExpanded, isOrgAboutExpanded, isTermsExpanded]);
 
   useEffect(() => {
-    const fetchEvent = async () => {
-      setLoading(true);
+    backendEventLoadedRef.current = false;
+    let isCancelled = false;
+
+    // Helper to format event data for details page
+    const formatEventData = (evtId, data) => {
+      if (!data) return null;
+      const parseTimestampToDate = (ts) => {
+        if (!ts) return null;
+        if (typeof ts.toDate === 'function') return ts.toDate();
+        if (ts.seconds) return new Date(ts.seconds * 1000);
+        if (ts instanceof Date) return ts;
+        const d = new Date(ts);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
+      const checkIsEventExpiredData = (evtData) => {
+        if (!evtData) return false;
+        if (evtData.isExpired === true) return true;
+        const now = new Date();
+        const endDate = parseTimestampToDate(evtData.eventEndDate);
+        const startDate = parseTimestampToDate(evtData.eventStartDate);
+        if (endDate) return endDate < now;
+        if (startDate) return startDate < now;
+        return false;
+      };
+
+      const isEventExpired = checkIsEventExpiredData(data);
+      const isPrivate = data.isPrivateEvent === true;
+      const isDeleted = data.deleted === true;
+      const isExpired = data.isExpired === true || isEventExpired;
+      const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
+      const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
+      const isBlockedStatus = isBlocked || (!isStatusZero && !isExpired);
+
+      if (isBlockedStatus || (isPrivate && isExpired)) {
+        return {
+          id: evtId,
+          isPrivateEvent: isPrivate,
+          isUnavailablePrivateEvent: isPrivate && isExpired,
+          isBlocked: isBlockedStatus,
+          deleted: isDeleted,
+          isExpired: isExpired
+        };
+      }
+
+      const startDateObj = data.eventStartDate ? parseTimestampToDate(data.eventStartDate) : new Date();
+      const endDateObj = data.eventEndDate ? parseTimestampToDate(data.eventEndDate) : null;
+
+      const formattedStartDate = startDateObj ? startDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+      let formattedDate = formattedStartDate;
+      let formattedTime = startDateObj ? startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+
+      if (endDateObj) {
+        const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+        if (formattedStartDate !== formattedEndDate) {
+          formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
+        }
+        const endFormattedTime = endDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        if (formattedTime !== endFormattedTime) {
+          formattedTime = `${formattedTime} - ${endFormattedTime}`;
+        }
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isTicketAvailable = (t) => checkTicketAvailable(t, today);
+
+      let displayPrice = "Free";
+      let isPriceOnwards = false;
+      const isSoldOutEvent = data.soldOut === true;
+
+      if (data.tickets && data.tickets.length > 0) {
+        const availableTickets = isSoldOutEvent ? [] : data.tickets.filter(isTicketAvailable);
+        if (isSoldOutEvent || availableTickets.length === 0) {
+          displayPrice = "Sold Out";
+          isPriceOnwards = false;
+        } else {
+          const availablePaidTickets = availableTickets.filter(t => (Number(t.actualPrice) || Number(t.price) || 0) > 0);
+          if (availablePaidTickets.length > 0) {
+            const minPrice = Math.min(...availablePaidTickets.map(t => Number(t.actualPrice) || Number(t.price) || 0));
+            displayPrice = `₹${minPrice}`;
+            isPriceOnwards = true;
+          } else {
+            displayPrice = "Free";
+            isPriceOnwards = false;
+          }
+        }
+      } else if (isSoldOutEvent) {
+        displayPrice = "Sold Out";
+        isPriceOnwards = false;
+      } else if (data.price > 0) {
+        displayPrice = `₹${data.price}`;
+      }
+
+      const featuredEndD = parseTimestampToDate(data.featuredEndDate);
+      const isFeatured = data.featured === true && featuredEndD && featuredEndD >= new Date();
+
+      let languageVal = "";
+      if (data.language) {
+        languageVal = Array.isArray(data.language) ? data.language.join(', ') : String(data.language);
+      } else if (data.languages) {
+        languageVal = Array.isArray(data.languages) ? data.languages.join(', ') : String(data.languages);
+      } else if (data.eventLanguage) {
+        languageVal = Array.isArray(data.eventLanguage) ? data.eventLanguage.join(', ') : String(data.eventLanguage);
+      }
+
+      return {
+        id: evtId,
+        promoted: isFeatured,
+        title: data.eventName || data.title || "Untitled Event",
+        image: Array.isArray(data.image) ? (data.image[0] || "") : (typeof data.image === 'string' ? data.image : (data.imageUrl || data.coverImage || "")),
+        extraImages: Array.isArray(data.image) ? data.image.slice(1) : [],
+        date: formattedDate,
+        time: formattedTime,
+        location: data.location || data.venue || "TBA",
+        venue: data.venue || (data.location ? data.location.split(',')[0] : "TBA"),
+        geopoint: data.position?.geopoint || null,
+        price: displayPrice,
+        isPriceOnwards: isPriceOnwards,
+        priceMessage: data.priceMessage || "",
+        category: data.category || "Other",
+        eventType: data.eventType || "Offline",
+        ageRestriction: data.ageRestriction || false,
+        minAge: data.minAge || 18,
+        description: data.description || "No description provided.",
+        termsAndConditions: data.termsAndConditions || "No terms specified.",
+        tickets: data.tickets || [],
+        tags: processTags(data.tags),
+        platformFee: data.platformFee || 0,
+        eventStartDate: data.eventStartDate || null,
+        eventEndDate: data.eventEndDate || null,
+        bookingClosingTime: data.bookingClosingTime || null,
+        soldOut: data.soldOut || false,
+        isExpired: isExpired,
+        language: languageVal,
+        orgEventSupportNumber: data.orgEventSupportNumber !== undefined && data.orgEventSupportNumber !== null ? data.orgEventSupportNumber : "",
+        eventSupportNumber: data.eventSupportNumber !== undefined && data.eventSupportNumber !== null ? data.eventSupportNumber : "",
+        raw: data
+      };
+    };
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    const loadCache = async () => {
       try {
-        let docSnap = null;
-        try {
-          let docRef = doc(db, "event", id);
-          docSnap = await getDoc(docRef);
-        } catch (err) {
-          console.warn("Error getting Firestore doc:", err);
+        let cachedData = await getCachedEventDetails(id);
+        if (!cachedData) {
+          const allCached = await getCachedEvents();
+          if (allCached) {
+            const match = allCached.find(e => e.id === id);
+            if (match) cachedData = match;
+          }
         }
 
-        if (docSnap && docSnap.exists()) {
-          const data = docSnap.data();
-          console.log("DEBUG_NUMBERS_JSON:", JSON.stringify({
-            orgEventSupportNumber: data.orgEventSupportNumber,
-            eventSupportNumber: data.eventSupportNumber,
-            contactSupport: data.contactSupport,
-            supportNumber: data.supportNumber,
-            phone: data.phone,
-            organizerPhone: data.organizerPhone,
-            organiserContact: data.organiserContact,
-            allKeysWithPhoneOrSupport: Object.keys(data).filter(k => /phone|support|contact|number/i.test(k)).map(k => ({ [k]: data[k] }))
-          }));
-
-          // UPDATED: Expired event validation
-          const parseTimestampToDate = (ts) => {
-            if (!ts) return null;
-            if (typeof ts.toDate === 'function') return ts.toDate();
-            if (ts.seconds) return new Date(ts.seconds * 1000);
-            if (ts instanceof Date) return ts;
-            const d = new Date(ts);
-            return isNaN(d.getTime()) ? null : d;
-          };
-
-          // UPDATED: Expired event validation
-          const checkIsEventExpiredData = (evtData) => {
-            if (!evtData) return false;
-            if (evtData.isExpired === true) return true;
-            const now = new Date();
-            const endDate = parseTimestampToDate(evtData.eventEndDate);
-            const startDate = parseTimestampToDate(evtData.eventStartDate);
-            if (endDate) {
-              return endDate < now;
-            }
-            if (startDate) {
-              return startDate < now;
-            }
-            return false;
-          };
-
-          const isEventExpired = checkIsEventExpiredData(data);
-
-          const isPrivate = data.isPrivateEvent === true;
-          const isDeleted = data.deleted === true;
-          const isExpired = data.isExpired === true || isEventExpired;
-          const isBlocked = data.block === true || data.blocked === true || data.isBlocked === true;
-          const isStatusZero = (data.status === 0 || data.status === '0' || Number(data.status) === 0) && data.status !== null && data.status !== undefined && data.status !== '';
-
-          // Block if explicitly blocked, private expired, or unapproved active event (status !== 0 and not expired)
-          const isBlockedStatus = isBlocked || (!isStatusZero && !isExpired);
-          if (isBlockedStatus || (isPrivate && isExpired)) {
-            setEvent({
-              id: docSnap.id,
-              isPrivateEvent: isPrivate,
-              isUnavailablePrivateEvent: isPrivate && isExpired,
-              isBlocked: isBlockedStatus,
-              deleted: isDeleted,
-              isExpired: isExpired
-            });
+        if (cachedData && !backendEventLoadedRef.current && !isCancelled) {
+          const formatted = formatEventData(id, cachedData);
+          if (formatted && !backendEventLoadedRef.current) {
+            setIsUsingCachedEvent(true);
+            setEvent(formatted);
             setLoading(false);
-            return;
+            console.log(
+              "%c[EVENT DETAILS DATA SOURCE] Showing: CACHED DATA",
+              "background: #F59E0B; color: #000; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
+            );
           }
+        }
+      } catch (e) {
+        console.warn("[EventDetails] Failed to load cached event:", e);
+      }
+    };
 
-          // Format date and time
-          const startDateObj = data.eventStartDate ? data.eventStartDate.toDate() : new Date();
-          const endDateObj = data.eventEndDate ? data.eventEndDate.toDate() : null;
+    if (isOffline) {
+      loadCache();
+    }
 
-          const formattedStartDate = startDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
-          let formattedDate = formattedStartDate;
+    // 1. Wait 1 second (1000ms) for exact live data from Firestore.
+    // If live data has NOT arrived after 1s, load previously cached event from IndexedDB.
+    const oneSecTimer = setTimeout(() => {
+      if (!backendEventLoadedRef.current && !isCancelled) {
+        loadCache();
+      }
+    }, 1000);
 
-          let formattedTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    // 2. Immediately start fetching exact fresh data from Firestore in background
+    const fetchFreshEventData = async () => {
+      const docRef = doc(db, "event", id);
+      try {
+        const docSnap = await getDoc(docRef);
+        if (isCancelled) return;
 
-          if (endDateObj) {
-            const formattedEndDate = endDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
-            if (formattedStartDate !== formattedEndDate) {
-              formattedDate = `${formattedStartDate} - ${formattedEndDate}`;
-            }
-
-            const endFormattedTime = endDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            if (formattedTime !== endFormattedTime) {
-              formattedTime = `${formattedTime} - ${endFormattedTime}`;
-            }
-          }
-
-          // Determine price
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          const isTicketAvailable = (t) => checkTicketAvailable(t, today);
-
-          let displayPrice = "Free";
-          let isPriceOnwards = false;
-          const isSoldOutEvent = data.soldOut === true;
-
-          if (data.tickets && data.tickets.length > 0) {
-            const availableTickets = isSoldOutEvent ? [] : data.tickets.filter(isTicketAvailable);
-            if (isSoldOutEvent || availableTickets.length === 0) {
-              displayPrice = "Sold Out";
-              isPriceOnwards = false;
-            } else {
-              const availablePaidTickets = availableTickets.filter(t => (Number(t.actualPrice) || Number(t.price) || 0) > 0);
-              if (availablePaidTickets.length > 0) {
-                const minPrice = Math.min(...availablePaidTickets.map(t => Number(t.actualPrice) || Number(t.price) || 0));
-                displayPrice = `₹${minPrice}`;
-                isPriceOnwards = true;
-              } else {
-                displayPrice = "Free";
-                isPriceOnwards = false;
-              }
-            }
-          } else if (isSoldOutEvent) {
-            displayPrice = "Sold Out";
-            isPriceOnwards = false;
-          } else if (data.price > 0) {
-            displayPrice = `₹${data.price}`;
-          }
-
-          const organizerId = data.oId || data.oid || "";
-          if (organizerId) {
-            if (organiserCache.has(organizerId)) {
-              setOrganiser(organiserCache.get(organizerId));
-            } else {
-              const organiserRef = doc(db, "organisers", organizerId);
-              getDoc(organiserRef).then(organiserSnap => {
-                if (organiserSnap.exists()) {
-                  const orgData = organiserSnap.data();
-                  console.log("DEBUG_ORGANISER_PHONE_FIELDS_JSON:", JSON.stringify({
-                    phone: orgData.phone,
-                    phoneNumber: orgData.phoneNumber,
-                    contact: orgData.contact,
-                    contactNumber: orgData.contactNumber,
-                    supportNumber: orgData.supportNumber,
-                    orgEventSupportNumber: orgData.orgEventSupportNumber,
-                    mobile: orgData.mobile,
-                    allKeys: Object.keys(orgData).filter(k => /phone|support|contact|mobile|number/i.test(k)).map(k => ({ [k]: orgData[k] }))
-                  }));
-                  const orgObj = {
-                    id: organiserSnap.id,
-                    name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
-                    image: orgData.profileImage || orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
-                    about: orgData.about || orgData.description || orgData.bio || "",
-                    facebookUrl: orgData.facebookUrl || orgData.facebook || "",
-                    instagramUrl: orgData.instagramUrl || orgData.instagram || "",
-                    twitterUrl: orgData.twitterUrl || orgData.twitter || "",
-                    websiteUrl: orgData.websiteUrl || orgData.website || ""
-                  };
-                  organiserCache.set(organizerId, orgObj);
-                  setOrganiser(orgObj);
-                } else {
-                  setOrganiser(null);
-                }
-              }).catch(err => {
-                console.error("Error fetching organiser: ", err);
-                setOrganiser(null);
-              });
-            }
+        if (!docSnap || !docSnap.exists()) {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setIsOfflineError(true);
           } else {
-            setOrganiser(null);
+            setEvent(null);
+            setLoading(false);
           }
+          return;
+        }
 
-          const isFeatured = data.featured === true && data.featuredEndDate && data.featuredEndDate.toDate() >= new Date();
+        const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+        const isFromFirestoreCache = docSnap.metadata?.fromCache === true;
 
-          let languageVal = "";
-          if (data.language) {
-            languageVal = Array.isArray(data.language) ? data.language.join(', ') : String(data.language);
-          } else if (data.languages) {
-            languageVal = Array.isArray(data.languages) ? data.languages.join(', ') : String(data.languages);
-          } else if (data.eventLanguage) {
-            languageVal = Array.isArray(data.eventLanguage) ? data.eventLanguage.join(', ') : String(data.eventLanguage);
+        if (!isFromFirestoreCache && isOnline) {
+          backendEventLoadedRef.current = true;
+          clearTimeout(oneSecTimer);
+          setIsUsingCachedEvent(false);
+          console.log(
+            "%c[EVENT DETAILS DATA SOURCE] Showing: REAL LIVE BACKEND DATA (Firestore)",
+            "background: #10B981; color: #FFF; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
+          );
+        } else if (!isOnline) {
+          setIsUsingCachedEvent(true);
+        }
+
+        const data = docSnap.data();
+
+        // Save fresh live data to IndexedDB and cache image blob
+        if (!isFromFirestoreCache) {
+          saveEventDetailsToCache(id, data).catch(() => {});
+          const bannerUrl = Array.isArray(data.image) ? data.image[0] : (typeof data.image === 'string' ? data.image : null);
+          if (bannerUrl) {
+            cacheImageBlob(bannerUrl).catch(() => {});
           }
+        }
 
-          const loadedEventObj = {
-            id: docSnap.id,
-            promoted: isFeatured,
-            title: data.eventName || "Untitled Event",
-            image: Array.isArray(data.image) ? (data.image[0] || "") : (typeof data.image === 'string' ? data.image : (data.imageUrl || data.coverImage || "")),
-            extraImages: Array.isArray(data.image) ? data.image.slice(1) : [],
-            date: formattedDate,
-            time: formattedTime,
-            location: data.location || data.venue || "TBA",
-            venue: data.venue || (data.location ? data.location.split(',')[0] : "TBA"),
-            geopoint: data.position?.geopoint || null,
-            price: displayPrice,
-            isPriceOnwards: isPriceOnwards,
-            priceMessage: data.priceMessage || "",
-            category: data.category || "Other",
-            eventType: data.eventType || "Offline",
-            ageRestriction: data.ageRestriction || false,
-            minAge: data.minAge || 18,
-            description: data.description || "No description provided.",
-            termsAndConditions: data.termsAndConditions || "No terms specified.",
-            tickets: data.tickets || [],
-            tags: processTags(data.tags),
-            platformFee: data.platformFee || 0,
-            eventStartDate: data.eventStartDate || null,
-            eventEndDate: data.eventEndDate || null,
-            bookingClosingTime: data.bookingClosingTime || null,
-            soldOut: data.soldOut || false,
-            isExpired: isExpired, // UPDATED: Expired event validation
-            language: languageVal,
-            orgEventSupportNumber: data.orgEventSupportNumber !== undefined && data.orgEventSupportNumber !== null ? data.orgEventSupportNumber : "",
-            eventSupportNumber: data.eventSupportNumber !== undefined && data.eventSupportNumber !== null ? data.eventSupportNumber : "",
-            raw: data
-          };
+        const organizerId = data.oId || data.oid || "";
+        if (organizerId) {
+          if (organiserCache.has(organizerId)) {
+            setOrganiser(organiserCache.get(organizerId));
+          } else {
+            const organiserRef = doc(db, "organisers", organizerId);
+            getDoc(organiserRef).then(organiserSnap => {
+              if (organiserSnap.exists() && !isCancelled) {
+                const orgData = organiserSnap.data();
+                const orgObj = {
+                  id: organiserSnap.id,
+                  name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
+                  image: orgData.profileImage || orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
+                  about: orgData.about || orgData.description || orgData.bio || "",
+                  facebookUrl: orgData.facebookUrl || orgData.facebook || "",
+                  instagramUrl: orgData.instagramUrl || orgData.instagram || "",
+                  twitterUrl: orgData.twitterUrl || orgData.twitter || "",
+                  websiteUrl: orgData.websiteUrl || orgData.website || ""
+                };
+                organiserCache.set(organizerId, orgObj);
+                setOrganiser(orgObj);
+              } else if (!isCancelled) {
+                setOrganiser(null);
+              }
+            }).catch(err => {
+              console.error("Error fetching organiser: ", err);
+              if (!isCancelled) setOrganiser(null);
+            });
+          }
+        } else {
+          setOrganiser(null);
+        }
 
+        const loadedEventObj = formatEventData(docSnap.id, data);
+        if (loadedEventObj && !isCancelled) {
           setEvent(loadedEventObj);
           setLoading(false);
           trackEventPageView(loadedEventObj);
 
           try {
             const now = Date.now();
-            if (lastLoggedEventId === docSnap.id && now - lastLoggedEventTime < 1000) {
-              // Skip duplicate log
-            } else {
+            if (lastLoggedEventId !== docSnap.id || now - lastLoggedEventTime >= 1000) {
               lastLoggedEventId = docSnap.id;
               lastLoggedEventTime = now;
               logEvent(analytics, 'view_event_page', {
@@ -1551,20 +1598,36 @@ const EventDetails = () => {
           } catch (analyticsErr) {
             console.warn("Failed to log event analytics in EventDetails:", analyticsErr);
           }
-        } else if (!docSnap && !navigator.onLine) {
-          setIsOfflineError(true);
         }
       } catch (error) {
-        console.error("Error fetching event details: ", error);
-        if (!navigator.onLine) {
+        console.error("Firestore getDoc error in EventDetails: ", error);
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
           setIsOfflineError(true);
         }
-      } finally {
         setLoading(false);
       }
     };
-    fetchEvent();
+
+    fetchFreshEventData();
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(oneSecTimer);
+    };
   }, [id]);
+
+  // Resolve cached blob URL for event banner if available
+  useEffect(() => {
+    let isCancelled = false;
+    if (event?.image && !event.image.startsWith('blob:')) {
+      getCachedImageUrl(event.image).then(cachedUrl => {
+        if (cachedUrl && cachedUrl !== event.image && !isCancelled) {
+          setEvent(prev => (prev ? { ...prev, image: cachedUrl } : prev));
+        }
+      }).catch(() => {});
+    }
+    return () => { isCancelled = true; };
+  }, [event?.id]);
 
   useEffect(() => {
     const fetchClusterCategories = async () => {
@@ -1929,7 +1992,7 @@ const EventDetails = () => {
     return <EventDetailsSkeleton isSlowConnection={isSlowConnection} />;
   }
 
-  if (isOfflineError || (!navigator.onLine && !event)) {
+  if ((isOfflineError || !navigator.onLine) && !event) {
     return (
       <div className="error-page container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
         <div className="error-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.25rem', borderRadius: '50%', color: '#EF4444' }}>
@@ -2156,10 +2219,36 @@ const EventDetails = () => {
 
   return (
     <div className="event-details-page">
-      <div className="details-header-bar container">
+      <div className="details-header-bar container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button onClick={() => navigate('/')} className="back-link-btn">
           <ArrowLeft size={20} /> <span className="text">Back to Events</span>
         </button>
+
+        {/* Data Source Indicator */}
+        {event && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            fontSize: '0.82rem',
+            fontWeight: '600',
+            background: isUsingCachedEvent ? '#FFFBEB' : '#ECFDF5',
+            border: isUsingCachedEvent ? '1px solid #FCD34D' : '1px solid #A7F3D0',
+            color: isUsingCachedEvent ? '#B45309' : '#047857',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+          }}>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: isUsingCachedEvent ? '#F59E0B' : '#10B981',
+              display: 'inline-block'
+            }} />
+            <span>{isUsingCachedEvent ? '⚡ Showing Cached Events' : '● Live'}</span>
+          </div>
+        )}
       </div>
 
       <div className="container main-content">
@@ -2552,8 +2641,27 @@ const EventDetails = () => {
                     <span>Sold Out: All tickets for this event have been sold.</span>
                   </div>
                 )}
+                {(!navigator.onLine || isUsingCachedEvent) && !isEventExpired && !isBookingClosed && !isSoldOut && (
+                  <div className="expired-event-banner" style={{
+                    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: '8px',
+                    padding: '0.75rem 1rem',
+                    marginTop: '0.75rem',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: '#B45309',
+                    fontWeight: 600,
+                    fontSize: '0.85rem'
+                  }}>
+                    <WifiOff size={18} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                    <span>Internet required to book tickets. Reconnect to purchase.</span>
+                  </div>
+                )}
                 <Button
-                  variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
+                  variant={(isEventExpired || isSoldOut || isBookingClosed || isUsingCachedEvent || !navigator.onLine) ? "secondary" : "primary"}
                   size="lg"
                   className={`book-now-btn ${isEventExpired
                     ? 'btn-event-expired'
@@ -2561,7 +2669,9 @@ const EventDetails = () => {
                       ? 'btn-sold-out'
                       : isBookingClosed
                         ? 'btn-booking-closed'
-                        : ''
+                        : (isUsingCachedEvent || !navigator.onLine)
+                          ? 'btn-booking-offline'
+                          : ''
                     }`}
                   onClick={() => {
                     // UPDATED: Expired event validation
@@ -2577,11 +2687,18 @@ const EventDetails = () => {
                       toast.error("This event is sold out.");
                       return;
                     }
+                    if (!navigator.onLine || isUsingCachedEvent) {
+                      toast.error("Live internet connection required to book tickets. Please reconnect to proceed with booking.", {
+                        id: "offline-booking-warning",
+                        duration: 4000
+                      });
+                      return;
+                    }
                     trackClickCheckoutNow(event);
                     trackGASelectContent(event);
                     navigate(`/events/${event.id}/book`);
                   }}
-                  disabled={isEventExpired || isSoldOut || isBookingClosed}
+                  disabled={isEventExpired || isSoldOut || isBookingClosed || isUsingCachedEvent || !navigator.onLine}
                 >
                   {isEventExpired ? (
                     <>
@@ -2597,6 +2714,11 @@ const EventDetails = () => {
                     <>
                       <Lock size={18} style={{ flexShrink: 0 }} />
                       <span>Booking Closed</span>
+                    </>
+                  ) : (isUsingCachedEvent || !navigator.onLine) ? (
+                    <>
+                      <WifiOff size={18} style={{ flexShrink: 0 }} />
+                      <span>Offline - Booking Disabled</span>
                     </>
                   ) : (
                     event.approvalNeeded ? 'Request to Join' : 'Book Now'
@@ -2698,7 +2820,7 @@ const EventDetails = () => {
           {isSoldOut && !isEventExpired && !isBookingClosed && event.price !== "Sold Out" && <span className="price-message" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 800, display: 'block', marginTop: '2px' }}>Sold Out</span>}
         </div>
         <Button
-          variant={(isEventExpired || isSoldOut || isBookingClosed) ? "secondary" : "primary"}
+          variant={(isEventExpired || isSoldOut || isBookingClosed || isUsingCachedEvent || !navigator.onLine) ? "secondary" : "primary"}
           size="md"
           className={`book-now-btn ${isEventExpired
             ? 'btn-event-expired'
@@ -2706,7 +2828,9 @@ const EventDetails = () => {
               ? 'btn-sold-out'
               : isBookingClosed
                 ? 'btn-booking-closed'
-                : ''
+                : (isUsingCachedEvent || !navigator.onLine)
+                  ? 'btn-booking-offline'
+                  : ''
             }`}
           onClick={() => {
             // UPDATED: Expired event validation
@@ -2722,11 +2846,18 @@ const EventDetails = () => {
               toast.error("This event is sold out.");
               return;
             }
+            if (!navigator.onLine || isUsingCachedEvent) {
+              toast.error("Live internet connection required to book tickets. Please reconnect to proceed with booking.", {
+                id: "offline-booking-warning-mobile",
+                duration: 4000
+              });
+              return;
+            }
             trackClickCheckoutNow(event);
             trackGASelectContent(event);
             navigate(`/events/${event.id}/book`);
           }}
-          disabled={isEventExpired || isSoldOut || isBookingClosed}
+          disabled={isEventExpired || isSoldOut || isBookingClosed || isUsingCachedEvent || !navigator.onLine}
         >
           {isEventExpired ? (
             <>
@@ -2742,6 +2873,11 @@ const EventDetails = () => {
             <>
               <Lock size={16} style={{ flexShrink: 0 }} />
               <span>Booking Closed</span>
+            </>
+          ) : (isUsingCachedEvent || !navigator.onLine) ? (
+            <>
+              <WifiOff size={16} style={{ flexShrink: 0 }} />
+              <span>Offline - Booking Disabled</span>
             </>
           ) : (
             event.approvalNeeded ? 'Request to Join' : 'Book Now'

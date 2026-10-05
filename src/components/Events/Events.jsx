@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, SearchX, ChevronDown, Calendar, MapPin, Clock, ArrowRight, Sparkles, Trophy, Music, Utensils, Tent, Film, Dumbbell, Presentation, Mic, Mic2, X, ChevronLeft, ChevronRight, Globe, Info, Lock, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchEventsThunk, fetchCategoriesThunk } from '../../store/eventsSlice';
+import { fetchEventsThunk, fetchCategoriesThunk, setCachedEvents, setCachedCategories } from '../../store/eventsSlice';
+import { getCachedEvents, getCachedCategories, getCachedImageUrl } from '../../utils/cacheManager';
+import { toast } from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
 import './Events.scss';
 import { db, analytics } from '../../firebase';
@@ -625,13 +627,107 @@ const Events = () => {
   }, [searchQuery]);
 
   const dispatch = useDispatch();
-  const { events: rawEvents, categories: rawCategories, loading: reduxLoading, error: reduxError } = useSelector(state => state.events);
+  const { events: rawEvents, categories: rawCategories, loading: reduxLoading, error: reduxError, isUsingCachedData } = useSelector(state => state.events);
   const [isSlowConnection, setIsSlowConnection] = useState(false);
+  const backendEventsLoadedRef = useRef(false);
 
   useEffect(() => {
-    dispatch(fetchEventsThunk());
-    dispatch(fetchCategoriesThunk());
+    let isCancelled = false;
+    backendEventsLoadedRef.current = false;
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    const loadCache = async () => {
+      try {
+        const [cachedEvts, cachedCats] = await Promise.all([
+          getCachedEvents(),
+          getCachedCategories()
+        ]);
+        if (!backendEventsLoadedRef.current && !isCancelled) {
+          if (cachedEvts && cachedEvts.length > 0) {
+            console.log(`[Events] Displaying ${cachedEvts.length} cached events.`);
+            dispatch(setCachedEvents(cachedEvts));
+            setLoading(false);
+          }
+          if (cachedCats && cachedCats.length > 0) {
+            dispatch(setCachedCategories(cachedCats));
+          }
+        }
+      } catch (e) {
+        console.warn("[Events] Failed to load cached data:", e);
+      }
+    };
+
+    // If already offline on mount, load cache immediately!
+    if (isOffline) {
+      loadCache();
+    } else {
+      // 1. Immediately start fetching exact fresh data from Firestore in background
+      dispatch(fetchEventsThunk(true));
+      dispatch(fetchCategoriesThunk(true));
+    }
+
+    // 2. Wait for 1 second (1000ms) to see if live data arrives fast
+    const oneSecTimer = setTimeout(() => {
+      // If after 1 second live data has NOT arrived (slow network / offline), load cached data from IndexedDB
+      if (!backendEventsLoadedRef.current && !isCancelled) {
+        loadCache();
+      }
+    }, 1000);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(oneSecTimer);
+    };
   }, [dispatch]);
+
+  // Track online/offline transitions
+  useEffect(() => {
+    const handleOffline = () => {
+      console.log("[Events] Device went offline - keeping cached data active.");
+      getCachedEvents().then(cached => {
+        if (cached && cached.length > 0 && events.length === 0) {
+          dispatch(setCachedEvents(cached));
+          setLoading(false);
+        }
+      });
+    };
+
+    const handleOnline = () => {
+      console.log("[Events] Device back online - re-fetching live events from Firestore...");
+      dispatch(fetchEventsThunk(true));
+      dispatch(fetchCategoriesThunk(true));
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [dispatch, events.length]);
+
+  // Track when fresh backend data arrives
+  useEffect(() => {
+    if (rawEvents && rawEvents.length > 0 && !isUsingCachedData) {
+      backendEventsLoadedRef.current = true;
+    }
+  }, [rawEvents, isUsingCachedData]);
+
+  // Console log active data source clearly
+  useEffect(() => {
+    if (isUsingCachedData) {
+      console.log(
+        "%c[BLITHE DATA SOURCE] Showing: CACHED DATA (Offline / Slow Network Fallback)",
+        "background: #F59E0B; color: #000; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
+      );
+    } else if (rawEvents.length > 0 && !reduxLoading) {
+      console.log(
+        "%c[BLITHE DATA SOURCE] Showing: REAL LIVE BACKEND DATA (Firestore)",
+        "background: #10B981; color: #FFF; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
+      );
+    }
+  }, [isUsingCachedData, rawEvents.length, reduxLoading]);
 
   // Subscribe to platform settings from /settings/settings
   useEffect(() => {
@@ -663,22 +759,38 @@ const Events = () => {
   }, []);
 
   useEffect(() => {
-    setLoading(reduxLoading);
-    if (reduxLoading) {
+    // Only show full loading skeleton if we have NO events at all (neither fresh nor cached)
+    const hasAnyEvents = (rawEvents && rawEvents.length > 0) || (events && events.length > 0);
+    if (reduxLoading && !hasAnyEvents) {
+      setLoading(true);
       const timer = setTimeout(() => {
         setIsSlowConnection(true);
       }, 5000);
       return () => clearTimeout(timer);
     } else {
+      setLoading(false);
       setIsSlowConnection(false);
     }
-  }, [reduxLoading]);
+  }, [reduxLoading, rawEvents, events.length]);
 
   useEffect(() => {
     if (reduxError) {
-      setError(reduxError);
+      // If we already have events (from cache), don't show full error screen; keep showing cached data!
+      if (events.length > 0 || (rawEvents && rawEvents.length > 0)) {
+        setError(null);
+      } else {
+        getCachedEvents().then(cached => {
+          if (cached && cached.length > 0) {
+            dispatch(setCachedEvents(cached));
+            setError(null);
+            setLoading(false);
+          } else {
+            setError(reduxError);
+          }
+        });
+      }
     }
-  }, [reduxError]);
+  }, [reduxError, events.length, rawEvents, dispatch]);
 
   useEffect(() => {
     let sourceCats = rawCategories;
@@ -804,7 +916,7 @@ const Events = () => {
         }
 
         const featuredEndD = toDateObj(data.featuredEndDate);
-        const isPromoted = data.featured === true && featuredEndD && featuredEndD >= new Date();
+        const isPromoted = data.promoted === true || (data.featured === true && (!featuredEndD || featuredEndD >= new Date()));
 
         const eLat = parseFloat(data.lat || data.latitude);
         const eLng = parseFloat(data.long || data.lng || data.longitude);
@@ -1026,8 +1138,12 @@ const Events = () => {
     };
   }, [startDate, endDate, isNearbyFilterActive, searchQuery, selectedCategories, events]);
 
-  // Filter promoted events for the carousel
-  const promotedEvents = events.filter(e => e.promoted);
+  // Filter promoted events for the carousel (with fallback to top events so hero section always shows even if promoted flag isn't set)
+  const promotedEvents = useMemo(() => {
+    const featuredList = events.filter(e => e.promoted);
+    if (featuredList.length > 0) return featuredList;
+    return events.slice(0, 5);
+  }, [events]);
 
   // New absolute indexing logic for infinite smooth carousel
   const [absoluteIndex, setAbsoluteIndex] = useState(0);
@@ -1448,7 +1564,9 @@ const Events = () => {
     });
   };
 
-  const activeFeaturedEvent = promotedEvents[carouselIndex];
+  const activeFeaturedEvent = promotedEvents.length > 0
+    ? (promotedEvents[carouselIndex] || promotedEvents[0])
+    : null;
 
   return (
     <div className="events-page">
@@ -1460,7 +1578,7 @@ const Events = () => {
             dispatch(fetchCategoriesThunk(true));
           }}
         />
-      ) : error ? (
+      ) : (error && events.length === 0) ? (
         <div className="error-container" style={{ padding: '5rem 1rem', textAlign: 'center' }}>
           <h2 style={{ color: '#EF4444', marginBottom: '1rem' }}>Unable to load events</h2>
           <p style={{ color: '#E5E7EB', backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '1rem', borderRadius: '0.5rem', display: 'inline-block', maxWidth: '500px' }}>
@@ -1582,9 +1700,20 @@ const Events = () => {
 
                           <div className={`card-content-layout ${index !== 0 ? 'hidden-content' : ''}`}>
                             <div className="card-text-side">
-                              <div className="hero-meta-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                              <div className="hero-meta-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                                 <span className="hero-badge-modern">Featured</span>
-
+                                <span className={`card-data-badge-inline ${isUsingCachedData ? 'cached' : 'live'}`} style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  background: isUsingCachedData ? 'rgba(245, 158, 11, 0.9)' : 'rgba(16, 185, 129, 0.9)',
+                                  color: '#fff'
+                                }}>
+                                  {isUsingCachedData ? '⚡ Cached Data' : '● Live Data'}
+                                </span>
                               </div>
                               <h1 className="hero-title">{event.title}</h1>
 
@@ -1878,6 +2007,26 @@ const Events = () => {
               {/* Events Portrait Grid */}
               <div className="events-main">
 
+                {/* Data Source Status Indicator */}
+                {events.length > 0 && (
+                  <div className={`data-source-status-bar ${isUsingCachedData ? 'cached' : 'live'}`}>
+                    <div className="status-left">
+                      <span className="dot" />
+                      <span>
+                        <strong>{isUsingCachedData ? "⚡ Showing Cached Events" : "● Live"}</strong>
+                        {isUsingCachedData
+                          ? ` (${filteredEvents.length} events loaded from cache)`
+                          : ` (${filteredEvents.length} live events)`}
+                      </span>
+                    </div>
+                    <div className="status-right">
+                      {isUsingCachedData
+                        ? (reduxLoading ? "Fetching live updates in background..." : (typeof navigator !== 'undefined' && !navigator.onLine ? "Offline Mode" : "Cached Mode"))
+                        : "Connected to Live Server"}
+                    </div>
+                  </div>
+                )}
+
                 {filteredEvents.length > 0 ? (
                   <>
                     <motion.div layout className="events-portrait-grid">
@@ -1895,6 +2044,9 @@ const Events = () => {
                             <Link to={`/events/${event.id}`} onClick={() => handleEventClick(event)} className="portrait-event-card">
                               <div className="portrait-image-wrapper">
                                 <img src={event.image} alt={event.title} loading="lazy" />
+                                <span className={`card-data-badge ${isUsingCachedData ? 'cached' : 'live'}`}>
+                                  {isUsingCachedData ? 'Cached' : 'Live'}
+                                </span>
                                 {event.promoted && (
                                   <span className="featured-badge-small">Featured</span>
                                 )}
@@ -1995,6 +2147,9 @@ const Events = () => {
                         >
                           <div className="recently-ended-image-wrapper">
                             <img src={event.image} alt={event.title} loading="lazy" />
+                            <span className={`card-data-badge ${isUsingCachedData ? 'cached' : 'live'}`}>
+                              {isUsingCachedData ? 'Cached' : 'Live'}
+                            </span>
                             <div className="recently-ended-overlay" />
                             <div className="recently-ended-badge">
                               <span className="recently-ended-badge-dot" />

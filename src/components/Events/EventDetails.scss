@@ -737,6 +737,17 @@
           opacity: 0.92 !important;
           transform: none !important;
         }
+
+        &.btn-booking-offline,
+        &.btn-booking-offline:disabled {
+          background: linear-gradient(135deg, #F59E0B, #D97706) !important;
+          color: #FFFFFF !important;
+          border: 1px solid rgba(251, 191, 36, 0.4) !important;
+          box-shadow: 0 6px 16px rgba(217, 119, 6, 0.25) !important;
+          cursor: not-allowed !important;
+          opacity: 0.9 !important;
+          transform: none !important;
+        }
       }
 
       .support-query-line {
