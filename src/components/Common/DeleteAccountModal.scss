@@ -20,7 +20,7 @@
   border-radius: 1.25rem;
   padding: 2.25rem 2rem;
   width: 100%;
-  max-width: 440px;
+  max-width: 460px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(226, 232, 240, 0.8);
   text-align: center;
@@ -155,14 +155,15 @@
     .btn-cancel {
       flex: 1;
       width: 100%;
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 0.75rem;
       border: 1px solid #cbd5e1;
       background: #ffffff;
       color: #475569;
       font-weight: 600;
-      font-size: 0.925rem;
+      font-size: 0.875rem;
       border-radius: 0.625rem;
       cursor: pointer;
+      white-space: nowrap;
       transition: all 0.2s ease;
 
       &:hover:not(:disabled) {
@@ -178,20 +179,21 @@
     }
 
     .btn-confirm-delete {
-      flex: 1.2;
+      flex: 1.25;
       width: 100%;
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 0.85rem;
       border: none;
       background: #ef4444;
       color: #ffffff;
       font-weight: 600;
-      font-size: 0.925rem;
+      font-size: 0.875rem;
       border-radius: 0.625rem;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
+      white-space: nowrap;
       box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
       transition: all 0.2s ease;
 

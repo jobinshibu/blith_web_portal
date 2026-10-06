@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, ArrowLeft, Share2, Info, Ticket, ChevronLeft, ChevronRight, ChevronDown, Navigation, AlertTriangle, Sparkles, X, Copy, Check, ExternalLink, Loader2, ShieldCheck, User, Phone, Mail, HelpCircle, Globe, Languages, Lock, XCircle, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,7 +6,7 @@ import { doc, getDoc, collection, collectionGroup, query, where, getDocs, onSnap
 import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchEventsThunk } from '../../store/eventsSlice';
+import { fetchEventsThunk, upsertEvent } from '../../store/eventsSlice';
 import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
 import { updateUserInterests } from '../../services/userService';
 import { trackEventPageView, trackEventCategoryView, trackClickCheckoutNow } from '../../utils/pixel';
@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
 import logoTransparent from '../../assets/logo-transparent.png';
 import './EventDetails.scss';
-import { getCachedEventDetails, getCachedEventDetail, saveEventDetailsToCache, saveEventDetailToCache, getCachedEvents, getCachedImageUrl, cacheImageBlob } from '../../utils/cacheManager';
+import { getCachedEventDetails, getCachedEventDetail, saveEventDetailsToCache, saveEventDetailToCache, removeCachedEventDetail, getCachedEvents, getCachedImageUrl, cacheImageBlob } from '../../utils/cacheManager';
 
 // Custom SVG Brand Icons since they were removed from Lucide v1.0+
 const FacebookIcon = ({ size = 20 }) => (
@@ -739,6 +739,8 @@ let lastLoggedEventId = null;
 let lastLoggedEventTime = 0;
 
 // Module-level in-memory caches to prevent redundant Firestore operations & maximize performance
+const eventDetailsMemoryCache = new Map();
+const EVENT_DETAILS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 const organiserCache = new Map();
 const attendeesCache = new Map();
 const ATTENDEES_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
@@ -832,6 +834,9 @@ const EventDetails = () => {
   const [showOrgAboutBtn, setShowOrgAboutBtn] = useState(false);
   const [showTermsBtn, setShowTermsBtn] = useState(false);
 
+  const [isDetailsScrolled, setIsDetailsScrolled] = useState(false);
+  const scrollSentinelRef = useRef(null);
+
   const [organiser, setOrganiser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [userLocation, setUserLocation] = useState(() => {
@@ -852,15 +857,14 @@ const EventDetails = () => {
   const [settings, setSettings] = useState(null);
   const [clusterCategoryNames, setClusterCategoryNames] = useState([]);
 
-  // Fetch current user from sessionStorage and Firestore
+  // Fetch current user from sessionStorage and Firestore (deferred to prioritize initial event query)
   useEffect(() => {
+    let isCancelled = false;
     const fetchCurrentUserProfile = async () => {
       try {
         const cachedDetails = localStorage.getItem('blithe_checkout_attendee') || sessionStorage.getItem('blithe_checkout_attendee');
-        console.log("[CurrentUser Debug] cachedDetails from sessionStorage:", cachedDetails);
         if (cachedDetails) {
           if (cachedUserProfile && cachedDetails === lastUserCacheKey) {
-            console.log("[CurrentUser Debug] Using cached resolved user profile:", cachedUserProfile);
             setCurrentUser(cachedUserProfile);
             return;
           }
@@ -872,57 +876,49 @@ const EventDetails = () => {
 
           // 1. Try UID lookup directly (most reliable)
           if (uid) {
-            console.log("[CurrentUser Debug] Attempting Firestore lookup by UID:", uid);
             const userDocRef = doc(db, "users", uid);
             const userSnap = await getDoc(userDocRef);
-            if (userSnap.exists()) {
+            if (userSnap.exists() && !isCancelled) {
               const uData = { uid: userSnap.id, ...userSnap.data() };
               cachedUserProfile = uData;
               lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
-              console.log("[CurrentUser Debug] Resolved user profile from Firestore by UID:", uData);
               return;
-            } else {
-              console.warn("[CurrentUser Debug] User doc does not exist for UID:", uid);
             }
           }
 
           // 2. Try Email lookup
-          if (email) {
-            console.log("[CurrentUser Debug] Attempting Firestore lookup by email:", email);
+          if (email && !isCancelled) {
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("email", "==", email));
             const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
+            if (!querySnapshot.empty && !isCancelled) {
               const userDoc = querySnapshot.docs[0];
               const uData = { uid: userDoc.id, ...userDoc.data() };
               cachedUserProfile = uData;
               lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
-              console.log("[CurrentUser Debug] Resolved user profile from Firestore by email:", uData);
               return;
             }
           }
 
           // 3. Try Phone lookup
-          if (phone) {
-            console.log("[CurrentUser Debug] Attempting Firestore lookup by phoneNo:", phone);
+          if (phone && !isCancelled) {
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("phoneNo", "==", phone));
             const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
+            if (!querySnapshot.empty && !isCancelled) {
               const userDoc = querySnapshot.docs[0];
               const uData = { uid: userDoc.id, ...userDoc.data() };
               cachedUserProfile = uData;
               lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
-              console.log("[CurrentUser Debug] Resolved user profile from Firestore by phoneNo:", uData);
               return;
             }
           }
 
           // 4. Fallback to session details
-          if (parsed.name) {
+          if (parsed.name && !isCancelled) {
             const fallbackUser = {
               uid: uid || parsed.bookingId || '',
               name: parsed.name,
@@ -933,10 +929,8 @@ const EventDetails = () => {
             cachedUserProfile = fallbackUser;
             lastUserCacheKey = cachedDetails;
             setCurrentUser(fallbackUser);
-            console.log("[CurrentUser Debug] Fell back to cached session user (not found in Firestore):", fallbackUser);
           }
-        } else {
-          console.log("[CurrentUser Debug] No cached user found in sessionStorage.");
+        } else if (!isCancelled) {
           cachedUserProfile = null;
           lastUserCacheKey = '';
           setCurrentUser(null);
@@ -945,7 +939,9 @@ const EventDetails = () => {
         console.warn("[CurrentUser Debug] Failed to fetch current user profile:", err);
       }
     };
-    fetchCurrentUserProfile();
+
+    // Defer 800ms so initial event load receives all network priority
+    const timer = setTimeout(fetchCurrentUserProfile, 800);
 
     const handleSessionChange = () => {
       cachedUserProfile = null;
@@ -955,6 +951,8 @@ const EventDetails = () => {
 
     window.addEventListener('session-user-changed', handleSessionChange);
     return () => {
+      isCancelled = true;
+      clearTimeout(timer);
       window.removeEventListener('session-user-changed', handleSessionChange);
     };
   }, []);
@@ -1001,7 +999,7 @@ const EventDetails = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch platform settings for contact support info from /settings/settings
+  // Fetch platform settings for contact support info from /settings/settings (deferred)
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -1023,27 +1021,38 @@ const EventDetails = () => {
         console.error("Error fetching settings from /settings/settings:", err);
       }
     };
-    fetchSettings();
+    const timer = setTimeout(fetchSettings, 1200);
+    return () => clearTimeout(timer);
   }, []);
 
+  // Fetch attendees for the event (lazy loaded on scroll)
+  const fetchAttendees = useCallback(async () => {
+    if (!id) return;
+    try {
+      let bookings = [];
+      const now = Date.now();
+      const cached = attendeesCache.get(id);
 
-
-  // Fetch attendees for the event
-  useEffect(() => {
-    const fetchAttendees = async () => {
-      if (!id) return;
-      try {
-        let bookings = [];
-        const now = Date.now();
-        const cached = attendeesCache.get(id);
-
-        if (cached && (now - cached.time < ATTENDEES_CACHE_TTL)) {
-          bookings = cached.data;
-        } else {
-          // 1. Try querying collectionGroup "myBookings"
+      if (cached && (now - cached.time < ATTENDEES_CACHE_TTL)) {
+        bookings = cached.data;
+      } else {
+        // 1. Try querying collectionGroup "myBookings"
+        try {
+          const bookingsQuery = query(
+            collectionGroup(db, 'myBookings'),
+            where('eventId', '==', id),
+            where('status', '==', 'confirmed')
+          );
+          const bookingsSnapshot = await getDocs(bookingsQuery);
+          bookingsSnapshot.forEach(docSnap => {
+            bookings.push(docSnap.data());
+          });
+        } catch (cgErr) {
+          console.warn("[Attendees] collectionGroup 'myBookings' failed, trying 'mybooking':", cgErr);
+          // 2. Try collectionGroup "mybooking" if "myBookings" fails
           try {
             const bookingsQuery = query(
-              collectionGroup(db, 'myBookings'),
+              collectionGroup(db, 'mybooking'),
               where('eventId', '==', id),
               where('status', '==', 'confirmed')
             );
@@ -1051,91 +1060,75 @@ const EventDetails = () => {
             bookingsSnapshot.forEach(docSnap => {
               bookings.push(docSnap.data());
             });
-          } catch (cgErr) {
-            console.warn("[Attendees] collectionGroup 'myBookings' failed, trying 'mybooking':", cgErr);
-            // 2. Try collectionGroup "mybooking" if "myBookings" fails (e.g. index issue or collection naming)
-            try {
-              const bookingsQuery = query(
-                collectionGroup(db, 'mybooking'),
-                where('eventId', '==', id),
-                where('status', '==', 'confirmed')
-              );
-              const bookingsSnapshot = await getDocs(bookingsQuery);
-              bookingsSnapshot.forEach(docSnap => {
-                bookings.push(docSnap.data());
-              });
-            } catch (cgErr2) {
-              console.warn("[Attendees] collectionGroup 'mybooking' failed:", cgErr2);
-            }
+          } catch (cgErr2) {
+            console.warn("[Attendees] collectionGroup 'mybooking' failed:", cgErr2);
           }
-
-          // 3. Fallback to eventBookings subcollection under the event document
-          if (bookings.length === 0) {
-            try {
-              const eventBookingsRef = collection(db, "event", id, "eventBookings");
-              const q = query(eventBookingsRef, where('status', '==', 'confirmed'));
-              const snap = await getDocs(q);
-              snap.forEach(docSnap => {
-                bookings.push(docSnap.data());
-              });
-            } catch (fallbackErr) {
-              console.error("[Attendees] Fallback fetch from eventBookings failed:", fallbackErr);
-            }
-          }
-
-          attendeesCache.set(id, { time: now, data: bookings });
         }
 
-        // Process bookings to filter unique attendees and extract names and profile images
-        const uniqueUsers = new Map();
-        bookings.forEach(b => {
-          const userId = b.userId || b.bookingId;
-          if (userId) {
-            const qty = b.totalQuantity || (b.tickets ? b.tickets.reduce((sum, t) => sum + (t.quantity || 0), 0) : 1);
-            if (!uniqueUsers.has(userId)) {
-              uniqueUsers.set(userId, {
-                userId,
-                userName: b.userName || 'Attendee',
-                userProfileImage: b.userProfileImage || b.profilePic || '',
-                ticketCount: qty
-              });
-            } else {
-              const existing = uniqueUsers.get(userId);
-              existing.ticketCount += qty;
-            }
-          }
-        });
-
-        const expandedList = [];
-        uniqueUsers.forEach((userData) => {
-          expandedList.push({
-            userId: userData.userId,
-            userName: userData.userName,
-            userProfileImage: userData.userProfileImage,
-            isGuest: false,
-            ticketCount: userData.ticketCount
-          });
-
-          for (let i = 1; i < userData.ticketCount; i++) {
-            expandedList.push({
-              userId: `${userData.userId}_guest_${i}`,
-              userName: `${userData.userName} (Guest ${i})`,
-              userProfileImage: '',
-              isGuest: true,
-              parentName: userData.userName,
-              ticketCount: 1
+        // 3. Fallback to eventBookings subcollection under the event document
+        if (bookings.length === 0) {
+          try {
+            const eventBookingsRef = collection(db, "event", id, "eventBookings");
+            const q = query(eventBookingsRef, where('status', '==', 'confirmed'));
+            const snap = await getDocs(q);
+            snap.forEach(docSnap => {
+              bookings.push(docSnap.data());
             });
+          } catch (fallbackErr) {
+            console.error("[Attendees] Fallback fetch from eventBookings failed:", fallbackErr);
           }
+        }
+
+        attendeesCache.set(id, { time: now, data: bookings });
+      }
+
+      // Process bookings to filter unique attendees and extract names and profile images
+      const uniqueUsers = new Map();
+      bookings.forEach(b => {
+        const userId = b.userId || b.bookingId;
+        if (userId) {
+          const qty = b.totalQuantity || (b.tickets ? b.tickets.reduce((sum, t) => sum + (t.quantity || 0), 0) : 1);
+          if (!uniqueUsers.has(userId)) {
+            uniqueUsers.set(userId, {
+              userId,
+              userName: b.userName || 'Attendee',
+              userProfileImage: b.userProfileImage || b.profilePic || '',
+              ticketCount: qty
+            });
+          } else {
+            const existing = uniqueUsers.get(userId);
+            existing.ticketCount += qty;
+          }
+        }
+      });
+
+      const expandedList = [];
+      uniqueUsers.forEach((userData) => {
+        expandedList.push({
+          userId: userData.userId,
+          userName: userData.userName,
+          userProfileImage: userData.userProfileImage,
+          isGuest: false,
+          ticketCount: userData.ticketCount
         });
 
-        setAttendeesList(expandedList);
-        setAttendeesCount(expandedList.length);
-      } catch (err) {
-        console.error("[Attendees] Error fetching attendees:", err);
-      }
-    };
+        for (let i = 1; i < userData.ticketCount; i++) {
+          expandedList.push({
+            userId: `${userData.userId}_guest_${i}`,
+            userName: `${userData.userName} (Guest ${i})`,
+            userProfileImage: '',
+            isGuest: true,
+            parentName: userData.userName,
+            ticketCount: 1
+          });
+        }
+      });
 
-    fetchAttendees();
+      setAttendeesList(expandedList);
+      setAttendeesCount(expandedList.length);
+    } catch (err) {
+      console.error("[Attendees] Error fetching attendees:", err);
+    }
   }, [id]);
 
   const aboutRef = useRef(null);
@@ -1283,9 +1276,10 @@ const EventDetails = () => {
   const dispatch = useDispatch();
   const { events: rawEvents } = useSelector(state => state.events);
 
+  // Reset scroll-loaded content when route ID changes
   useEffect(() => {
-    dispatch(fetchEventsThunk());
-  }, [dispatch, id]);
+    setIsDetailsScrolled(false);
+  }, [id]);
 
   const handleShareClick = () => {
     handleShareEvent();
@@ -1312,7 +1306,7 @@ const EventDetails = () => {
       window.removeEventListener('resize', checkOverflow);
       clearTimeout(timeoutId);
     };
-  }, [event, organiser, isAboutExpanded, isOrgAboutExpanded, isTermsExpanded]);
+  }, [event, organiser, isAboutExpanded, isOrgAboutExpanded, isTermsExpanded, isDetailsScrolled]);
 
   useEffect(() => {
     backendEventLoadedRef.current = false;
@@ -1460,13 +1454,28 @@ const EventDetails = () => {
 
     const loadCache = async () => {
       try {
-        let cachedData = await getCachedEventDetails(id);
+        let cachedData = null;
+        // 1. Check in-memory 5-minute cache first
+        const memCached = eventDetailsMemoryCache.get(id);
+        if (memCached && (Date.now() - memCached.timestamp < EVENT_DETAILS_CACHE_TTL)) {
+          cachedData = memCached.data;
+        }
+        // 2. Check IndexedDB cached event details
+        if (!cachedData) {
+          cachedData = await getCachedEventDetails(id);
+        }
+        // 3. Check IndexedDB all events cache
         if (!cachedData) {
           const allCached = await getCachedEvents();
           if (allCached) {
             const match = allCached.find(e => e.id === id);
             if (match) cachedData = match;
           }
+        }
+        // 4. Check Redux rawEvents in memory
+        if (!cachedData && rawEvents && rawEvents.length > 0) {
+          const match = rawEvents.find(e => e.id === id);
+          if (match) cachedData = match;
         }
 
         if (cachedData && !backendEventLoadedRef.current && !isCancelled) {
@@ -1475,14 +1484,13 @@ const EventDetails = () => {
             setIsUsingCachedEvent(true);
             setEvent(formatted);
             setLoading(false);
-            console.log(
-              "%c[EVENT DETAILS DATA SOURCE] Showing: CACHED DATA",
-              "background: #F59E0B; color: #000; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
-            );
+            return true;
           }
         }
+        return false;
       } catch (e) {
         console.warn("[EventDetails] Failed to load cached event:", e);
+        return false;
       }
     };
 
@@ -1490,15 +1498,15 @@ const EventDetails = () => {
       loadCache();
     }
 
-    // 1. Wait 1 second (1000ms) for exact live data from Firestore.
-    // If live data has NOT arrived after 1s, load previously cached event from IndexedDB.
-    const oneSecTimer = setTimeout(() => {
+    // 1. Wait 1 second (1000ms) for real data from Firestore.
+    // If real data has NOT arrived after 1s, load and show the cache.
+    const oneSecTimer = setTimeout(async () => {
       if (!backendEventLoadedRef.current && !isCancelled) {
-        loadCache();
+        await loadCache();
       }
     }, 1000);
 
-    // 2. Immediately start fetching exact fresh data from Firestore in background
+    // 2. Immediately start fetching real data from Firestore in background
     const fetchFreshEventData = async () => {
       const docRef = doc(db, "event", id);
       try {
@@ -1506,10 +1514,23 @@ const EventDetails = () => {
         if (isCancelled) return;
 
         if (!docSnap || !docSnap.exists()) {
-          if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            setIsOfflineError(true);
-          } else {
+          const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+          if (isOnline) {
+            // Event was removed / deleted from Firestore: purge it from cache and display Not Found
+            eventDetailsMemoryCache.delete(id);
+            removeCachedEventDetail(id).catch(() => {});
+            clearTimeout(oneSecTimer);
+            backendEventLoadedRef.current = true;
+            setIsUsingCachedEvent(false);
             setEvent(null);
+            setLoading(false);
+            return;
+          }
+
+          // Device is offline and could not reach Firestore: try showing cached event
+          const hasCached = await loadCache();
+          if (!hasCached && !isCancelled) {
+            setIsOfflineError(true);
             setLoading(false);
           }
           return;
@@ -1522,18 +1543,16 @@ const EventDetails = () => {
           backendEventLoadedRef.current = true;
           clearTimeout(oneSecTimer);
           setIsUsingCachedEvent(false);
-          console.log(
-            "%c[EVENT DETAILS DATA SOURCE] Showing: REAL LIVE BACKEND DATA (Firestore)",
-            "background: #10B981; color: #FFF; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
-          );
         } else if (!isOnline) {
           setIsUsingCachedEvent(true);
         }
 
         const data = docSnap.data();
 
-        // Save fresh live data to IndexedDB and cache image blob
+        // Save fresh live data to 5-minute memory cache, Redux store, and IndexedDB
         if (!isFromFirestoreCache) {
+          eventDetailsMemoryCache.set(id, { data, timestamp: Date.now() });
+          dispatch(upsertEvent({ id, ...data }));
           saveEventDetailsToCache(id, data).catch(() => {});
           const bannerUrl = Array.isArray(data.image) ? data.image[0] : (typeof data.image === 'string' ? data.image : null);
           if (bannerUrl) {
@@ -1541,39 +1560,7 @@ const EventDetails = () => {
           }
         }
 
-        const organizerId = data.oId || data.oid || "";
-        if (organizerId) {
-          if (organiserCache.has(organizerId)) {
-            setOrganiser(organiserCache.get(organizerId));
-          } else {
-            const organiserRef = doc(db, "organisers", organizerId);
-            getDoc(organiserRef).then(organiserSnap => {
-              if (organiserSnap.exists() && !isCancelled) {
-                const orgData = organiserSnap.data();
-                const orgObj = {
-                  id: organiserSnap.id,
-                  name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
-                  image: orgData.profileImage || orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
-                  about: orgData.about || orgData.description || orgData.bio || "",
-                  facebookUrl: orgData.facebookUrl || orgData.facebook || "",
-                  instagramUrl: orgData.instagramUrl || orgData.instagram || "",
-                  twitterUrl: orgData.twitterUrl || orgData.twitter || "",
-                  websiteUrl: orgData.websiteUrl || orgData.website || ""
-                };
-                organiserCache.set(organizerId, orgObj);
-                setOrganiser(orgObj);
-              } else if (!isCancelled) {
-                setOrganiser(null);
-              }
-            }).catch(err => {
-              console.error("Error fetching organiser: ", err);
-              if (!isCancelled) setOrganiser(null);
-            });
-          }
-        } else {
-          setOrganiser(null);
-        }
-
+        // Fast initial render: format event data and show immediately
         const loadedEventObj = formatEventData(docSnap.id, data);
         if (loadedEventObj && !isCancelled) {
           setEvent(loadedEventObj);
@@ -1601,10 +1588,14 @@ const EventDetails = () => {
         }
       } catch (error) {
         console.error("Firestore getDoc error in EventDetails: ", error);
-        if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          setIsOfflineError(true);
+        // If real data fetch fails (offline, error, timeout), show cache
+        const hasCached = await loadCache();
+        if (!hasCached && !isCancelled) {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setIsOfflineError(true);
+          }
+          setLoading(false);
         }
-        setLoading(false);
       }
     };
 
@@ -1615,6 +1606,81 @@ const EventDetails = () => {
       clearTimeout(oneSecTimer);
     };
   }, [id]);
+
+  // Scroll detection effect: activates when user scrolls down or sentinel enters proximity
+  useEffect(() => {
+    if (isDetailsScrolled) return;
+
+    const handleScroll = () => {
+      if (window.scrollY > 30) {
+        setIsDetailsScrolled(true);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    let observer;
+    if (typeof IntersectionObserver !== 'undefined' && scrollSentinelRef.current) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const [entry] = entries;
+          if (entry && (entry.isIntersecting || entry.boundingClientRect.top < window.innerHeight + 250)) {
+            setIsDetailsScrolled(true);
+          }
+        },
+        { rootMargin: '250px', threshold: 0.01 }
+      );
+      observer.observe(scrollSentinelRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (observer) observer.disconnect();
+    };
+  }, [isDetailsScrolled]);
+
+  // Fetch secondary data (Organiser, Attendees, Related Events) ONLY upon scroll
+  useEffect(() => {
+    if (!isDetailsScrolled || !event) return;
+
+    // 1. Fetch Organiser details if present
+    const organizerId = event.raw?.oId || event.raw?.oid || "";
+    if (organizerId && !organiser) {
+      if (organiserCache.has(organizerId)) {
+        setOrganiser(organiserCache.get(organizerId));
+      } else {
+        const organiserRef = doc(db, "organisers", organizerId);
+        getDoc(organiserRef).then(organiserSnap => {
+          if (organiserSnap.exists()) {
+            const orgData = organiserSnap.data();
+            const orgObj = {
+              id: organiserSnap.id,
+              name: orgData.name || orgData.displayName || orgData.organiserName || orgData.username || "Organizer",
+              image: orgData.profileImage || orgData.profilePic || orgData.photoURL || orgData.organiserImage || orgData.image || orgData.logo || "",
+              about: orgData.about || orgData.description || orgData.bio || "",
+              facebookUrl: orgData.facebookUrl || orgData.facebook || "",
+              instagramUrl: orgData.instagramUrl || orgData.instagram || "",
+              twitterUrl: orgData.twitterUrl || orgData.twitter || "",
+              websiteUrl: orgData.websiteUrl || orgData.website || ""
+            };
+            organiserCache.set(organizerId, orgObj);
+            setOrganiser(orgObj);
+          } else {
+            setOrganiser(null);
+          }
+        }).catch(err => {
+          console.error("Error fetching organiser on scroll: ", err);
+          setOrganiser(null);
+        });
+      }
+    }
+
+    // 2. Fetch Attendees on scroll
+    fetchAttendees();
+
+    // 3. Fetch candidate events for 'You might also like' recommendations
+    dispatch(fetchEventsThunk());
+  }, [isDetailsScrolled, event?.id, event?.raw?.oId, event?.raw?.oid, fetchAttendees, dispatch, organiser]);
 
   // Resolve cached blob URL for event banner if available
   useEffect(() => {
@@ -1630,6 +1696,7 @@ const EventDetails = () => {
   }, [event?.id]);
 
   useEffect(() => {
+    if (!isDetailsScrolled) return;
     const fetchClusterCategories = async () => {
       if (!event || !event.category) return;
       let names = [];
@@ -1708,7 +1775,7 @@ const EventDetails = () => {
     };
 
     fetchClusterCategories();
-  }, [event?.category]);
+  }, [isDetailsScrolled, event?.category]);
 
   useEffect(() => {
     const fetchRelatedEvents = () => {
@@ -1910,10 +1977,10 @@ const EventDetails = () => {
       }
     };
 
-    if (event) {
+    if (event && isDetailsScrolled) {
       fetchRelatedEvents();
     }
-  }, [event, rawEvents, userLocation, clusterCategoryNames]);
+  }, [event, rawEvents, userLocation, clusterCategoryNames, isDetailsScrolled]);
 
   // Reset currentIndex to 1 when event ID changes
   useEffect(() => {
@@ -2223,32 +2290,6 @@ const EventDetails = () => {
         <button onClick={() => navigate('/')} className="back-link-btn">
           <ArrowLeft size={20} /> <span className="text">Back to Events</span>
         </button>
-
-        {/* Data Source Indicator */}
-        {event && (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 14px',
-            borderRadius: '20px',
-            fontSize: '0.82rem',
-            fontWeight: '600',
-            background: isUsingCachedEvent ? '#FFFBEB' : '#ECFDF5',
-            border: isUsingCachedEvent ? '1px solid #FCD34D' : '1px solid #A7F3D0',
-            color: isUsingCachedEvent ? '#B45309' : '#047857',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-          }}>
-            <span style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: isUsingCachedEvent ? '#F59E0B' : '#10B981',
-              display: 'inline-block'
-            }} />
-            <span>{isUsingCachedEvent ? '⚡ Showing Cached Events' : '● Live'}</span>
-          </div>
-        )}
       </div>
 
       <div className="container main-content">
@@ -2313,32 +2354,45 @@ const EventDetails = () => {
               )}
             </div>
 
-            {/* About / Description card */}
-            <div className="about-details-card glass">
-              <div className="section-header">
-                <Info size={22} />
-                <h2>About the Event</h2>
-              </div>
-              <div className={`expandable-content ${isAboutExpanded ? 'expanded' : ''}`} ref={aboutRef}>
-                <p className="description" style={{ whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(event.description)}</p>
-              </div>
-              {showAboutBtn && (
-                <button
-                  className="read-more-btn"
-                  onClick={() => setIsAboutExpanded(!isAboutExpanded)}
-                  aria-expanded={isAboutExpanded}
-                >
-                  {isAboutExpanded ? 'Read Less' : 'Read More'}
-                  <ChevronDown size={18} className={`chevron-icon ${isAboutExpanded ? 'expanded' : ''}`} />
-                </button>
-              )}
-            </div>
+            {/* Scroll Sentinel for lazy loading below-the-fold content */}
+            <div ref={scrollSentinelRef} style={{ width: '100%', height: '1px', margin: 0, padding: 0 }} />
 
+            {/* About / Description card - rendered when scrolled */}
+            {isDetailsScrolled && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="about-details-card glass"
+              >
+                <div className="section-header">
+                  <Info size={22} />
+                  <h2>About the Event</h2>
+                </div>
+                <div className={`expandable-content ${isAboutExpanded ? 'expanded' : ''}`} ref={aboutRef}>
+                  <p className="description" style={{ whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(event.description)}</p>
+                </div>
+                {showAboutBtn && (
+                  <button
+                    className="read-more-btn"
+                    onClick={() => setIsAboutExpanded(!isAboutExpanded)}
+                    aria-expanded={isAboutExpanded}
+                  >
+                    {isAboutExpanded ? 'Read Less' : 'Read More'}
+                    <ChevronDown size={18} className={`chevron-icon ${isAboutExpanded ? 'expanded' : ''}`} />
+                  </button>
+                )}
+              </motion.div>
+            )}
 
-
-            {/* Organiser card */}
-            {organiser && (
-              <div className="organiser-details-card glass">
+            {/* Organiser card - rendered when scrolled */}
+            {isDetailsScrolled && organiser && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="organiser-details-card glass"
+              >
                 <div className="section-header">
                   <User size={22} style={{ color: '#7C3AED' }} />
                   <h2>Hosted By</h2>
@@ -2397,7 +2451,7 @@ const EventDetails = () => {
                     )}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
 
@@ -2731,35 +2785,42 @@ const EventDetails = () => {
               </div>
             </div>
 
-            {/* Terms & Conditions card */}
-            <div className="terms-details-card glass">
-              <div className="section-header">
-                <Info size={22} />
-                <h2>Terms & Conditions</h2>
-              </div>
-              <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsRef}>
-                <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
-                  {renderTextWithLinks(event.termsAndConditions)}
-                </p>
-              </div>
-              {showTermsBtn && (
-                <button
-                  className="read-more-btn"
-                  onClick={() => setIsTermsExpanded(!isTermsExpanded)}
-                  aria-expanded={isTermsExpanded}
-                >
-                  {isTermsExpanded ? 'Read Less' : 'Read More'}
-                  <ChevronDown size={18} className={`chevron-icon ${isTermsExpanded ? 'expanded' : ''}`} />
-                </button>
-              )}
-            </div>
+            {/* Terms & Conditions card - rendered when scrolled */}
+            {isDetailsScrolled && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="terms-details-card glass"
+              >
+                <div className="section-header">
+                  <Info size={22} />
+                  <h2>Terms & Conditions</h2>
+                </div>
+                <div className={`expandable-content ${isTermsExpanded ? 'expanded' : ''}`} ref={termsRef}>
+                  <p className="description" style={{ whiteSpace: 'pre-wrap' }}>
+                    {renderTextWithLinks(event.termsAndConditions)}
+                  </p>
+                </div>
+                {showTermsBtn && (
+                  <button
+                    className="read-more-btn"
+                    onClick={() => setIsTermsExpanded(!isTermsExpanded)}
+                    aria-expanded={isTermsExpanded}
+                  >
+                    {isTermsExpanded ? 'Read Less' : 'Read More'}
+                    <ChevronDown size={18} className={`chevron-icon ${isTermsExpanded ? 'expanded' : ''}`} />
+                  </button>
+                )}
+              </motion.div>
+            )}
 
           </div>
 
         </div>
 
-        {/* Related Events Section */}
-        {relatedEvents.length > 0 && (
+        {/* Related Events Section - rendered when scrolled */}
+        {isDetailsScrolled && relatedEvents.length > 0 && (
           <div className="related-events-section">
             <div className="section-header">
               <Sparkles size={22} style={{ color: '#7C3AED' }} />

@@ -143,6 +143,7 @@ const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
                       alignItems: 'center',
                       gap: '0.5rem',
                       fontSize: '0.85rem',
+                      whiteSpace: 'nowrap',
                       transition: 'all 0.2s'
                     }}
                     onMouseOver={(e) => {
@@ -153,7 +154,7 @@ const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
                     }}
                   >
                     <Trash2 size={15} />
-                    Delete Blithe Account
+                    Delete Account
                   </button>
                 </div>
               </div>

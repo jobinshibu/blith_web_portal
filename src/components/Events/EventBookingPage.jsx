@@ -584,15 +584,12 @@ const EventBookingPage = () => {
     return () => unsubscribe();
   }, [id]);
 
-  // Handle Dates
+  // Handle Dates - always use and select the event start date
   const startDate = event ? parseDate(event.eventStartDate) : new Date();
-  const endDate = event ? parseDate(event.eventEndDate) : new Date();
-  const availableDates = event ? getDatesBetween(startDate, endDate) : [];
-  const isMultiDay = availableDates.length > 1;
 
   useEffect(() => {
     if (event) {
-      setSelectedDate(isMultiDay ? null : availableDates[0]);
+      setSelectedDate(startDate);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event]);
@@ -1269,7 +1266,7 @@ const EventBookingPage = () => {
 
   const isValid =
     totalTickets > 0 &&
-    (isMultiDay ? selectedDate !== null : true) &&
+    selectedDate !== null &&
     attendee.name.trim() !== '' &&
     isEmailValid &&
     isPhoneValid &&
@@ -1517,7 +1514,7 @@ const EventBookingPage = () => {
 
     const isFormValid =
       totalTickets > 0 &&
-      (isMultiDay ? selectedDate !== null : true) &&
+      selectedDate !== null &&
       attendee.name.trim() !== '' &&
       isEmailValid &&
       isPhoneValid &&
@@ -2693,38 +2690,9 @@ const EventBookingPage = () => {
         {/* LEFT COLUMN: User Input & Tickets */}
         <div className="checkout-left-col">
 
-          {/* Date Selection */}
-          {isMultiDay && (
-            <div className="section-block date-selection-block glass">
-              <h3>1. Select Date</h3>
-              <div className="date-cards-container">
-                {availableDates.map((date, idx) => {
-                  const isSelected = selectedDate && date.getTime() === selectedDate.getTime();
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      className={`date-card ${isSelected ? 'selected' : ''}`}
-                      onClick={() => setSelectedDate(date)}
-                    >
-                      <span className="date-month">{date.toLocaleDateString('en-GB', { month: 'short' })}</span>
-                      <span className="date-day">{date.getDate()}</span>
-                      <span className="date-weekday">{date.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {showErrors && !selectedDate && (
-                <div className="validation-hint">
-                  <Info size={16} /> <span>Please select a date.</span>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Ticket Selection */}
           <div className="section-block ticket-selection-block glass">
-            <h3>{isMultiDay ? '2. Select Tickets' : '1. Select Tickets'}</h3>
+            <h3>1. Select Tickets</h3>
             <div className="ticket-tiers-list">
               {tickets.map((ticket, idx) => {
                 const ticketEndDate = ticket.endDate ? parseDate(ticket.endDate) : null;
@@ -2776,7 +2744,7 @@ const EventBookingPage = () => {
 
           {/* Attendee Details */}
           <div className="section-block attendee-details-block glass">
-            <h3>{isMultiDay ? '3. Contact Information' : '2. Contact Information'}</h3>
+            <h3>2. Contact Information</h3>
             {!resolvedUserId && (
               <div style={{
                 display: 'flex',
@@ -2944,7 +2912,7 @@ const EventBookingPage = () => {
 
           {/* Coupons Section — hidden for free events */}
           {tickets.some(t => Number(t.actualPrice ?? t.price ?? 0) > 0) && <div className="section-block coupons-block glass">
-            <h3>{isMultiDay ? '4. Available Offers' : '3. Available Offers'}</h3>
+            <h3>3. Available Offers</h3>
 
             {/* Promo Code Search bar */}
             <div className="coupon-search-container">

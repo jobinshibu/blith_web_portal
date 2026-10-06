@@ -139,7 +139,7 @@ const DeleteAccount = () => {
           </motion.div>
         </div>
 
-        <h1 className="page-title">Delete Blithe Account</h1>
+        <h1 className="page-title">Delete Account</h1>
         <p className="page-desc">
           We believe in giving you complete control over your personal data. You can delete your customer account below at any time.
         </p>
@@ -152,12 +152,12 @@ const DeleteAccount = () => {
             </div>
             <h2 className="success-title">Account Successfully Deleted</h2>
             <p className="success-text">
-              The Blithe account for <strong>{deletedUserInfo?.name || 'Customer'}</strong> has been deactivated.
-              You have been logged out, and your profile is no longer active.
+              The account for <strong>{deletedUserInfo?.name || 'Customer'}</strong> has been deleted.
+              You have been logged out, and all associated bookings and profile records have been permanently removed.
             </p>
             <div className="success-notice">
               <p>
-                In accordance with consumer regulations, records of past event ticket bookings will remain securely archived for venue admission records and verification.
+                Your account and booking data have been removed from our systems in accordance with your request.
               </p>
             </div>
             <Link to="/" className="home-btn primary">
@@ -176,7 +176,7 @@ const DeleteAccount = () => {
                   </div>
                   <div className="user-meta">
                     <span className="user-role-tag">Active Session</span>
-                    <h3 className="user-name">{currentUser.name || 'Blithe User'}</h3>
+                    <h3 className="user-name">{currentUser.name || 'User'}</h3>
                     <div className="user-contacts">
                       {currentUser.phone && (
                         <span><Phone size={13} /> {currentUser.phone}</span>
@@ -195,7 +195,7 @@ const DeleteAccount = () => {
                     onClick={() => setIsDeleteModalOpen(true)}
                   >
                     <Trash2 size={16} />
-                    <span>Delete My Blithe Account</span>
+                    <span>Delete My Account</span>
                   </button>
                 </div>
               </div>
@@ -292,17 +292,17 @@ const DeleteAccount = () => {
                   What happens when I delete my account?
                 </h4>
                 <p>
-                  Deleting your Blithe account soft-deactivates your personal profile immediately. You will be signed out on all devices and will not be able to log in or receive promotional communications.
+                  Deleting your account permanently removes your customer profile and personal details. You will be signed out on all devices immediately and will not be able to log in or retrieve account information.
                 </p>
               </div>
 
               <div className="info-item">
                 <h4>
                   <HelpCircle size={16} className="info-icon" />
-                  What happens to my past event bookings and tickets?
+                  What happens to my bookings and booking history?
                 </h4>
                 <p>
-                  To comply with event organizer admission verification, venue security guidelines, and financial audit standards, your past ticket IDs and payment histories remain safely archived in a read-only state.
+                  This action will permanently delete all your bookings, tickets, and booking history. Once deleted, this information cannot be recovered or restored.
                 </p>
               </div>
 

@@ -187,6 +187,17 @@ const eventsSlice = createSlice({
         state.categories = action.payload;
         state.categoriesLoading = false;
       }
+    },
+    upsertEvent: (state, action) => {
+      const event = action.payload;
+      if (!event || !event.id) return;
+      const index = state.events.findIndex(e => e.id === event.id);
+      if (index >= 0) {
+        state.events[index] = { ...state.events[index], ...event };
+      } else {
+        state.events.push(event);
+      }
+      state.lastFetched = Date.now();
     }
   },
   extraReducers: (builder) => {
@@ -234,5 +245,5 @@ const eventsSlice = createSlice({
   }
 });
 
-export const { clearCache, setAllEvents, setCachedEvents, setCachedCategories } = eventsSlice.actions;
+export const { clearCache, setAllEvents, setCachedEvents, setCachedCategories, upsertEvent } = eventsSlice.actions;
 export default eventsSlice.reducer;

@@ -44,11 +44,11 @@ const DeleteAccountModal = ({
           </div>
 
           <h3 id="delete-account-title" className="delete-modal-title">
-            Delete Blithe Account?
+            Delete Account?
           </h3>
 
           <p className="delete-modal-subtitle">
-            Are you sure you want to delete your Blithe account?
+            Are you sure you want to delete your account?
           </p>
 
           {user && (
@@ -64,9 +64,9 @@ const DeleteAccountModal = ({
 
           <div className="delete-modal-notice-box">
             <ul>
-              <li>Your customer account and profile will be deactivated.</li>
+              <li>Your customer account and profile will be deleted.</li>
+              <li>This action will permanently delete all your bookings and booking history.</li>
               <li>You will be logged out of your session on this device.</li>
-              <li>Past event bookings and tickets remain archived for venue check-in verification.</li>
             </ul>
           </div>
 

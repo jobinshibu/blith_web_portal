@@ -298,6 +298,22 @@ export const getCachedEventDetail = async (id) => {
 export const getCachedEventDetails = getCachedEventDetail;
 
 /**
+ * Remove an event from cache (e.g. when deleted on Firestore)
+ */
+export const removeCachedEventDetail = async (id) => {
+  if (!id) return;
+  try {
+    const db = await openDB();
+    const tx = db.transaction(DETAILS_STORE, 'readwrite');
+    const store = tx.objectStore(DETAILS_STORE);
+    store.delete(id);
+  } catch (err) {
+    console.warn('[CacheManager] Failed to remove cached event detail:', err);
+  }
+};
+export const removeCachedEventDetails = removeCachedEventDetail;
+
+/**
  * Download and cache an image as a Blob in IndexedDB
  */
 export const cacheImageBlob = async (url) => {

@@ -714,21 +714,6 @@ const Events = () => {
     }
   }, [rawEvents, isUsingCachedData]);
 
-  // Console log active data source clearly
-  useEffect(() => {
-    if (isUsingCachedData) {
-      console.log(
-        "%c[BLITHE DATA SOURCE] Showing: CACHED DATA (Offline / Slow Network Fallback)",
-        "background: #F59E0B; color: #000; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
-      );
-    } else if (rawEvents.length > 0 && !reduxLoading) {
-      console.log(
-        "%c[BLITHE DATA SOURCE] Showing: REAL LIVE BACKEND DATA (Firestore)",
-        "background: #10B981; color: #FFF; font-weight: bold; font-size: 12px; padding: 4px 8px; border-radius: 4px;"
-      );
-    }
-  }, [isUsingCachedData, rawEvents.length, reduxLoading]);
-
   // Subscribe to platform settings from /settings/settings
   useEffect(() => {
     let unsubscribe = () => {};
@@ -1702,18 +1687,6 @@ const Events = () => {
                             <div className="card-text-side">
                               <div className="hero-meta-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                                 <span className="hero-badge-modern">Featured</span>
-                                <span className={`card-data-badge-inline ${isUsingCachedData ? 'cached' : 'live'}`} style={{
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.5px',
-                                  background: isUsingCachedData ? 'rgba(245, 158, 11, 0.9)' : 'rgba(16, 185, 129, 0.9)',
-                                  color: '#fff'
-                                }}>
-                                  {isUsingCachedData ? '⚡ Cached Data' : '● Live Data'}
-                                </span>
                               </div>
                               <h1 className="hero-title">{event.title}</h1>
 
@@ -2007,26 +1980,6 @@ const Events = () => {
               {/* Events Portrait Grid */}
               <div className="events-main">
 
-                {/* Data Source Status Indicator */}
-                {events.length > 0 && (
-                  <div className={`data-source-status-bar ${isUsingCachedData ? 'cached' : 'live'}`}>
-                    <div className="status-left">
-                      <span className="dot" />
-                      <span>
-                        <strong>{isUsingCachedData ? "⚡ Showing Cached Events" : "● Live"}</strong>
-                        {isUsingCachedData
-                          ? ` (${filteredEvents.length} events loaded from cache)`
-                          : ` (${filteredEvents.length} live events)`}
-                      </span>
-                    </div>
-                    <div className="status-right">
-                      {isUsingCachedData
-                        ? (reduxLoading ? "Fetching live updates in background..." : (typeof navigator !== 'undefined' && !navigator.onLine ? "Offline Mode" : "Cached Mode"))
-                        : "Connected to Live Server"}
-                    </div>
-                  </div>
-                )}
-
                 {filteredEvents.length > 0 ? (
                   <>
                     <motion.div layout className="events-portrait-grid">
@@ -2044,9 +1997,6 @@ const Events = () => {
                             <Link to={`/events/${event.id}`} onClick={() => handleEventClick(event)} className="portrait-event-card">
                               <div className="portrait-image-wrapper">
                                 <img src={event.image} alt={event.title} loading="lazy" />
-                                <span className={`card-data-badge ${isUsingCachedData ? 'cached' : 'live'}`}>
-                                  {isUsingCachedData ? 'Cached' : 'Live'}
-                                </span>
                                 {event.promoted && (
                                   <span className="featured-badge-small">Featured</span>
                                 )}
@@ -2147,9 +2097,6 @@ const Events = () => {
                         >
                           <div className="recently-ended-image-wrapper">
                             <img src={event.image} alt={event.title} loading="lazy" />
-                            <span className={`card-data-badge ${isUsingCachedData ? 'cached' : 'live'}`}>
-                              {isUsingCachedData ? 'Cached' : 'Live'}
-                            </span>
                             <div className="recently-ended-overlay" />
                             <div className="recently-ended-badge">
                               <span className="recently-ended-badge-dot" />
