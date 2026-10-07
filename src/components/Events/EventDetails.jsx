@@ -7,7 +7,7 @@ import { db, analytics } from '../../firebase';
 import { logEvent } from 'firebase/analytics';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchEventsThunk, upsertEvent } from '../../store/eventsSlice';
-import { getActiveLeadSource, getLeadSourceProps } from '../../services/leadService';
+import { getActiveLeadSource, getLeadSourceProps, recordUserAdTrafficLog } from '../../services/leadService';
 import { updateUserInterests } from '../../services/userService';
 import { trackEventPageView, trackEventCategoryView, trackClickCheckoutNow } from '../../utils/pixel';
 import { trackGAViewItem, trackGASelectContent, trackGAShare } from '../../utils/analytics';
@@ -198,37 +198,15 @@ const ShareModal = ({ event, onClose, onShare }) => {
 
   const getShareUrlForPlatform = (platformId) => {
     try {
-      const url = new URL(window.location.href);
-      // Clean existing source tracking parameters
-      url.searchParams.delete('utm_source');
-      url.searchParams.delete('source');
-      url.searchParams.delete('ref');
-      url.searchParams.delete('utf');
-
       // Map platform ID to the value for 'utf' & 'utm_source'
-      let value = platformId;
-      if (platformId === 'copy') {
-        value = 'blithecopy';
-      }
+      const value = platformId === 'copy' ? 'blithecopy' : platformId;
 
-      url.searchParams.set('utf', value);
-      url.searchParams.set('utm_source', value);
-
-      // Force www.blithe.social so the mobile OS does not intercept the link into the mobile app (the app is only registered for apex blithe.social)
-      url.protocol = 'https:';
-      url.hostname = 'www.blithe.social';
-      url.port = '';
-
-      return url.toString();
-    } catch (e) {
-      let base = window.location.href.split('?')[0];
-      base = base.replace(/http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, 'https://www.blithe.social')
-                 .replace('https://blithe.social', 'https://www.blithe.social');
-      if (!base.startsWith('https://www.blithe.social')) {
-        base = `https://www.blithe.social${window.location.pathname}`;
-      }
+      // Construct clean URL from current path (stripping all query params like fbclid, ad_id, etc.)
+      const eventPath = (typeof window !== 'undefined' ? window.location.pathname : `/events/${event?.id || ''}`).split('?')[0];
+      return `https://www.blithe.social${eventPath}?utf=${value}&utm_source=${value}`;
+    } catch {
       const val = platformId === 'copy' ? 'blithecopy' : platformId;
-      return `${base}?utf=${val}&utm_source=${val}`;
+      return `https://www.blithe.social/events/${event?.id || ''}?utf=${val}&utm_source=${val}`;
     }
   };
 
@@ -882,6 +860,7 @@ const EventDetails = () => {
               cachedUserProfile = uData;
               lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
+              recordUserAdTrafficLog(uData.uid, { isLogin: false, eventId: id }).catch(() => {});
               return;
             }
           }
@@ -897,6 +876,7 @@ const EventDetails = () => {
               cachedUserProfile = uData;
               lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
+              recordUserAdTrafficLog(uData.uid, { isLogin: false, eventId: id }).catch(() => {});
               return;
             }
           }
@@ -912,6 +892,7 @@ const EventDetails = () => {
               cachedUserProfile = uData;
               lastUserCacheKey = cachedDetails;
               setCurrentUser(uData);
+              recordUserAdTrafficLog(uData.uid, { isLogin: false, eventId: id }).catch(() => {});
               return;
             }
           }

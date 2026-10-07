@@ -1,5 +1,6 @@
 import { collection, query, where, getDocs, setDoc, doc, getDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
 import { db } from '../firebase'; // Adjust this path if your firebase.js is located elsewhere
+import { recordUserAdTrafficLog } from './leadService';
 
 /**
  * Generates an array of search prefixes based on a given string.
@@ -249,6 +250,15 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     userPostNoti: [],
     viewers: [],
     subscribedTopic: "",
+    utm_campaign: "",
+    utm_source: "",
+    ad_id: "",
+    adset_id: "",
+    referrer: "",
+    full_url: "",
+    eventId: "",
+    ad_traffic_log_id: "",
+    adclickcount: 0,
     ...otherData
   };
 };
@@ -304,6 +314,12 @@ export const registerNewUser = async (userData) => {
     const userDocRef = doc(db, 'users', uid);
     await setDoc(userDocRef, newUserDocument);
     console.log("Successfully created user document in Firestore:", newUserDocument);
+
+    // Save ad traffic log as subcollection users/{uid}/ad_traffic_logs and update parent with doc ID
+    recordUserAdTrafficLog(uid, { isLogin: true }).catch((err) => {
+      console.warn("Failed to record ad traffic log for newly registered user:", err);
+    });
+
     return newUserDocument;
   } catch (error) {
     console.error("Error creating new user:", error);

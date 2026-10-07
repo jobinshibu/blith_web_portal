@@ -1,5 +1,5 @@
 import { logEvent } from 'firebase/analytics';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { analytics, db } from '../firebase';
 
 /**
@@ -99,18 +99,16 @@ export const saveAdTrafficData = async () => {
   // Expose on window for easy developer inspection in DevTools console
   window.__BLITHE_AD_TRAFFIC_DATA__ = trafficData;
 
-  // Only save if it's an ad click or contains tracking to optimize database usage
-  const isAdOrTracked = Boolean(
+  // Only save if it's a Meta ad click: check using fbclid, ad_id, campaign_id
+  const isMetaAd = Boolean(
     meta.fbclid ||
-    meta.utm_source ||
-    meta.utm_campaign ||
     meta.ad_id ||
     meta.campaign_id
   );
 
-  if (!isAdOrTracked) {
+  if (!isMetaAd) {
     console.log(
-      '%c[AdTraffic] No ad tracking parameters (fbclid, utm_source, ad_id, etc.) detected. Skipping Firestore write to conserve database usage.',
+      '%c[AdTraffic] No Meta ad tracking parameters (fbclid, ad_id, campaign_id) detected. Skipping Firestore write to conserve database usage.',
       'color: #6B7280; font-style: italic;'
     );
     console.groupEnd();
@@ -162,10 +160,183 @@ export const saveAdTrafficData = async () => {
   }
 };
 
+// In-memory set to lock concurrent in-flight writes
+const inFlightUserLogs = new Set();
+
+/**
+ * Records an ad traffic log as a subcollection under a specific user document:
+ * users/{userId}/ad_traffic_logs/{subDocId}
+ * 
+ * Also updates the parent user document with:
+ * - utm_campaign
+ * - utm_source
+ * - ad_id
+ * - adset_id
+ * - referrer
+ * - ad_traffic_log_id (the doc ID of that subcollection document)
+ * 
+ * @param {string} userId - Target user UID
+ * @param {Object} options - Options object
+ * @param {boolean} options.isLogin - true if existing user fetched/logged in, false if new user created
+ * @returns {Promise<string|null>} The generated subcollection document ID
+ */
+export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId = null } = {}) => {
+  if (!userId || typeof window === 'undefined') return null;
+
+  try {
+    const urlDetails = getAllUrlDetails();
+    const meta = urlDetails?.meta_details || {};
+
+    const utm_source = meta.utm_source || sessionStorage.getItem('blithe_utm_source') || '';
+    const utm_campaign = meta.utm_campaign || sessionStorage.getItem('blithe_utm_campaign') || '';
+    const ad_id = meta.ad_id || sessionStorage.getItem('blithe_ad_id') || '';
+    const adset_id = meta.adset_id || sessionStorage.getItem('blithe_adset_id') || '';
+    const referrer = urlDetails?.referrer || sessionStorage.getItem('blithe_lead_referrer') || (typeof document !== 'undefined' ? document.referrer : 'none') || 'none';
+    const fbclid = meta.fbclid || sessionStorage.getItem('blithe_fbclid') || '';
+    const campaign_id = meta.campaign_id || sessionStorage.getItem('blithe_campaign_id') || '';
+    const placement = meta.placement || sessionStorage.getItem('blithe_placement') || '';
+    const site_source_name = meta.site_source_name || sessionStorage.getItem('blithe_site_source_name') || '';
+    const fbp = meta.fbp || sessionStorage.getItem('blithe_fbp') || getCookie('_fbp') || '';
+    const fbc = meta.fbc || sessionStorage.getItem('blithe_fbc') || getCookie('_fbc') || '';
+
+    // Verify using fbclid, ad_id, campaign_id that traffic is genuinely from Meta ads
+    const isMetaAd = Boolean(fbclid || ad_id || campaign_id);
+    if (!isMetaAd) {
+      console.log(`[UserAdTraffic] No Meta ad tracking parameters (fbclid, ad_id, campaign_id) detected for user ${userId}. Skipping subcollection write and adclickcount.`);
+      return null;
+    }
+
+    // Automatically resolve eventId from path if not explicitly provided
+    const currentPath = urlDetails?.path || (typeof window !== 'undefined' ? window.location.pathname : '');
+    const pathMatch = currentPath.match(/\/events\/([a-zA-Z0-9_-]+)/);
+    const resolvedEventId = eventId || (pathMatch ? pathMatch[1] : null);
+
+    // Deduplication check: use resolved parameters (including sessionStorage fallback)
+    const adIdentifier = fbclid || ad_id || campaign_id || utm_campaign || utm_source || 'direct';
+    const sessionKey = `blithe_user_traffic_logged_${userId}_${adIdentifier}_${resolvedEventId || 'global'}_${isLogin ? 'new' : 'returning'}`;
+
+    // 1. Check in-flight lock (blocks concurrent calls within milliseconds)
+    if (inFlightUserLogs.has(sessionKey)) {
+      console.log(`[UserAdTraffic] Write already in-flight for (${sessionKey}). Skipping duplicate.`);
+      return null;
+    }
+
+    // 2. Check sessionStorage deduplication
+    const alreadyLoggedDocId = sessionStorage.getItem(sessionKey);
+    if (alreadyLoggedDocId) {
+      console.log(`[UserAdTraffic] Already logged for user ${userId} with ad key (${adIdentifier}). Skipping duplicate write. (ID: ${alreadyLoggedDocId})`);
+      return alreadyLoggedDocId;
+    }
+
+    // 3. 5-second rate throttle per user to prevent duplicate writes within seconds
+    const lastLogTimeKey = `blithe_user_traffic_last_time_${userId}`;
+    const lastLogTime = parseInt(sessionStorage.getItem(lastLogTimeKey) || '0', 10);
+    const now = Date.now();
+    if (now - lastLogTime < 5000 && !isLogin) {
+      console.log(`[UserAdTraffic] Throttled duplicate call within seconds for user ${userId}. Skipping duplicate.`);
+      return null;
+    }
+
+    // Set locks immediately
+    inFlightUserLogs.add(sessionKey);
+    sessionStorage.setItem(lastLogTimeKey, String(now));
+
+    // 1. Generate subcollection doc reference to obtain docId beforehand
+    const subcollectionRef = collection(db, 'users', userId, 'ad_traffic_logs');
+    const subDocRef = doc(subcollectionRef);
+    const logDocId = subDocRef.id;
+
+    // Immediately reserve sessionKey so subsequent fast calls see it right away
+    sessionStorage.setItem(sessionKey, logDocId);
+
+    const logPayload = {
+      // 1. Exact structure matching the main ad_traffic_logs format
+      created_at: serverTimestamp(),
+      full_url: urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : ''),
+      hostname: urlDetails?.hostname || (typeof window !== 'undefined' ? window.location.hostname : ''),
+      path: urlDetails?.path || (typeof window !== 'undefined' ? window.location.pathname : ''),
+      referrer: referrer || 'none',
+      timestamp: urlDetails?.timestamp || new Date().toISOString(),
+      meta_details: {
+        ad_id: ad_id || null,
+        adset_id: adset_id || null,
+        campaign_id: campaign_id || null,
+        fbc: fbc || null,
+        fbclid: fbclid || null,
+        fbp: fbp || null,
+        placement: placement || null,
+        site_source_name: site_source_name || null,
+        utm_campaign: utm_campaign || null,
+        utm_content: meta.utm_content || sessionStorage.getItem('blithe_utm_content') || null,
+        utm_medium: meta.utm_medium || sessionStorage.getItem('blithe_utm_medium') || null,
+        utm_source: utm_source || null,
+        utm_term: meta.utm_term || sessionStorage.getItem('blithe_utm_term') || null
+      },
+      parameters: urlDetails?.parameters || {},
+
+      // 2. Subcollection and user tracking metadata (clean, no duplicate IDs)
+      id: logDocId,
+      userId: userId,
+      eventId: resolvedEventId || null,
+      login: Boolean(isLogin), // true for new user registration, false for existing user
+      platform: 'web',
+
+      // 3. Top-level query convenience fields
+      utm_campaign: utm_campaign || null,
+      utm_source: utm_source || null,
+      ad_id: ad_id || null,
+      adset_id: adset_id || null
+    };
+
+    await setDoc(subDocRef, logPayload);
+    inFlightUserLogs.delete(sessionKey);
+    console.log(`[UserAdTraffic] Wrote subcollection log users/${userId}/ad_traffic_logs/${logDocId} with login=${Boolean(isLogin)} eventId=${resolvedEventId}`);
+
+    // 2. Update the parent user document:
+    // If isLogin === true (initial user arrival): save original attribution and increment adclickcount.
+    // If isLogin === false (repeat ad click): preserve all original attribution fields and ONLY increment adclickcount.
+    const userDocRef = doc(db, 'users', userId);
+
+    if (isLogin) {
+      const parentUpdate = {
+        utm_campaign: utm_campaign || '',
+        utm_source: utm_source || '',
+        ad_id: ad_id || '',
+        adset_id: adset_id || '',
+        referrer: referrer || '',
+        full_url: urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : ''),
+        ad_traffic_log_id: logDocId,
+        adclickcount: increment(1)
+      };
+
+      if (resolvedEventId) {
+        parentUpdate.eventId = resolvedEventId;
+      }
+
+      await setDoc(userDocRef, parentUpdate, { merge: true });
+      console.log(`[UserAdTraffic] Initial user arrival (login=true): saved original attribution to users/${userId}:`, parentUpdate);
+    } else {
+      // Repeat ad click: do NOT touch attribution fields, only increment the adclickcount counter
+      await setDoc(userDocRef, { adclickcount: increment(1) }, { merge: true });
+      console.log(`[UserAdTraffic] Repeat ad click (login=false): preserved initial attribution and incremented only adclickcount on users/${userId}.`);
+    }
+
+    return logDocId;
+  } catch (err) {
+    console.error(`[UserAdTraffic] Error saving ad traffic subcollection for user ${userId}:`, err);
+    return null;
+  } finally {
+    if (typeof sessionKey !== 'undefined') {
+      inFlightUserLogs.delete(sessionKey);
+    }
+  }
+};
+
 // Expose on window for easy developer inspection in DevTools console
 if (typeof window !== 'undefined') {
   window.getAllUrlDetails = getAllUrlDetails;
   window.saveAdTrafficData = saveAdTrafficData;
+  window.recordUserAdTrafficLog = recordUserAdTrafficLog;
 }
 
 /**
@@ -181,7 +352,10 @@ const detectUrlSource = () => {
   const utmContent = params.get('utm_content');
   const fbclid = params.get('fbclid');
   const adId = params.get('ad_id') || params.get('adid') || params.get('ad_ID') || params.get('adId');
+  const adsetId = params.get('adset_id') || params.get('adsetid') || params.get('adset_ID') || params.get('adSetId');
   const campaignId = params.get('campaign_id') || params.get('campaignid') || params.get('campaign_ID') || params.get('campaignId');
+  const placement = params.get('placement') || params.get('meta_placement');
+  const siteSourceName = params.get('site_source_name') || params.get('source_name');
   const querySource = params.get('source') || params.get('ref') || params.get('utf');
 
   if (utmSource || utmMedium || utmCampaign) {
@@ -195,7 +369,10 @@ const detectUrlSource = () => {
       utm_content: (utmContent || '').toLowerCase(),
       fbclid: fbclid || null,
       ad_id: adId || null,
-      campaign_id: campaignId || null
+      adset_id: adsetId || null,
+      campaign_id: campaignId || null,
+      placement: placement || null,
+      site_source_name: siteSourceName || null
     };
   }
   if (fbclid) {
@@ -209,7 +386,10 @@ const detectUrlSource = () => {
       utm_content: (utmContent || '').toLowerCase(),
       fbclid,
       ad_id: adId || null,
-      campaign_id: campaignId || null
+      adset_id: adsetId || null,
+      campaign_id: campaignId || null,
+      placement: placement || null,
+      site_source_name: siteSourceName || null
     };
   }
   if (querySource) {
@@ -223,7 +403,10 @@ const detectUrlSource = () => {
       utm_content: '',
       fbclid: null,
       ad_id: null,
-      campaign_id: null
+      adset_id: null,
+      campaign_id: null,
+      placement: null,
+      site_source_name: null
     };
   }
   return null;
@@ -286,7 +469,10 @@ export const initLeadTracking = () => {
 
       if (urlSource.fbclid) sessionStorage.setItem('blithe_fbclid', urlSource.fbclid);
       if (urlSource.ad_id) sessionStorage.setItem('blithe_ad_id', urlSource.ad_id);
+      if (urlSource.adset_id) sessionStorage.setItem('blithe_adset_id', urlSource.adset_id);
       if (urlSource.campaign_id) sessionStorage.setItem('blithe_campaign_id', urlSource.campaign_id);
+      if (urlSource.placement) sessionStorage.setItem('blithe_placement', urlSource.placement);
+      if (urlSource.site_source_name) sessionStorage.setItem('blithe_site_source_name', urlSource.site_source_name);
 
       // Store 1st-party Meta cookies if available
       const fbp = getCookie('_fbp');

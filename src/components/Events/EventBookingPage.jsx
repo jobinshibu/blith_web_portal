@@ -7,6 +7,7 @@ import { db, analytics } from '../../firebase';
 import { useNetworkStatus, checkIsOnline } from '../../hooks/useNetworkStatus';
 import { logEvent } from 'firebase/analytics';
 import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
+import { recordUserAdTrafficLog } from '../../services/leadService';
 import {
   fetchFilteredCoupons,
   applyCoupon as applyCouponService,
@@ -798,6 +799,11 @@ const EventBookingPage = () => {
             sessionStorage.setItem('blithe_checkout_attendee', userPayload);
             window.dispatchEvent(new CustomEvent('session-user-changed'));
             setGAUserId(foundUserData.uid);
+
+            // Record ad traffic log under users/{foundUserData.uid}/ad_traffic_logs with login=false (existing user)
+            recordUserAdTrafficLog(foundUserData.uid, { isLogin: false, eventId: id }).catch((err) => {
+              console.warn("Failed to record existing user ad traffic log:", err);
+            });
           } catch (err) {
             console.warn("Failed to save checkout details to session on resolve:", err);
           }
@@ -813,6 +819,11 @@ const EventBookingPage = () => {
           trackGASignUp({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
           setGAUserId(newUid);
           console.log(`[User Form] Created new user document in Firestore for UID: ${newUid}`);
+
+          // Record ad traffic log under users/{newUid}/ad_traffic_logs with login=true (new user creation)
+          recordUserAdTrafficLog(newUid, { isLogin: true, eventId: id }).catch((err) => {
+            console.warn("Failed to record new user ad traffic log:", err);
+          });
 
           setResolvedUserId(newUid);
           setResolvedUserIdForCoupons(newUid);
