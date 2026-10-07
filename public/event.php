@@ -102,11 +102,33 @@ if ($id) {
     <meta name="twitter:description" content="<?= $desc ?>" />
     <meta name="twitter:image" content="<?= $image ?>" />
 
+<?php
+// Prepare query parameters to preserve across redirection
+$redirectParams = $_GET;
+unset($redirectParams['id']);
+unset($redirectParams['img']);
+$redirectParams['ssr'] = 'false';
+$phpQueryString = http_build_query($redirectParams);
+?>
     <script>
         // Humans are instantly redirected back to the React app.
-        // We append ?ssr=false so Apache knows not to loop back to this PHP file!
+        // Preserve all original tracking parameters (fbclid, UTMs, ad_id, etc.) and append ssr=false!
         if (!navigator.userAgent.toLowerCase().includes('whatsapp')) {
-            window.location.replace('/events/<?= urlencode($id) ?>?ssr=false');
+            const currentParams = new URLSearchParams(window.location.search);
+            currentParams.delete('id');
+            currentParams.delete('img');
+            currentParams.set('ssr', 'false');
+
+            // Merge any parameters passed via server-side query string
+            const phpParams = new URLSearchParams(<?= json_encode($phpQueryString) ?>);
+            for (const [k, v] of phpParams.entries()) {
+                if (!currentParams.has(k)) {
+                    currentParams.set(k, v);
+                }
+            }
+
+            const targetQuery = currentParams.toString() ? ('?' + currentParams.toString()) : '';
+            window.location.replace('https://www.blithe.social/events/<?= urlencode($id) ?>' + targetQuery);
         }
     </script>
 </head>

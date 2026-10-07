@@ -4,9 +4,10 @@
   # the RewriteBase must reflect that subdirectory.
   RewriteBase /events/
 
-  # 1. Intercept WhatsApp/Bot requests for individual event links (e.g. /events/BLEV-123)
-  # We ONLY do this if the URL doesn't have ?ssr=false (to prevent redirect loops)
-  # Since we are already inside the /events/ folder, the URL path matched is just the ID.
+  # 1. Intercept Social Bots/Crawlers (WhatsApp, Facebook, Twitter, Telegram, Discord, LinkedIn, Slack, etc.)
+  # for individual event links (e.g. /events/BLEV-123) to generate dynamic Open Graph (OG) meta tags.
+  # Real human users and ad clicks bypass event.php completely and load index.html directly with all parameters intact.
+  RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|Discordbot|LinkedInBot|Slackbot|Pinterest|Googlebot|bingbot|Applebot) [NC]
   RewriteCond %{QUERY_STRING} !(^|&)ssr=false(&|$)
   RewriteRule ^([a-zA-Z0-9_-]+)/?$ event.php?id=$1 [L,QSA]
 

@@ -1,5 +1,172 @@
 import { logEvent } from 'firebase/analytics';
-import { analytics } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { analytics, db } from '../firebase';
+
+/**
+ * Safely reads a cookie value by name.
+ * Used for extracting Meta 1st-party cookies (_fbp, _fbc).
+ */
+export const getCookie = (name) => {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[2]) : null;
+};
+
+/**
+ * Extracts all URL query parameters, Meta tracking details, and Meta cookies.
+ * @returns {Object} Complete URL parameters, path details, and Meta tracking attributes.
+ */
+export const getAllUrlDetails = () => {
+  if (typeof window === 'undefined') {
+    return {
+      full_url: '',
+      path: '',
+      hostname: '',
+      parameters: {},
+      meta_details: {},
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramsObject = {};
+  for (const [key, value] of urlParams.entries()) {
+    paramsObject[key] = value;
+  }
+
+  const fbclid = urlParams.get('fbclid') || null;
+  const utmSource = urlParams.get('utm_source') || null;
+  const utmMedium = urlParams.get('utm_medium') || null;
+  const utmCampaign = urlParams.get('utm_campaign') || null;
+  const utmContent = urlParams.get('utm_content') || null;
+  const utmTerm = urlParams.get('utm_term') || null;
+  const adId = urlParams.get('ad_id') || urlParams.get('adid') || urlParams.get('ad_ID') || urlParams.get('adId') || null;
+  const adsetId = urlParams.get('adset_id') || urlParams.get('adsetid') || urlParams.get('adset_ID') || urlParams.get('adSetId') || null;
+  const campaignId = urlParams.get('campaign_id') || urlParams.get('campaignid') || urlParams.get('campaign_ID') || urlParams.get('campaignId') || null;
+  const placement = urlParams.get('placement') || urlParams.get('meta_placement') || null;
+  const siteSourceName = urlParams.get('site_source_name') || urlParams.get('source_name') || null;
+
+  // Retrieve 1st-party Meta cookies created by Meta Pixel SDK
+  const fbp = getCookie('_fbp');
+  // _fbc is created by Meta Pixel when fbclid is present; construct fallback if not yet set in cookies
+  const fbc = getCookie('_fbc') || (fbclid ? `fb.1.${Date.now()}.${fbclid}` : null);
+
+  return {
+    full_url: window.location.href,
+    path: window.location.pathname,
+    hostname: window.location.hostname,
+    referrer: typeof document !== 'undefined' ? (document.referrer || 'none') : 'none',
+    parameters: paramsObject,
+    meta_details: {
+      fbclid,
+      fbp,
+      fbc,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
+      utm_content: utmContent,
+      utm_term: utmTerm,
+      ad_id: adId,
+      adset_id: adsetId,
+      campaign_id: campaignId,
+      placement,
+      site_source_name: siteSourceName
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+/**
+ * Saves ad traffic logs to Firestore 'ad_traffic_logs' collection.
+ * Deduplicates per user session to avoid writing redundant documents.
+ */
+export const saveAdTrafficData = async () => {
+  if (typeof window === 'undefined') return null;
+
+  const trafficData = getAllUrlDetails();
+  const meta = trafficData.meta_details;
+
+  // Log all extracted details to console for developer inspection
+  console.groupCollapsed(
+    `%c[AdTraffic Tracking] Initialized Check (${window.location.pathname})`,
+    'color: #0284C7; font-weight: bold;'
+  );
+  console.log('%cFull URL:%c', 'font-weight: bold;', '', trafficData.full_url);
+  console.log('%cDetected Query Parameters:%c', 'font-weight: bold;', '', trafficData.parameters);
+  console.log('%cMeta & UTM Details:%c', 'font-weight: bold;', '', meta);
+  console.log('%cFull Payload:%c', 'font-weight: bold;', '', trafficData);
+
+  // Expose on window for easy developer inspection in DevTools console
+  window.__BLITHE_AD_TRAFFIC_DATA__ = trafficData;
+
+  // Only save if it's an ad click or contains tracking to optimize database usage
+  const isAdOrTracked = Boolean(
+    meta.fbclid ||
+    meta.utm_source ||
+    meta.utm_campaign ||
+    meta.ad_id ||
+    meta.campaign_id
+  );
+
+  if (!isAdOrTracked) {
+    console.log(
+      '%c[AdTraffic] No ad tracking parameters (fbclid, utm_source, ad_id, etc.) detected. Skipping Firestore write to conserve database usage.',
+      'color: #6B7280; font-style: italic;'
+    );
+    console.groupEnd();
+    return null;
+  }
+
+  // Deduplication check: prevent multiple Firestore writes for the same click in one session
+  const dedupeKey = `${meta.fbclid || ''}_${meta.campaign_id || meta.utm_campaign || ''}_${meta.ad_id || ''}_${meta.utm_source || ''}`;
+  const alreadySaved = sessionStorage.getItem('blithe_ad_traffic_logged_key');
+  if (alreadySaved && alreadySaved === dedupeKey) {
+    const existingDocId = sessionStorage.getItem('blithe_ad_traffic_doc_id');
+    console.log(
+      `%c[AdTraffic] Already logged for this session (ID: ${existingDocId}). Skipping duplicate write.`,
+      'color: #F59E0B;'
+    );
+    console.groupEnd();
+    return existingDocId || null;
+  }
+
+  try {
+    const payload = {
+      ...trafficData,
+      created_at: serverTimestamp()
+    };
+    console.log('%c[AdTraffic] Writing ad traffic log to Firestore collection "ad_traffic_logs"...', 'color: #3B82F6;');
+    const docRef = await addDoc(collection(db, 'ad_traffic_logs'), payload);
+    sessionStorage.setItem('blithe_ad_traffic_logged_key', dedupeKey);
+    sessionStorage.setItem('blithe_ad_traffic_doc_id', docRef.id);
+    console.log(
+      `%c[AdTraffic] Successfully written to Firestore "ad_traffic_logs" with ID: ${docRef.id}`,
+      'color: #10B981; font-weight: bold;'
+    );
+    console.groupEnd();
+    return docRef.id;
+  } catch (e) {
+    console.error(
+      '%c[AdTraffic] Error adding document to Firestore "ad_traffic_logs":',
+      'color: #EF4444; font-weight: bold;',
+      e
+    );
+    if (e.code === 'permission-denied') {
+      console.warn(
+        '%c[AdTraffic Hint] Firebase permission-denied. Please check your Firestore Security Rules to allow writes to "ad_traffic_logs".',
+        'color: #F97316; font-weight: bold;'
+      );
+    }
+    console.groupEnd();
+    return null;
+  }
+};
+
+// Expose on window for easy developer inspection in DevTools console
+if (typeof window !== 'undefined') {
+  window.getAllUrlDetails = getAllUrlDetails;
+  window.saveAdTrafficData = saveAdTrafficData;
+}
 
 /**
  * Detects if there is an explicit lead source and UTM parameters in the URL query.
@@ -12,6 +179,9 @@ const detectUrlSource = () => {
   const utmCampaign = params.get('utm_campaign');
   const utmTerm = params.get('utm_term');
   const utmContent = params.get('utm_content');
+  const fbclid = params.get('fbclid');
+  const adId = params.get('ad_id') || params.get('adid') || params.get('ad_ID') || params.get('adId');
+  const campaignId = params.get('campaign_id') || params.get('campaignid') || params.get('campaign_ID') || params.get('campaignId');
   const querySource = params.get('source') || params.get('ref') || params.get('utf');
 
   if (utmSource || utmMedium || utmCampaign) {
@@ -22,7 +192,24 @@ const detectUrlSource = () => {
       utm_medium: (utmMedium || '').toLowerCase(),
       utm_campaign: (utmCampaign || '').toLowerCase(),
       utm_term: (utmTerm || '').toLowerCase(),
-      utm_content: (utmContent || '').toLowerCase()
+      utm_content: (utmContent || '').toLowerCase(),
+      fbclid: fbclid || null,
+      ad_id: adId || null,
+      campaign_id: campaignId || null
+    };
+  }
+  if (fbclid) {
+    return {
+      source: 'facebook',
+      type: 'meta_ad',
+      utm_source: 'facebook',
+      utm_medium: 'cpc',
+      utm_campaign: (utmCampaign || '').toLowerCase(),
+      utm_term: (utmTerm || '').toLowerCase(),
+      utm_content: (utmContent || '').toLowerCase(),
+      fbclid,
+      ad_id: adId || null,
+      campaign_id: campaignId || null
     };
   }
   if (querySource) {
@@ -33,7 +220,10 @@ const detectUrlSource = () => {
       utm_medium: '',
       utm_campaign: '',
       utm_term: '',
-      utm_content: ''
+      utm_content: '',
+      fbclid: null,
+      ad_id: null,
+      campaign_id: null
     };
   }
   return null;
@@ -75,7 +265,12 @@ const detectReferrerSource = () => {
  */
 export const initLeadTracking = () => {
   try {
-    // 1. URL parameters have highest priority and always override/reset lead source.
+    // 1. Asynchronously log ad traffic to Firestore 'ad_traffic_logs' if applicable
+    saveAdTrafficData().catch((err) => {
+      console.warn('[AdTraffic] Error saving ad traffic during init:', err);
+    });
+
+    // 2. URL parameters have highest priority and always override/reset lead source.
     const urlSource = detectUrlSource();
     if (urlSource) {
       const alreadyLogged = sessionStorage.getItem('blithe_lead_source_logged');
@@ -89,6 +284,16 @@ export const initLeadTracking = () => {
       sessionStorage.setItem('blithe_utm_term', urlSource.utm_term || '');
       sessionStorage.setItem('blithe_utm_content', urlSource.utm_content || '');
 
+      if (urlSource.fbclid) sessionStorage.setItem('blithe_fbclid', urlSource.fbclid);
+      if (urlSource.ad_id) sessionStorage.setItem('blithe_ad_id', urlSource.ad_id);
+      if (urlSource.campaign_id) sessionStorage.setItem('blithe_campaign_id', urlSource.campaign_id);
+
+      // Store 1st-party Meta cookies if available
+      const fbp = getCookie('_fbp');
+      const fbc = getCookie('_fbc') || (urlSource.fbclid ? `fb.1.${Date.now()}.${urlSource.fbclid}` : null);
+      if (fbp) sessionStorage.setItem('blithe_fbp', fbp);
+      if (fbc) sessionStorage.setItem('blithe_fbc', fbc);
+
       if (alreadyLogged !== urlSource.source) {
         sessionStorage.setItem('blithe_lead_source_logged', urlSource.source);
         sessionStorage.removeItem('blithe_landing_event_id');
@@ -100,13 +305,15 @@ export const initLeadTracking = () => {
           utm_source: urlSource.utm_source || urlSource.source,
           utm_medium: urlSource.utm_medium || '',
           utm_campaign: urlSource.utm_campaign || '',
+          fbclid: urlSource.fbclid || '',
+          ad_id: urlSource.ad_id || '',
           landing_page: window.location.pathname
         });
       }
       return;
     }
 
-    // 2. If no explicit URL source, check if we already have a stored source in this session.
+    // 3. If no explicit URL source, check if we already have a stored source in this session.
     const storedSource = sessionStorage.getItem('blithe_lead_source');
     if (!storedSource) {
       const refSource = detectReferrerSource();
@@ -174,6 +381,11 @@ export const getLeadSourceProps = () => {
     const utmCampaign = sessionStorage.getItem('blithe_utm_campaign') || '';
     const utmTerm = sessionStorage.getItem('blithe_utm_term') || '';
     const utmContent = sessionStorage.getItem('blithe_utm_content') || '';
+    const fbclid = sessionStorage.getItem('blithe_fbclid') || '';
+    const adId = sessionStorage.getItem('blithe_ad_id') || '';
+    const campaignId = sessionStorage.getItem('blithe_campaign_id') || '';
+    const fbp = sessionStorage.getItem('blithe_fbp') || getCookie('_fbp') || '';
+    const fbc = sessionStorage.getItem('blithe_fbc') || getCookie('_fbc') || '';
 
     const props = {
       source: source,
@@ -186,6 +398,11 @@ export const getLeadSourceProps = () => {
     if (utmCampaign) props.utm_campaign = utmCampaign;
     if (utmTerm) props.utm_term = utmTerm;
     if (utmContent) props.utm_content = utmContent;
+    if (fbclid) props.fbclid = fbclid;
+    if (adId) props.ad_id = adId;
+    if (campaignId) props.campaign_id = campaignId;
+    if (fbp) props.fbp = fbp;
+    if (fbc) props.fbc = fbc;
 
     return props;
   } catch (err) {

@@ -214,19 +214,18 @@ const ShareModal = ({ event, onClose, onShare }) => {
       url.searchParams.set('utf', value);
       url.searchParams.set('utm_source', value);
 
-      // Local development fallback: Replace localhost/IP host with production domain to prevent security blocks on Reddit, Facebook, LinkedIn etc.
-      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.startsWith('192.168.')) {
-        url.protocol = 'https:';
-        url.hostname = 'blithe.social';
-        url.port = '';
-      }
+      // Force www.blithe.social so the mobile OS does not intercept the link into the mobile app (the app is only registered for apex blithe.social)
+      url.protocol = 'https:';
+      url.hostname = 'www.blithe.social';
+      url.port = '';
 
       return url.toString();
     } catch (e) {
       let base = window.location.href.split('?')[0];
-      if (base.includes('localhost') || base.includes('127.0.0.1')) {
-        base = base.replace(/http:\/\/localhost:\d+/, 'https://blithe.social')
-          .replace(/http:\/\/127.0.0.1:\d+/, 'https://blithe.social');
+      base = base.replace(/http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, 'https://www.blithe.social')
+                 .replace('https://blithe.social', 'https://www.blithe.social');
+      if (!base.startsWith('https://www.blithe.social')) {
+        base = `https://www.blithe.social${window.location.pathname}`;
       }
       const val = platformId === 'copy' ? 'blithecopy' : platformId;
       return `${base}?utf=${val}&utm_source=${val}`;
