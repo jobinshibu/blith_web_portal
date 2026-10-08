@@ -77,8 +77,10 @@ export const getAllUrlDetails = () => {
 };
 
 /**
- * Saves ad traffic logs to Firestore 'ad_traffic_logs' collection.
- * Deduplicates per user session to avoid writing redundant documents.
+/**
+ * Extracts and inspects URL ad traffic parameters for debugging.
+ * Note: Root 'ad_traffic_logs' collection writes are disabled per requirement.
+ * All ad tracking is recorded strictly under users/{userId}/ad_traffic_logs subcollection.
  */
 export const saveAdTrafficData = async () => {
   if (typeof window === 'undefined') return null;
@@ -95,69 +97,11 @@ export const saveAdTrafficData = async () => {
   console.log('%cDetected Query Parameters:%c', 'font-weight: bold;', '', trafficData.parameters);
   console.log('%cMeta & UTM Details:%c', 'font-weight: bold;', '', meta);
   console.log('%cFull Payload:%c', 'font-weight: bold;', '', trafficData);
+  console.groupEnd();
 
   // Expose on window for easy developer inspection in DevTools console
   window.__BLITHE_AD_TRAFFIC_DATA__ = trafficData;
-
-  // Only save if it's a Meta ad click: check using fbclid, ad_id, campaign_id
-  const isMetaAd = Boolean(
-    meta.fbclid ||
-    meta.ad_id ||
-    meta.campaign_id
-  );
-
-  if (!isMetaAd) {
-    console.log(
-      '%c[AdTraffic] No Meta ad tracking parameters (fbclid, ad_id, campaign_id) detected. Skipping Firestore write to conserve database usage.',
-      'color: #6B7280; font-style: italic;'
-    );
-    console.groupEnd();
-    return null;
-  }
-
-  // Deduplication check: prevent multiple Firestore writes for the same click in one session
-  const dedupeKey = `${meta.fbclid || ''}_${meta.campaign_id || meta.utm_campaign || ''}_${meta.ad_id || ''}_${meta.utm_source || ''}`;
-  const alreadySaved = sessionStorage.getItem('blithe_ad_traffic_logged_key');
-  if (alreadySaved && alreadySaved === dedupeKey) {
-    const existingDocId = sessionStorage.getItem('blithe_ad_traffic_doc_id');
-    console.log(
-      `%c[AdTraffic] Already logged for this session (ID: ${existingDocId}). Skipping duplicate write.`,
-      'color: #F59E0B;'
-    );
-    console.groupEnd();
-    return existingDocId || null;
-  }
-
-  try {
-    const payload = {
-      ...trafficData,
-      created_at: serverTimestamp()
-    };
-    console.log('%c[AdTraffic] Writing ad traffic log to Firestore collection "ad_traffic_logs"...', 'color: #3B82F6;');
-    const docRef = await addDoc(collection(db, 'ad_traffic_logs'), payload);
-    sessionStorage.setItem('blithe_ad_traffic_logged_key', dedupeKey);
-    sessionStorage.setItem('blithe_ad_traffic_doc_id', docRef.id);
-    console.log(
-      `%c[AdTraffic] Successfully written to Firestore "ad_traffic_logs" with ID: ${docRef.id}`,
-      'color: #10B981; font-weight: bold;'
-    );
-    console.groupEnd();
-    return docRef.id;
-  } catch (e) {
-    console.error(
-      '%c[AdTraffic] Error adding document to Firestore "ad_traffic_logs":',
-      'color: #EF4444; font-weight: bold;',
-      e
-    );
-    if (e.code === 'permission-denied') {
-      console.warn(
-        '%c[AdTraffic Hint] Firebase permission-denied. Please check your Firestore Security Rules to allow writes to "ad_traffic_logs".',
-        'color: #F97316; font-weight: bold;'
-      );
-    }
-    console.groupEnd();
-    return null;
-  }
+  return null;
 };
 
 // In-memory set to lock concurrent in-flight writes
@@ -249,10 +193,14 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
     // Immediately reserve sessionKey so subsequent fast calls see it right away
     sessionStorage.setItem(sessionKey, logDocId);
 
+    const fullUrl = (meta.fbclid || meta.ad_id || meta.campaign_id)
+      ? (urlDetails?.full_url || window.location.href)
+      : (sessionStorage.getItem('blithe_lead_full_url') || urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : ''));
+
     const logPayload = {
       // 1. Exact structure matching the main ad_traffic_logs format
       created_at: serverTimestamp(),
-      full_url: urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : ''),
+      full_url: fullUrl,
       hostname: urlDetails?.hostname || (typeof window !== 'undefined' ? window.location.hostname : ''),
       path: urlDetails?.path || (typeof window !== 'undefined' ? window.location.pathname : ''),
       referrer: referrer || 'none',
@@ -304,7 +252,7 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
         ad_id: ad_id || '',
         adset_id: adset_id || '',
         referrer: referrer || '',
-        full_url: urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : ''),
+        full_url: fullUrl || (typeof window !== 'undefined' ? window.location.href : ''),
         ad_traffic_log_id: logDocId,
         adclickcount: increment(1)
       };
@@ -448,12 +396,7 @@ const detectReferrerSource = () => {
  */
 export const initLeadTracking = () => {
   try {
-    // 1. Asynchronously log ad traffic to Firestore 'ad_traffic_logs' if applicable
-    saveAdTrafficData().catch((err) => {
-      console.warn('[AdTraffic] Error saving ad traffic during init:', err);
-    });
-
-    // 2. URL parameters have highest priority and always override/reset lead source.
+    // 1. URL parameters have highest priority and always override/reset lead source.
     const urlSource = detectUrlSource();
     if (urlSource) {
       const alreadyLogged = sessionStorage.getItem('blithe_lead_source_logged');
@@ -466,6 +409,7 @@ export const initLeadTracking = () => {
       sessionStorage.setItem('blithe_utm_campaign', urlSource.utm_campaign || '');
       sessionStorage.setItem('blithe_utm_term', urlSource.utm_term || '');
       sessionStorage.setItem('blithe_utm_content', urlSource.utm_content || '');
+      sessionStorage.setItem('blithe_lead_full_url', window.location.href);
 
       if (urlSource.fbclid) sessionStorage.setItem('blithe_fbclid', urlSource.fbclid);
       if (urlSource.ad_id) sessionStorage.setItem('blithe_ad_id', urlSource.ad_id);
