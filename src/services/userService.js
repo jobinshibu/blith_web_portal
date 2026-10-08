@@ -259,6 +259,7 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
     eventId: "",
     ad_traffic_log_id: "",
     adclickcount: 0,
+    adbookclick: 0,
     ...otherData
   };
 };

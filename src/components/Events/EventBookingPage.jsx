@@ -7,7 +7,7 @@ import { db, analytics } from '../../firebase';
 import { useNetworkStatus, checkIsOnline } from '../../hooks/useNetworkStatus';
 import { logEvent } from 'firebase/analytics';
 import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
-import { recordUserAdTrafficLog } from '../../services/leadService';
+import { recordUserAdTrafficLog, getAdTrafficInfo, recordUserAdBooking, updateAdBookingStatus } from '../../services/leadService';
 import {
   fetchFilteredCoupons,
   applyCoupon as applyCouponService,
@@ -256,6 +256,7 @@ const EventBookingPage = () => {
   const lastCheckedPhoneRef = useRef('');
   const isResolvingUserRef = useRef(false);
   const resolvingPromiseRef = useRef(null);
+  const adBookingDocIdRef = useRef(null);
 
   // Load attendee details from sessionStorage on mount and listen for session changes
   useEffect(() => {
@@ -1411,9 +1412,14 @@ const EventBookingPage = () => {
   };
 
   // Helper to create pending booking (paid events)
-  const createPendingBooking = async (orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList, userProfileImage) => {
+  const createPendingBooking = async (orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList, userProfileImage, adBookingDocId = "") => {
     const pendingBookingRef = doc(db, "pendingBookings", orderId);
     const selectedDateVal = selectedDate ? selectedDate : startDate;
+
+    // Resolve ad traffic attribution for pending booking
+    const adTraffic = await getAdTrafficInfo(uId, event?.id);
+    const isFromAd = Boolean(adTraffic?.isFromAd);
+    const resolvedAdBookingId = adBookingDocId || adBookingDocIdRef.current || "";
 
     const couponMap = appliedCoupon ? {
       code: String(appliedCoupon.code),
@@ -1483,7 +1489,12 @@ const EventBookingPage = () => {
       userId: String(uId),
       userName: String(attendee.name),
       userPhone: formatPhoneWithPlus91(attendee.phone),
-      userProfileImage: String(userProfileImage || "")
+      userProfileImage: String(userProfileImage || ""),
+      // Ad Attribution fields
+      isFromAd: isFromAd,
+      fromAd: isFromAd,
+      ad_booking_id: resolvedAdBookingId,
+      adBookingId: resolvedAdBookingId
     };
 
     await setDoc(pendingBookingRef, {
@@ -1505,7 +1516,12 @@ const EventBookingPage = () => {
       status: "pending",
       totalPrice: Number(total),
       userId: uId,
-      userPhone: formatPhoneWithPlus91(attendee.phone)
+      userPhone: formatPhoneWithPlus91(attendee.phone),
+      // Ad Attribution fields
+      isFromAd: isFromAd,
+      fromAd: isFromAd,
+      ad_booking_id: resolvedAdBookingId,
+      adBookingId: resolvedAdBookingId
     });
   };
 
@@ -1828,6 +1844,9 @@ const EventBookingPage = () => {
 
         const isFree = paymentId === "free";
 
+        const adTraffic = await getAdTrafficInfo(uId, event.id);
+        const isFromAd = Boolean(adTraffic?.isFromAd);
+
         const baseBookingRecord = {
           approvalAnswer: getFormattedApprovalAnswer(formattedApprovalQuestions, approvalAnswers),
           approvalNeeded: event.approvalNeeded === true,
@@ -1867,7 +1886,12 @@ const EventBookingPage = () => {
           userId: String(uId),
           userName: String(attendee.name),
           userPhone: formattedUserPhone,
-          userProfileImage: String(userProfileImage || "")
+          userProfileImage: String(userProfileImage || ""),
+          // Ad attribution fields
+          isFromAd: isFromAd,
+          fromAd: isFromAd,
+          ad_booking_id: adBookingDocIdRef.current || "",
+          adBookingId: adBookingDocIdRef.current || ""
         };
 
         const myBookingData = { ...baseBookingRecord };
@@ -2065,6 +2089,17 @@ const EventBookingPage = () => {
             }
           }
         });
+
+        // Update ad booking subcollection record status if user came from ad
+        if (adBookingDocIdRef.current) {
+          updateAdBookingStatus(uId, adBookingDocIdRef.current, {
+            bookingStatus: event.approvalNeeded ? "pending" : "confirmed",
+            paymentStatus: String(paymentStatusVal),
+            paymentId: isFree ? "free" : String(paymentId),
+            bookingId: bId,
+            status: event.approvalNeeded ? "pending" : "confirmed"
+          });
+        }
 
         // 6. Send Booking Emails (after transaction succeeds)
         if (event.approvalNeeded) {
@@ -2403,8 +2438,53 @@ const EventBookingPage = () => {
         }
       };
 
+      // Prepare tickets and coupon map for ad booking records
+      const preparedTicketsForBooking = bookedTickets.map((t) => ({
+        attendedQuantity: 0,
+        blithePrice: Number(t.blithePrice !== undefined ? t.blithePrice : (t.price || 0)),
+        category: String(t.category || "generic"),
+        price: Number(t.price || 0),
+        quantity: Number(t.quantity || 0),
+        ticketName: String(t.ticketName || "")
+      }));
+
+      const activeCouponMap = appliedCoupon ? {
+        code: String(appliedCoupon.code),
+        discount: Number(discountAmount),
+        discountValue: Number(appliedCoupon.discountValue),
+        id: String(appliedCoupon.id),
+        percentage: Boolean(appliedCoupon.percentage)
+      } : {};
+
       // 2. Process booking flow
       if (checkoutTotal <= 0) {
+        // Record ad booking subcollection record & increment adbookclick if user came from ad
+        recordUserAdBooking(uId, {
+          eventId: event.id,
+          eventName: event.eventName || event.title || "",
+          totalPrice: 0,
+          totalTickets: totalTickets,
+          tickets: preparedTicketsForBooking,
+          priceDetails: priceDetails,
+          coupon: activeCouponMap,
+          orderId: "free",
+          bookingId: "",
+          eventDate: selectedDateVal,
+          eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
+          eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
+          userEmail: attendee.email,
+          userName: attendee.name,
+          userPhone: formattedUserPhone,
+          category: event.category || event.categoryName || "",
+          categories: Array.from(new Set(bookedTickets.map(t => t.category).filter(Boolean)))
+        }).then((loggedBookingDocId) => {
+          if (loggedBookingDocId) {
+            adBookingDocIdRef.current = loggedBookingDocId;
+          }
+        }).catch((err) => {
+          console.warn("Failed to record user ad booking on proceed:", err);
+        });
+
         // Direct booking for free events (skip slot blocking)
         await performSaveBooking("free", "free", "free");
       } else {
@@ -2429,8 +2509,37 @@ const EventBookingPage = () => {
           return;
         }
 
-        // Create pending booking
-        await createPendingBooking(orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList, userProfileImage);
+        // 1. Record ad booking subcollection record & increment adbookclick if user came from ad
+        let adBookingDocId = "";
+        try {
+          adBookingDocId = await recordUserAdBooking(uId, {
+            eventId: event.id,
+            eventName: event.eventName || event.title || "",
+            totalPrice: checkoutTotal,
+            totalTickets: totalTickets,
+            tickets: preparedTicketsForBooking,
+            priceDetails: priceDetails,
+            coupon: activeCouponMap,
+            orderId: orderId,
+            bookingId: bId,
+            eventDate: selectedDateVal,
+            eventLocation: event.eventLocation || event.location || event.address || event.venue || "",
+            eventImage: (event.image && event.image.length > 0) ? String(event.image[0]) : String(event.image || ""),
+            userEmail: attendee.email,
+            userName: attendee.name,
+            userPhone: formattedUserPhone,
+            category: event.category || event.categoryName || "",
+            categories: Array.from(new Set(bookedTickets.map(t => t.category).filter(Boolean)))
+          });
+          if (adBookingDocId) {
+            adBookingDocIdRef.current = adBookingDocId;
+          }
+        } catch (err) {
+          console.warn("Failed to record user ad booking on proceed:", err);
+        }
+
+        // 2. Create pending booking (with isFromAd, ad_traffic_log_id, and ad_booking_id for Cloud Function)
+        await createPendingBooking(orderId, bId, uId, bookedTickets, priceDetails, finalBookingSearchList, userProfileImage, adBookingDocId);
 
         // Open Razorpay Checkout
         const isScriptLoaded = await loadRazorpayScript();
@@ -2489,6 +2598,17 @@ const EventBookingPage = () => {
               } catch (err) {
                 console.warn('[Coupon] commitCouponService threw after payment:', err);
               }
+            }
+
+            // Update ad booking status in users/{uId}/ad_bookings upon Razorpay payment success
+            if (adBookingDocIdRef.current) {
+              updateAdBookingStatus(uId, adBookingDocIdRef.current, {
+                bookingStatus: event.approvalNeeded ? "pending" : "confirmed",
+                paymentStatus: "paid",
+                paymentId: String(paymentId),
+                bookingId: bId,
+                status: event.approvalNeeded ? "pending" : "confirmed"
+              });
             }
 
             // For paid events, the backend Cloud Function handles the booking creation,

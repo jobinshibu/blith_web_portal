@@ -1,5 +1,5 @@
 import { logEvent } from 'firebase/analytics';
-import { collection, addDoc, doc, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, getDoc, getDocs, query, orderBy, limit, serverTimestamp, increment } from 'firebase/firestore';
 import { analytics, db } from '../firebase';
 
 /**
@@ -40,9 +40,10 @@ export const getAllUrlDetails = () => {
   const utmCampaign = urlParams.get('utm_campaign') || null;
   const utmContent = urlParams.get('utm_content') || null;
   const utmTerm = urlParams.get('utm_term') || null;
+  const utmId = urlParams.get('utm_id') || urlParams.get('utmid') || null;
   const adId = urlParams.get('ad_id') || urlParams.get('adid') || urlParams.get('ad_ID') || urlParams.get('adId') || null;
   const adsetId = urlParams.get('adset_id') || urlParams.get('adsetid') || urlParams.get('adset_ID') || urlParams.get('adSetId') || null;
-  const campaignId = urlParams.get('campaign_id') || urlParams.get('campaignid') || urlParams.get('campaign_ID') || urlParams.get('campaignId') || null;
+  const campaignId = urlParams.get('campaign_id') || urlParams.get('campaignid') || urlParams.get('campaign_ID') || urlParams.get('campaignId') || utmId || null;
   const placement = urlParams.get('placement') || urlParams.get('meta_placement') || null;
   const siteSourceName = urlParams.get('site_source_name') || urlParams.get('source_name') || null;
 
@@ -66,6 +67,7 @@ export const getAllUrlDetails = () => {
       utm_campaign: utmCampaign,
       utm_content: utmContent,
       utm_term: utmTerm,
+      utm_id: utmId,
       ad_id: adId,
       adset_id: adsetId,
       campaign_id: campaignId,
@@ -169,6 +171,10 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
     const alreadyLoggedDocId = sessionStorage.getItem(sessionKey);
     if (alreadyLoggedDocId) {
       console.log(`[UserAdTraffic] Already logged for user ${userId} with ad key (${adIdentifier}). Skipping duplicate write. (ID: ${alreadyLoggedDocId})`);
+      sessionStorage.setItem(`blithe_user_traffic_doc_id_${userId}`, alreadyLoggedDocId);
+      sessionStorage.setItem('blithe_last_ad_traffic_log_id', alreadyLoggedDocId);
+      sessionStorage.setItem(`blithe_user_is_from_ad_${userId}`, 'true');
+      sessionStorage.setItem('blithe_is_from_ad', 'true');
       return alreadyLoggedDocId;
     }
 
@@ -192,6 +198,10 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
 
     // Immediately reserve sessionKey so subsequent fast calls see it right away
     sessionStorage.setItem(sessionKey, logDocId);
+    sessionStorage.setItem(`blithe_user_traffic_doc_id_${userId}`, logDocId);
+    sessionStorage.setItem('blithe_last_ad_traffic_log_id', logDocId);
+    sessionStorage.setItem(`blithe_user_is_from_ad_${userId}`, 'true');
+    sessionStorage.setItem('blithe_is_from_ad', 'true');
 
     const fullUrl = (meta.fbclid || meta.ad_id || meta.campaign_id)
       ? (urlDetails?.full_url || window.location.href)
@@ -264,9 +274,12 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
       await setDoc(userDocRef, parentUpdate, { merge: true });
       console.log(`[UserAdTraffic] Initial user arrival (login=true): saved original attribution to users/${userId}:`, parentUpdate);
     } else {
-      // Repeat ad click: do NOT touch attribution fields, only increment the adclickcount counter
-      await setDoc(userDocRef, { adclickcount: increment(1) }, { merge: true });
-      console.log(`[UserAdTraffic] Repeat ad click (login=false): preserved initial attribution and incremented only adclickcount on users/${userId}.`);
+      // Repeat ad click: preserve initial attribution and update only adclickcount and last_ad_traffic_log_id
+      await setDoc(userDocRef, {
+        adclickcount: increment(1),
+        last_ad_traffic_log_id: logDocId
+      }, { merge: true });
+      console.log(`[UserAdTraffic] Repeat ad click (login=false): preserved initial attribution, set last_ad_traffic_log_id, and incremented only adclickcount on users/${userId}.`);
     }
 
     return logDocId;
@@ -280,11 +293,301 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
   }
 };
 
+/**
+ * Resolves whether a user arrived from an ad and retrieves their ad_traffic_logs document ID.
+ * @param {string} userId - Target user UID
+ * @param {string} [eventId] - Current event ID
+ * @returns {Promise<{ isFromAd: boolean, adTrafficLogId: string }>}
+ */
+export const getAdTrafficInfo = async (userId, eventId = null) => {
+  if (typeof window === 'undefined') {
+    return { isFromAd: false, adTrafficLogId: '' };
+  }
+
+  try {
+    // 1. Check in-memory/sessionStorage first
+    const sessionDocId =
+      (userId && sessionStorage.getItem(`blithe_user_traffic_doc_id_${userId}`)) ||
+      sessionStorage.getItem('blithe_last_ad_traffic_log_id') ||
+      '';
+
+    const sessionIsFromAd =
+      (userId && sessionStorage.getItem(`blithe_user_is_from_ad_${userId}`) === 'true') ||
+      sessionStorage.getItem('blithe_is_from_ad') === 'true';
+
+    // Check if URL or session has active Meta ad tracking
+    const urlDetails = getAllUrlDetails();
+    const meta = urlDetails?.meta_details || {};
+    const fbclid = meta.fbclid || sessionStorage.getItem('blithe_fbclid');
+    const adId = meta.ad_id || sessionStorage.getItem('blithe_ad_id');
+    const campaignId = meta.campaign_id || sessionStorage.getItem('blithe_campaign_id');
+    const hasAdParams = Boolean(fbclid || adId || campaignId);
+
+    if (sessionDocId) {
+      return { isFromAd: true, adTrafficLogId: sessionDocId };
+    }
+
+    if (hasAdParams) {
+      if (userId) {
+        const generatedLogId = await recordUserAdTrafficLog(userId, { isLogin: false, eventId });
+        if (generatedLogId) {
+          return { isFromAd: true, adTrafficLogId: generatedLogId };
+        }
+      }
+      return { isFromAd: true, adTrafficLogId: sessionDocId || '' };
+    }
+
+    // 2. Check parent user document in Firestore if userId provided
+    if (userId) {
+      const userDocSnap = await getDoc(doc(db, 'users', userId));
+      if (userDocSnap.exists()) {
+        const uData = userDocSnap.data();
+        const userAdLogId = uData.ad_traffic_log_id || uData.last_ad_traffic_log_id || '';
+        const userHasAdData = Boolean(
+          userAdLogId ||
+          uData.ad_id ||
+          (uData.adclickcount && Number(uData.adclickcount) > 0) ||
+          (uData.adbookclick && Number(uData.adbookclick) > 0) ||
+          uData.utm_campaign
+        );
+
+        if (userHasAdData) {
+          let resolvedId = userAdLogId;
+          if (!resolvedId) {
+            try {
+              const logsRef = collection(db, 'users', userId, 'ad_traffic_logs');
+              const qLogs = query(logsRef, orderBy('created_at', 'desc'), limit(1));
+              const logsSnap = await getDocs(qLogs);
+              if (!logsSnap.empty) {
+                resolvedId = logsSnap.docs[0].id;
+              }
+            } catch (_) {
+              try {
+                const logsRef = collection(db, 'users', userId, 'ad_traffic_logs');
+                const fallbackSnap = await getDocs(query(logsRef, limit(1)));
+                if (!fallbackSnap.empty) {
+                  resolvedId = fallbackSnap.docs[0].id;
+                }
+              } catch (_) {}
+            }
+          }
+
+          if (resolvedId) {
+            sessionStorage.setItem(`blithe_user_traffic_doc_id_${userId}`, resolvedId);
+            sessionStorage.setItem('blithe_last_ad_traffic_log_id', resolvedId);
+          }
+          sessionStorage.setItem(`blithe_user_is_from_ad_${userId}`, 'true');
+
+          return { isFromAd: true, adTrafficLogId: resolvedId || '' };
+        }
+      }
+    }
+
+    if (sessionIsFromAd) {
+      return { isFromAd: true, adTrafficLogId: sessionDocId || '' };
+    }
+
+    return { isFromAd: false, adTrafficLogId: '' };
+  } catch (err) {
+    console.warn('[UserAdTraffic] Error getting ad traffic info:', err);
+    return { isFromAd: false, adTrafficLogId: '' };
+  }
+};
+
+/**
+ * When a user coming from an ad clicks "Pay & Proceed" (proceed to payment):
+ * 1. Increments `adbookclick` count field on the user document (users/{userId})
+ * 2. Creates a new document in the subcollection users/{userId}/ad_bookings
+ *    containing all fields of ad_traffic_logs plus complete booking details.
+ *
+ * @param {string} userId - Target user UID
+ * @param {Object} bookingDetails - Complete booking and ticket details
+ * @returns {Promise<string|null>} The generated ad_bookings document ID, or null if user not from ad
+ */
+export const recordUserAdBooking = async (userId, bookingDetails = {}) => {
+  if (!userId || typeof window === 'undefined') return null;
+
+  try {
+    const {
+      eventId = '',
+      eventName = '',
+      totalPrice = 0,
+      totalTickets = 0,
+      tickets = [],
+      priceDetails = {},
+      coupon = {},
+      orderId = '',
+      bookingId = '',
+      eventDate = null,
+      eventLocation = '',
+      eventImage = '',
+      userEmail = '',
+      userName = '',
+      userPhone = '',
+      category = '',
+      categories = []
+    } = bookingDetails;
+
+    // Check if user is from an ad
+    const adInfo = await getAdTrafficInfo(userId, eventId);
+    if (!adInfo.isFromAd) {
+      console.log(`[UserAdBooking] User ${userId} is not from an ad. Skipping ad_bookings write and adbookclick counter increment.`);
+      return null;
+    }
+
+    // Deduplication check: prevent multiple writes if user clicks Pay & Proceed multiple times
+    const dedupeIdentifier = bookingId || orderId || `${eventId}_${Date.now()}`;
+    const sessionKey = `blithe_ad_booking_logged_${userId}_${dedupeIdentifier}`;
+    const alreadyLoggedId = sessionStorage.getItem(sessionKey);
+    if (alreadyLoggedId) {
+      console.log(`[UserAdBooking] Ad booking already recorded for (${sessionKey}). Skipping duplicate. (ID: ${alreadyLoggedId})`);
+      return alreadyLoggedId;
+    }
+
+    // 1. Increment adbookclick count field on user document
+    const userDocRef = doc(db, 'users', userId);
+    await setDoc(userDocRef, {
+      adbookclick: increment(1),
+      last_adbookclick_at: serverTimestamp()
+    }, { merge: true });
+    console.log(`[UserAdBooking] Incremented adbookclick counter on users/${userId}`);
+
+    // 2. Prepare ad traffic parameters (matching ad_traffic_logs format exactly)
+    const urlDetails = getAllUrlDetails();
+    const meta = urlDetails?.meta_details || {};
+
+    const utm_source = meta.utm_source || sessionStorage.getItem('blithe_utm_source') || '';
+    const utm_campaign = meta.utm_campaign || sessionStorage.getItem('blithe_utm_campaign') || '';
+    const ad_id = meta.ad_id || sessionStorage.getItem('blithe_ad_id') || '';
+    const adset_id = meta.adset_id || sessionStorage.getItem('blithe_adset_id') || '';
+    const referrer = urlDetails?.referrer || sessionStorage.getItem('blithe_lead_referrer') || (typeof document !== 'undefined' ? document.referrer : 'none') || 'none';
+    const fbclid = meta.fbclid || sessionStorage.getItem('blithe_fbclid') || '';
+    const campaign_id = meta.campaign_id || sessionStorage.getItem('blithe_campaign_id') || '';
+    const placement = meta.placement || sessionStorage.getItem('blithe_placement') || '';
+    const site_source_name = meta.site_source_name || sessionStorage.getItem('blithe_site_source_name') || '';
+    const fbp = meta.fbp || sessionStorage.getItem('blithe_fbp') || getCookie('_fbp') || '';
+    const fbc = meta.fbc || sessionStorage.getItem('blithe_fbc') || getCookie('_fbc') || '';
+
+    const fullUrl = (meta.fbclid || meta.ad_id || meta.campaign_id)
+      ? (urlDetails?.full_url || window.location.href)
+      : (sessionStorage.getItem('blithe_lead_full_url') || urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : ''));
+
+    // 3. Create document in users/{userId}/ad_bookings
+    const adBookingsCollection = collection(db, 'users', userId, 'ad_bookings');
+    const adBookingDocRef = doc(adBookingsCollection);
+    const adBookingDocId = adBookingDocRef.id;
+
+    // Derived category information
+    const resolvedCategories = categories && categories.length > 0
+      ? categories
+      : (tickets && tickets.length > 0 ? Array.from(new Set(tickets.map(t => t.category).filter(Boolean))) : []);
+    const resolvedCategory = category || (resolvedCategories.length > 0 ? resolvedCategories.join(', ') : 'generic');
+
+    const adBookingPayload = {
+      // 1. Exact fields matching ad_traffic_logs collection
+      created_at: serverTimestamp(),
+      full_url: fullUrl,
+      hostname: urlDetails?.hostname || (typeof window !== 'undefined' ? window.location.hostname : ''),
+      path: urlDetails?.path || (typeof window !== 'undefined' ? window.location.pathname : ''),
+      referrer: referrer || 'none',
+      timestamp: urlDetails?.timestamp || new Date().toISOString(),
+      meta_details: {
+        ad_id: ad_id || null,
+        adset_id: adset_id || null,
+        campaign_id: campaign_id || null,
+        fbc: fbc || null,
+        fbclid: fbclid || null,
+        fbp: fbp || null,
+        placement: placement || null,
+        site_source_name: site_source_name || null,
+        utm_campaign: utm_campaign || null,
+        utm_content: meta.utm_content || sessionStorage.getItem('blithe_utm_content') || null,
+        utm_medium: meta.utm_medium || sessionStorage.getItem('blithe_utm_medium') || null,
+        utm_source: utm_source || null,
+        utm_term: meta.utm_term || sessionStorage.getItem('blithe_utm_term') || null
+      },
+      parameters: urlDetails?.parameters || {},
+      userId: userId,
+      platform: 'web',
+      utm_campaign: utm_campaign || null,
+      utm_source: utm_source || null,
+      ad_id: ad_id || null,
+      adset_id: adset_id || null,
+      ad_traffic_log_id: adInfo.adTrafficLogId || '',
+
+      // 2. Extra fields for booking details requested by user
+      id: adBookingDocId,
+      eventId: String(eventId || ''),
+      eventName: String(eventName || ''),
+      price: Number(totalPrice || 0),
+      totalPrice: Number(totalPrice || 0),
+      quantity: Number(totalTickets || 0),
+      totalQuantity: Number(totalTickets || 0),
+      category: resolvedCategory,
+      categories: resolvedCategories,
+      bookingId: String(bookingId || ''),
+      orderId: String(orderId || ''),
+      razorpayOrderId: String(orderId || ''),
+      tickets: tickets || [],
+      priceDetails: priceDetails || {},
+      coupon: coupon || {},
+      eventDate: eventDate || null,
+      eventLocation: String(eventLocation || ''),
+      eventImage: String(eventImage || ''),
+      userName: String(userName || ''),
+      userEmail: String(userEmail || ''),
+      userPhone: String(userPhone || ''),
+      bookingStatus: 'pending',
+      paymentStatus: 'pending',
+
+      // 3. Extra fields in logic
+      isFromAd: true,
+      fromAd: true,
+      action: 'pay_and_proceed_click',
+      clickTimestamp: serverTimestamp(),
+      currency: 'INR'
+    };
+
+    await setDoc(adBookingDocRef, adBookingPayload);
+    sessionStorage.setItem(sessionKey, adBookingDocId);
+    console.log(`[UserAdBooking] Successfully wrote subcollection document users/${userId}/ad_bookings/${adBookingDocId} for event ${eventId}`);
+
+    return adBookingDocId;
+  } catch (err) {
+    console.error(`[UserAdBooking] Error recording ad booking for user ${userId}:`, err);
+    return null;
+  }
+};
+
+/**
+ * Updates status of an ad booking record in users/{userId}/ad_bookings/{adBookingDocId}
+ * when payment completes.
+ * @param {string} userId - Target user UID
+ * @param {string} adBookingDocId - The ad booking document ID
+ * @param {Object} updateFields - Fields to update (e.g. bookingStatus, paymentStatus, paymentId)
+ */
+export const updateAdBookingStatus = async (userId, adBookingDocId, updateFields = {}) => {
+  if (!userId || !adBookingDocId || typeof window === 'undefined') return;
+  try {
+    const docRef = doc(db, 'users', userId, 'ad_bookings', adBookingDocId);
+    await setDoc(docRef, {
+      ...updateFields,
+      updated_at: serverTimestamp()
+    }, { merge: true });
+    console.log(`[UserAdBooking] Updated ad booking status on users/${userId}/ad_bookings/${adBookingDocId}`);
+  } catch (err) {
+    console.warn(`[UserAdBooking] Failed to update ad booking status:`, err);
+  }
+};
+
 // Expose on window for easy developer inspection in DevTools console
 if (typeof window !== 'undefined') {
   window.getAllUrlDetails = getAllUrlDetails;
   window.saveAdTrafficData = saveAdTrafficData;
   window.recordUserAdTrafficLog = recordUserAdTrafficLog;
+  window.getAdTrafficInfo = getAdTrafficInfo;
+  window.recordUserAdBooking = recordUserAdBooking;
+  window.updateAdBookingStatus = updateAdBookingStatus;
 }
 
 /**
@@ -301,7 +604,7 @@ const detectUrlSource = () => {
   const fbclid = params.get('fbclid');
   const adId = params.get('ad_id') || params.get('adid') || params.get('ad_ID') || params.get('adId');
   const adsetId = params.get('adset_id') || params.get('adsetid') || params.get('adset_ID') || params.get('adSetId');
-  const campaignId = params.get('campaign_id') || params.get('campaignid') || params.get('campaign_ID') || params.get('campaignId');
+  const campaignId = params.get('campaign_id') || params.get('campaignid') || params.get('campaign_ID') || params.get('campaignId') || params.get('utm_id') || params.get('utmid');
   const placement = params.get('placement') || params.get('meta_placement');
   const siteSourceName = params.get('site_source_name') || params.get('source_name');
   const querySource = params.get('source') || params.get('ref') || params.get('utf');
