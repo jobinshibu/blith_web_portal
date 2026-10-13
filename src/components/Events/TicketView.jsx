@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { toast } from 'react-hot-toast';
+import html2canvas from 'html2canvas';
 import logoTransparent from '../../assets/logo-transparent.png';
 import './TicketView.scss';
 
@@ -31,6 +32,8 @@ const TicketView = () => {
   const { eventId: rawEventId, bookingId: rawBookingId } = useParams();
   const navigate = useNavigate();
   const ticketRef = useRef(null);
+  const preGeneratedFileRef = useRef(null);
+  const isGeneratingRef = useRef(false);
 
   // Smart parameter auto-correction for /ticketView/:eventId/:bookingId
   let resolvedBookingId = rawBookingId;
@@ -75,12 +78,12 @@ const TicketView = () => {
 
   // Format time: e.g., "12:00 AM - 03:00 PM"
   const formatTime = useCallback((bookingObj, eventObj) => {
-    const explicitTimeVal = 
-      bookingObj?.eventTime || 
-      bookingObj?.time || 
-      eventObj?.eventTime || 
-      eventObj?.time || 
-      eventObj?.startTime || 
+    const explicitTimeVal =
+      bookingObj?.eventTime ||
+      bookingObj?.time ||
+      eventObj?.eventTime ||
+      eventObj?.time ||
+      eventObj?.startTime ||
       eventObj?.eventStartTime;
 
     if (explicitTimeVal && typeof explicitTimeVal === 'string' && explicitTimeVal.trim() !== '') {
@@ -143,7 +146,7 @@ const TicketView = () => {
                 setEventDetails({ id: snap.id, ...snap.data() });
               }
             })
-            .catch(() => {});
+            .catch(() => { });
         }
       }
 
@@ -154,7 +157,7 @@ const TicketView = () => {
               setUserData(userSnap.data());
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     };
 
@@ -176,7 +179,7 @@ const TicketView = () => {
                   applyBookingData({ id: s.id, ...s.data() }, preFetchedEvent);
                 }
               })
-              .catch(() => {})
+              .catch(() => { })
           );
 
           fastPromises.push(
@@ -186,7 +189,7 @@ const TicketView = () => {
                   applyBookingData({ id: s.id, ...s.data() }, preFetchedEvent);
                 }
               })
-              .catch(() => {})
+              .catch(() => { })
           );
 
           fastPromises.push(
@@ -197,7 +200,7 @@ const TicketView = () => {
                   setEventDetails(preFetchedEvent);
                 }
               })
-              .catch(() => {})
+              .catch(() => { })
           );
         }
 
@@ -210,7 +213,7 @@ const TicketView = () => {
                   applyBookingData({ id: s.id, ...s.data() }, preFetchedEvent);
                 }
               })
-              .catch(() => {})
+              .catch(() => { })
           );
         });
 
@@ -278,23 +281,15 @@ const TicketView = () => {
     navigate('/');
   }, [navigate]);
 
-  // Dynamic import of html2canvas on demand to keep initial JS execution ultra-light
-  const handleShareTicket = useCallback(async () => {
-    if (!ticketRef.current) {
-      toast.error("Ticket element not ready.");
-      return;
-    }
-
-    const toastId = toast.loading("Generating ticket image...");
+  // Generate ticket image File object from current DOM
+  const generateTicketImageFile = useCallback(async () => {
+    if (!ticketRef.current) return null;
 
     try {
-      // Dynamic import html2canvas on click
-      const { default: html2canvas } = await import('html2canvas');
-
-      // Convert external image elements inside ticket element to Base64 to prevent CORS canvas taint
       const imgElements = Array.from(ticketRef.current.querySelectorAll('img'));
       const originalSrcs = imgElements.map((img) => img.src);
 
+      // Convert external image elements to data URLs to avoid canvas CORS taint
       await Promise.all(
         imgElements.map(async (img) => {
           if (img.src && !img.src.startsWith('data:')) {
@@ -310,7 +305,7 @@ const TicketView = () => {
                 reader.onerror = () => resolve();
                 reader.readAsDataURL(blob);
               });
-            } catch (e) {
+            } catch {
               // Ignore fetch error, keep original src
             }
           }
@@ -330,67 +325,122 @@ const TicketView = () => {
         img.src = originalSrcs[i];
       });
 
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          toast.error("Failed to export image.", { id: toastId });
-          return;
-        }
-
-        const fileName = `Blithe-Ticket-${bookingId || 'Pass'}.png`;
-        const file = new File([blob], fileName, { type: 'image/png' });
-
-        const computedEventName = booking?.eventName || eventDetails?.eventName || eventDetails?.title || 'Blithe Pass';
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({
-              title: computedEventName,
-              text: `Here is my entry ticket for ${computedEventName}!\n${window.location.href}`,
-              files: [file]
-            });
-            toast.dismiss(toastId);
-          } catch (err) {
-            if (err.name !== 'AbortError') {
-              downloadFile(file);
-              toast.success("Ticket image downloaded!", { id: toastId });
-            } else {
-              toast.dismiss(toastId);
-            }
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            resolve(null);
+            return;
           }
-        } else if (navigator.share) {
-          try {
-            await navigator.share({
-              title: computedEventName,
-              text: `Here is my entry ticket for ${computedEventName}!`,
-              url: window.location.href
-            });
-            toast.dismiss(toastId);
-          } catch (err) {
-            if (err.name !== 'AbortError') {
-              downloadFile(file);
-              toast.success("Ticket image downloaded!", { id: toastId });
-            } else {
-              toast.dismiss(toastId);
-            }
-          }
-        } else {
-          downloadFile(file);
-          toast.success("Ticket image downloaded!", { id: toastId });
-        }
-      }, 'image/png');
+          const fileName = `Blithe-Ticket-${bookingId || 'Pass'}.png`;
+          const file = new File([blob], fileName, { type: 'image/png' });
+          resolve(file);
+        }, 'image/png');
+      });
     } catch (err) {
-      console.error("Error generating ticket image:", err);
-      toast.error("Could not capture ticket image.", { id: toastId });
+      console.warn("Could not generate ticket image file:", err);
+      return null;
     }
-  }, [booking, eventDetails, bookingId]);
+  }, [bookingId]);
 
-  const downloadFile = (file) => {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(file);
-    link.download = file.name;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
+  // Silent Background Pre-generation: As soon as ticket details render, generate the image file
+  // into memory so when the user taps "Share", the file is already ready with 0ms delay.
+  useEffect(() => {
+    if (!booking || !ticketRef.current) return;
+
+    preGeneratedFileRef.current = null;
+    let isMounted = true;
+
+    const timer = setTimeout(async () => {
+      if (!isMounted || preGeneratedFileRef.current || isGeneratingRef.current) return;
+      isGeneratingRef.current = true;
+
+      try {
+        const file = await generateTicketImageFile();
+        if (isMounted && file) {
+          preGeneratedFileRef.current = file;
+        }
+      } catch (err) {
+        console.warn("Background ticket pre-generation skipped:", err);
+      } finally {
+        isGeneratingRef.current = false;
+      }
+    }, 700);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [booking, eventDetails, generateTicketImageFile]);
+
+  // Instant Native Web Share: shares image along with text and ticket link
+  const handleShareTicket = useCallback(async () => {
+    const computedEventName = booking?.eventName || eventDetails?.eventName || eventDetails?.title || 'Blithe Pass';
+    const shareUrl = window.location.href;
+    const shareText = `Here is my entry ticket for ${computedEventName}!\n${shareUrl}`;
+
+    let file = preGeneratedFileRef.current;
+
+    // If user clicked Share immediately before the 700ms background generation completed:
+    if (!file) {
+      const toastId = toast.loading("Preparing ticket image...");
+      try {
+        file = await generateTicketImageFile();
+        if (file) preGeneratedFileRef.current = file;
+      } catch {
+        // Fallback to link share
+      } finally {
+        toast.dismiss(toastId);
+      }
+    }
+
+    // 1. Try sharing BOTH Image File + Message Text / URL
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: computedEventName,
+          text: shareText
+        });
+        return; // Successfully shared image + text!
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+
+        // If the browser failed specifically because it doesn't support text + files combined,
+        // retry sharing just the image file:
+        try {
+          await navigator.share({
+            files: [file],
+            title: computedEventName
+          });
+          return;
+        } catch (fileErr) {
+          if (fileErr.name === 'AbortError') return;
+        }
+      }
+    }
+
+    // 2. Fallback: Share the live ticket pass link
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${computedEventName} - Blithe Pass`,
+          text: shareText,
+          url: shareUrl
+        });
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    // 3. Desktop / unsupported browser fallback: copy link to clipboard (NEVER download file)
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Ticket link copied to clipboard!");
+    } catch {
+      toast.error("Could not share ticket link.");
+    }
+  }, [booking, eventDetails, generateTicketImageFile]);
 
   // Compute data values safely with useMemo
   const eventBannerImage = useMemo(() => {
