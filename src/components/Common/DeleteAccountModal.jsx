@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Trash2, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Trash2, Loader2, X, ShieldCheck } from 'lucide-react';
 import './DeleteAccountModal.scss';
 
 const DeleteAccountModal = ({
@@ -70,17 +70,8 @@ const DeleteAccountModal = ({
             </ul>
           </div>
 
-          {/* Action Buttons: Normal Modal Yes or No */}
+          {/* Action Buttons: Yes Delete on Left, No Keep on Right */}
           <div className="delete-modal-actions">
-            <button
-              type="button"
-              className="btn-cancel"
-              onClick={onClose}
-              disabled={isDeleting}
-            >
-              No, Keep Account
-            </button>
-
             <button
               type="button"
               className="btn-confirm-delete"
@@ -98,6 +89,16 @@ const DeleteAccountModal = ({
                   <span>Yes, Delete Account</span>
                 </>
               )}
+            </button>
+
+            <button
+              type="button"
+              className="btn-keep-account btn-cancel"
+              onClick={onClose}
+              disabled={isDeleting}
+            >
+              <ShieldCheck size={18} />
+              <span>No, Keep Account</span>
             </button>
           </div>
         </motion.div>

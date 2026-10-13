@@ -685,7 +685,7 @@ const TicketView = () => {
                               ) : null}
                               <span className="attended-tag">Event Attended: {attendedCount}/{qty}</span>
                             </div>
-                            <span className="price">{itemPrice > 0 ? `₹${itemPrice.toFixed(2)}` : 'Free'}</span>
+                            {/* <span className="price">{itemPrice > 0 ? `₹${itemPrice.toFixed(2)}` : 'Free'}</span> */}
                           </div>
                         );
                       })
@@ -695,7 +695,7 @@ const TicketView = () => {
                           <span className="name">{quantityCount}x Standard Ticket</span>
                           <span className="attended-tag">Attended: {booking?.attendedQuantity || 0}/{quantityCount}</span>
                         </div>
-                        <span className="price">₹{Number(booking?.totalPrice || 0).toFixed(2)}</span>
+                        {/* <span className="price">₹{Number(booking?.totalPrice || 0).toFixed(2)}</span> */}
                       </div>
                     )}
                   </div>

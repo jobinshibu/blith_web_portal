@@ -700,7 +700,7 @@ const EventBookingPage = () => {
     if (!hasTickets && appliedCoupon) {
       const uId = resolvedUserIdForCoupons || resolvedUserId;
       if (uId && couponSession) {
-        releaseCouponService({ couponId: appliedCoupon.id, userId: uId, sessionId: couponSession }).catch(() => {});
+        releaseCouponService({ couponId: appliedCoupon.id, userId: uId, sessionId: couponSession }).catch(() => { });
       }
       setAppliedCoupon(null);
       setCouponSession(null);
@@ -1519,7 +1519,6 @@ const EventBookingPage = () => {
       userPhone: formatPhoneWithPlus91(attendee.phone),
       // Ad Attribution fields
       isFromAd: isFromAd,
-      fromAd: isFromAd,
       ad_booking_id: resolvedAdBookingId,
       adBookingId: resolvedAdBookingId
     });

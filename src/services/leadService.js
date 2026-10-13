@@ -337,56 +337,11 @@ export const getAdTrafficInfo = async (userId, eventId = null) => {
       return { isFromAd: true, adTrafficLogId: sessionDocId || '' };
     }
 
-    // 2. Check parent user document in Firestore if userId provided
-    if (userId) {
-      const userDocSnap = await getDoc(doc(db, 'users', userId));
-      if (userDocSnap.exists()) {
-        const uData = userDocSnap.data();
-        const userAdLogId = uData.ad_traffic_log_id || uData.last_ad_traffic_log_id || '';
-        const userHasAdData = Boolean(
-          userAdLogId ||
-          uData.ad_id ||
-          (uData.adclickcount && Number(uData.adclickcount) > 0) ||
-          (uData.adbookclick && Number(uData.adbookclick) > 0) ||
-          uData.utm_campaign
-        );
-
-        if (userHasAdData) {
-          let resolvedId = userAdLogId;
-          if (!resolvedId) {
-            try {
-              const logsRef = collection(db, 'users', userId, 'ad_traffic_logs');
-              const qLogs = query(logsRef, orderBy('created_at', 'desc'), limit(1));
-              const logsSnap = await getDocs(qLogs);
-              if (!logsSnap.empty) {
-                resolvedId = logsSnap.docs[0].id;
-              }
-            } catch (_) {
-              try {
-                const logsRef = collection(db, 'users', userId, 'ad_traffic_logs');
-                const fallbackSnap = await getDocs(query(logsRef, limit(1)));
-                if (!fallbackSnap.empty) {
-                  resolvedId = fallbackSnap.docs[0].id;
-                }
-              } catch (_) {}
-            }
-          }
-
-          if (resolvedId) {
-            sessionStorage.setItem(`blithe_user_traffic_doc_id_${userId}`, resolvedId);
-            sessionStorage.setItem('blithe_last_ad_traffic_log_id', resolvedId);
-          }
-          sessionStorage.setItem(`blithe_user_is_from_ad_${userId}`, 'true');
-
-          return { isFromAd: true, adTrafficLogId: resolvedId || '' };
-        }
-      }
-    }
-
     if (sessionIsFromAd) {
       return { isFromAd: true, adTrafficLogId: sessionDocId || '' };
     }
 
+    // If no ad parameters in current URL or active session, this is an organic booking
     return { isFromAd: false, adTrafficLogId: '' };
   } catch (err) {
     console.warn('[UserAdTraffic] Error getting ad traffic info:', err);

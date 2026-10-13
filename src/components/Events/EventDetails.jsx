@@ -1005,7 +1005,7 @@ const EventDetails = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch attendees for the event (lazy loaded on scroll)
+  // Fetch attendees for the event (supports confirmed, attended, and partiallyAttended statuses)
   const fetchAttendees = useCallback(async () => {
     if (!id) return;
     try {
@@ -1016,46 +1016,48 @@ const EventDetails = () => {
       if (cached && (now - cached.time < ATTENDEES_CACHE_TTL)) {
         bookings = cached.data;
       } else {
-        // 1. Try querying collectionGroup "myBookings"
+        const validStatuses = ['confirmed', 'attended', 'partiallyAttended', 'partiallyattended', 'completed'];
+
+        // 1. Direct query on eventBookings subcollection (Fastest: direct index on single event document)
         try {
-          const bookingsQuery = query(
-            collectionGroup(db, 'myBookings'),
-            where('eventId', '==', id),
-            where('status', '==', 'confirmed')
-          );
-          const bookingsSnapshot = await getDocs(bookingsQuery);
-          bookingsSnapshot.forEach(docSnap => {
+          const eventBookingsRef = collection(db, "event", id, "eventBookings");
+          const q = query(eventBookingsRef, where('status', 'in', validStatuses));
+          const snap = await getDocs(q);
+          snap.forEach(docSnap => {
             bookings.push(docSnap.data());
           });
-        } catch (cgErr) {
-          console.warn("[Attendees] collectionGroup 'myBookings' failed, trying 'mybooking':", cgErr);
-          // 2. Try collectionGroup "mybooking" if "myBookings" fails
+        } catch (fallbackErr) {
+          console.warn("[Attendees] Direct fetch from eventBookings failed, trying fallback:", fallbackErr);
+        }
+
+        // 2. If eventBookings was empty, query collectionGroup "myBookings"
+        if (bookings.length === 0) {
           try {
             const bookingsQuery = query(
-              collectionGroup(db, 'mybooking'),
+              collectionGroup(db, 'myBookings'),
               where('eventId', '==', id),
-              where('status', '==', 'confirmed')
+              where('status', 'in', validStatuses)
             );
             const bookingsSnapshot = await getDocs(bookingsQuery);
             bookingsSnapshot.forEach(docSnap => {
               bookings.push(docSnap.data());
             });
-          } catch (cgErr2) {
-            console.warn("[Attendees] collectionGroup 'mybooking' failed:", cgErr2);
-          }
-        }
-
-        // 3. Fallback to eventBookings subcollection under the event document
-        if (bookings.length === 0) {
-          try {
-            const eventBookingsRef = collection(db, "event", id, "eventBookings");
-            const q = query(eventBookingsRef, where('status', '==', 'confirmed'));
-            const snap = await getDocs(q);
-            snap.forEach(docSnap => {
-              bookings.push(docSnap.data());
-            });
-          } catch (fallbackErr) {
-            console.error("[Attendees] Fallback fetch from eventBookings failed:", fallbackErr);
+          } catch (cgErr) {
+            console.warn("[Attendees] collectionGroup 'myBookings' failed, trying 'mybooking':", cgErr);
+            // 3. Try collectionGroup "mybooking" if "myBookings" fails
+            try {
+              const bookingsQuery = query(
+                collectionGroup(db, 'mybooking'),
+                where('eventId', '==', id),
+                where('status', 'in', validStatuses)
+              );
+              const bookingsSnapshot = await getDocs(bookingsQuery);
+              bookingsSnapshot.forEach(docSnap => {
+                bookings.push(docSnap.data());
+              });
+            } catch (cgErr2) {
+              console.warn("[Attendees] collectionGroup 'mybooking' failed:", cgErr2);
+            }
           }
         }
 
@@ -1110,6 +1112,13 @@ const EventDetails = () => {
       console.error("[Attendees] Error fetching attendees:", err);
     }
   }, [id]);
+
+  // Fetch attendees immediately when event ID is available so images are ready without scroll delay
+  useEffect(() => {
+    if (id) {
+      fetchAttendees();
+    }
+  }, [id, fetchAttendees]);
 
   const aboutRef = useRef(null);
   const orgAboutRef = useRef(null);
@@ -2578,12 +2587,14 @@ const EventDetails = () => {
                     {attendeesList.slice(0, 4).map((att, idx) => (
                       <div key={idx} className="attendee-avatar-wrapper" style={{ zIndex: 4 - idx }}>
                         {att.userProfileImage ? (
-                          <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" />
+                          <img src={att.userProfileImage} alt={att.userName || "Attendee"} className="attendee-avatar-img" loading="eager" decoding="async" />
                         ) : (
                           <img
                             src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(att.userName || 'Attendee')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
                             alt={att.userName || 'Attendee'}
                             className="attendee-avatar-img dicebear-avatar"
+                            loading="eager"
+                            decoding="async"
                           />
                         )}
                       </div>
