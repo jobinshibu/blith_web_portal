@@ -390,31 +390,47 @@ const EventBookingPage = () => {
     fetchAlreadyBookedCount();
   }, [resolvedUserId, event?.id]);
 
-  // Auto-adjust quantities if settingsDoc changes and exceeds limit per checkout
-  useEffect(() => {
-    if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
-      const globalMax = Number(settingsDoc.noOfTiketsPerUser);
-      if (!isNaN(globalMax) && globalMax > 0) {
-        const currentTotal = Object.values(quantities).reduce((a, b) => a + b, 0);
-        const remainingAllowance = globalMax;
+  const isOnlineEvent = (ev = event) => {
+    return ev?.eventType === 'Online' || (typeof ev?.eventType === 'string' && ev.eventType.trim().toLowerCase() === 'online');
+  };
 
-        // ONLY adjust if user has selected tickets (currentTotal > 0) AND currentTotal exceeds remainingAllowance
-        if (currentTotal > 0 && currentTotal > remainingAllowance) {
-          toast.error(`Ticket limit exceeded. Maximum ${globalMax} tickets allowed per checkout.`);
-          let remaining = remainingAllowance;
-          setQuantities(prev => {
-            const newQuantities = {};
-            Object.entries(prev).forEach(([idx, qty]) => {
-              const take = Math.min(qty, remaining);
-              newQuantities[idx] = take;
-              remaining -= take;
-            });
-            return newQuantities;
+  const getOnlineEventTicketLimit = (settingsData = settingsDoc) => {
+    if (!settingsData) return null;
+    const rawLimit = settingsData.noOfTiketsPerUserOnlineEvent !== undefined && settingsData.noOfTiketsPerUserOnlineEvent !== null && settingsData.noOfTiketsPerUserOnlineEvent !== ''
+      ? settingsData.noOfTiketsPerUserOnlineEvent
+      : (settingsData.noOfTicketsPerUserOnlineEvent !== undefined && settingsData.noOfTicketsPerUserOnlineEvent !== null && settingsData.noOfTicketsPerUserOnlineEvent !== ''
+          ? settingsData.noOfTicketsPerUserOnlineEvent
+          : null);
+    if (rawLimit === null) return null;
+    const num = Number(rawLimit);
+    return (!isNaN(num) && num > 0) ? num : null;
+  };
+
+  // Auto-adjust quantities if online event ticket limit changes and exceeds limit per checkout
+  useEffect(() => {
+    if (!isOnlineEvent(event)) return;
+
+    const onlineLimit = getOnlineEventTicketLimit(settingsDoc);
+    if (onlineLimit !== null) {
+      const currentTotal = Object.values(quantities).reduce((a, b) => a + b, 0);
+      const remainingAllowance = onlineLimit;
+
+      // ONLY adjust if user has selected tickets (currentTotal > 0) AND currentTotal exceeds remainingAllowance
+      if (currentTotal > 0 && currentTotal > remainingAllowance) {
+        toast.error(`Ticket limit exceeded. Maximum ${onlineLimit} ticket${onlineLimit > 1 ? 's' : ''} allowed for this online event.`);
+        let remaining = remainingAllowance;
+        setQuantities(prev => {
+          const newQuantities = {};
+          Object.entries(prev).forEach(([idx, qty]) => {
+            const take = Math.min(qty, remaining);
+            newQuantities[idx] = take;
+            remaining -= take;
           });
-        }
+          return newQuantities;
+        });
       }
     }
-  }, [settingsDoc, quantities]);
+  }, [settingsDoc, quantities, event?.eventType]);
 
   const parseTerms = (text) => {
     if (!text) return [];
@@ -1198,16 +1214,17 @@ const EventBookingPage = () => {
     const remainingSlots = getTicketRemainingSlots(ticket);
     if (!ticket || !ticket.status || remainingSlots <= 0) return;
 
-    if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
-      const globalMax = Number(settingsDoc.noOfTiketsPerUser);
-      if (!isNaN(globalMax) && globalMax > 0) {
+    if (isOnlineEvent(event)) {
+      const onlineLimit = getOnlineEventTicketLimit(settingsDoc);
+      if (onlineLimit !== null) {
         const currentTotalOthers = Object.entries(quantities)
           .filter(([k, _]) => Number(k) !== idx)
           .reduce((sum, [_, val]) => sum + (val || 0), 0);
 
-        const maxAllowedForThisBooking = Math.max(0, globalMax - currentTotalOthers);
+        const maxAllowedForThisBooking = Math.max(0, onlineLimit - currentTotalOthers);
+
         if (delta > 0 && (quantities[idx] || 0) >= maxAllowedForThisBooking) {
-          toast.error(`You can only book up to ${globalMax} tickets at a time per checkout.`);
+          toast.error(`You can only book up to ${onlineLimit} ticket${onlineLimit > 1 ? 's' : ''} at a time for this online event.`);
           return;
         }
       }
@@ -1217,14 +1234,14 @@ const EventBookingPage = () => {
       const current = prev[idx] || 0;
       let maxSlots = Math.min(10, remainingSlots);
 
-      if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
-        const globalMax = Number(settingsDoc.noOfTiketsPerUser);
-        if (!isNaN(globalMax) && globalMax > 0) {
+      if (isOnlineEvent(event)) {
+        const onlineLimit = getOnlineEventTicketLimit(settingsDoc);
+        if (onlineLimit !== null) {
           const currentTotalOthers = Object.entries(prev)
             .filter(([k, _]) => Number(k) !== idx)
             .reduce((sum, [_, val]) => sum + (val || 0), 0);
 
-          const maxAllowedForThisBooking = Math.max(0, globalMax - currentTotalOthers);
+          const maxAllowedForThisBooking = Math.max(0, onlineLimit - currentTotalOthers);
           maxSlots = Math.min(maxSlots, maxAllowedForThisBooking);
         }
       }
@@ -1665,12 +1682,27 @@ const EventBookingPage = () => {
         if (!resolvedUserIdForCoupons) setResolvedUserIdForCoupons(uId);
       }
 
-      // Check maximum tickets limit per user per checkout configured in settings
-      if (settingsDoc && settingsDoc.noOfTiketsPerUser !== undefined && settingsDoc.noOfTiketsPerUser !== null && settingsDoc.noOfTiketsPerUser !== '') {
-        const globalMax = Number(settingsDoc.noOfTiketsPerUser);
-        if (!isNaN(globalMax) && globalMax > 0) {
-          if (totalTickets > globalMax) {
-            toast.error(`You can only book up to ${globalMax} tickets at a time per checkout.`);
+      // Check maximum tickets limit per user for online events configured in settings
+      if (isOnlineEvent(event)) {
+        let activeSettings = settingsDoc || settings;
+        if (!activeSettings) {
+          try {
+            const docRef = doc(db, 'settings', 'settings');
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              activeSettings = docSnap.data();
+              setSettingsDoc(activeSettings);
+              setSettings(activeSettings);
+            }
+          } catch (err) {
+            console.error("Error fetching settings document during checkout ticket limit check:", err);
+          }
+        }
+
+        const onlineLimit = getOnlineEventTicketLimit(activeSettings);
+        if (onlineLimit !== null) {
+          if (totalTickets > onlineLimit) {
+            toast.error(`You can only book up to ${onlineLimit} ticket${onlineLimit > 1 ? 's' : ''} at a time for this online event.`);
             setIsVerifyingUser(false);
             return;
           }
