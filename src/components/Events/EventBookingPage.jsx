@@ -7,7 +7,7 @@ import { db, analytics } from '../../firebase';
 import { useNetworkStatus, checkIsOnline } from '../../hooks/useNetworkStatus';
 import { logEvent } from 'firebase/analytics';
 import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
-import { recordUserAdTrafficLog, getAdTrafficInfo, recordUserAdBooking, updateAdBookingStatus } from '../../services/leadService';
+import { recordUserAdTrafficLog, getAdTrafficInfo, recordUserAdBooking, updateAdBookingStatus, clearAdTrackingSession } from '../../services/leadService';
 import {
   fetchFilteredCoupons,
   applyCoupon as applyCouponService,
@@ -1437,6 +1437,8 @@ const EventBookingPage = () => {
     const adTraffic = await getAdTrafficInfo(uId, event?.id);
     const isFromAd = Boolean(adTraffic?.isFromAd);
     const resolvedAdBookingId = adBookingDocId || adBookingDocIdRef.current || "";
+    const resolvedLinkSource = adTraffic?.linkSource || sessionStorage.getItem('blithe_link_source') || "";
+    const resolvedPlacement = adTraffic?.placement || sessionStorage.getItem('blithe_placement') || "";
 
     const couponMap = appliedCoupon ? {
       code: String(appliedCoupon.code),
@@ -1509,9 +1511,9 @@ const EventBookingPage = () => {
       userProfileImage: String(userProfileImage || ""),
       // Ad Attribution fields
       isFromAd: isFromAd,
-      fromAd: isFromAd,
-      ad_booking_id: resolvedAdBookingId,
-      adBookingId: resolvedAdBookingId
+      adBookingId: resolvedAdBookingId,
+      linkSource: resolvedLinkSource,
+      placement: resolvedPlacement
     };
 
     await setDoc(pendingBookingRef, {
@@ -1536,8 +1538,9 @@ const EventBookingPage = () => {
       userPhone: formatPhoneWithPlus91(attendee.phone),
       // Ad Attribution fields
       isFromAd: isFromAd,
-      ad_booking_id: resolvedAdBookingId,
-      adBookingId: resolvedAdBookingId
+      adBookingId: resolvedAdBookingId,
+      linkSource: resolvedLinkSource,
+      placement: resolvedPlacement
     });
   };
 
@@ -1920,9 +1923,9 @@ const EventBookingPage = () => {
           userProfileImage: String(userProfileImage || ""),
           // Ad attribution fields
           isFromAd: isFromAd,
-          fromAd: isFromAd,
-          ad_booking_id: adBookingDocIdRef.current || "",
-          adBookingId: adBookingDocIdRef.current || ""
+          adBookingId: adBookingDocIdRef.current || "",
+          linkSource: sessionStorage.getItem('blithe_link_source') || "",
+          placement: sessionStorage.getItem('blithe_placement') || ""
         };
 
         const myBookingData = { ...baseBookingRecord };
@@ -2124,13 +2127,15 @@ const EventBookingPage = () => {
         // Update ad booking subcollection record status if user came from ad
         if (adBookingDocIdRef.current) {
           updateAdBookingStatus(uId, adBookingDocIdRef.current, {
-            bookingStatus: event.approvalNeeded ? "pending" : "confirmed",
+            status: event.approvalNeeded ? "pending" : "confirmed",
             paymentStatus: String(paymentStatusVal),
             paymentId: isFree ? "free" : String(paymentId),
-            bookingId: bId,
-            status: event.approvalNeeded ? "pending" : "confirmed"
+            bookingId: bId
           });
         }
+
+        // Option A: Clear ad tracking session so subsequent bookings in same tab are treated as organic
+        clearAdTrackingSession(uId);
 
         // 6. Send Booking Emails (after transaction succeeds)
         if (event.approvalNeeded) {
@@ -2631,16 +2636,9 @@ const EventBookingPage = () => {
               }
             }
 
-            // Update ad booking status in users/{uId}/ad_bookings upon Razorpay payment success
-            if (adBookingDocIdRef.current) {
-              updateAdBookingStatus(uId, adBookingDocIdRef.current, {
-                bookingStatus: event.approvalNeeded ? "pending" : "confirmed",
-                paymentStatus: "paid",
-                paymentId: String(paymentId),
-                bookingId: bId,
-                status: event.approvalNeeded ? "pending" : "confirmed"
-              });
-            }
+            // Status update for paid booking & ad_bookings is handled securely via Firebase Cloud Function (Razorpay webhook)
+            // Clear ad tracking session so subsequent bookings in same tab are treated as organic
+            clearAdTrackingSession(uId);
 
             // For paid events, the backend Cloud Function handles the booking creation,
             // slot decrementing, notifications, and emails via Razorpay webhook.

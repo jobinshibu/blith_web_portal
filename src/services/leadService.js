@@ -46,6 +46,8 @@ export const getAllUrlDetails = () => {
   const campaignId = urlParams.get('campaign_id') || urlParams.get('campaignid') || urlParams.get('campaign_ID') || urlParams.get('campaignId') || utmId || null;
   const placement = urlParams.get('placement') || urlParams.get('meta_placement') || null;
   const siteSourceName = urlParams.get('site_source_name') || urlParams.get('source_name') || null;
+  const linkSourceParam = urlParams.get('linkSource') || urlParams.get('link_source') || null;
+  const campaignName = urlParams.get('campaign_name') || urlParams.get('campaign') || null;
 
   // Retrieve 1st-party Meta cookies created by Meta Pixel SDK
   const fbp = getCookie('_fbp');
@@ -72,7 +74,9 @@ export const getAllUrlDetails = () => {
       adset_id: adsetId,
       campaign_id: campaignId,
       placement,
-      site_source_name: siteSourceName
+      site_source_name: siteSourceName,
+      linkSource: linkSourceParam,
+      campaign_name: campaignName
     },
     timestamp: new Date().toISOString()
   };
@@ -104,6 +108,51 @@ export const saveAdTrafficData = async () => {
   // Expose on window for easy developer inspection in DevTools console
   window.__BLITHE_AD_TRAFFIC_DATA__ = trafficData;
   return null;
+};
+
+/**
+ * Resolves the linkSource value based on traffic details:
+ * - If from Meta Ads (fbclid, ad_id, campaign_id, site_source_name, or facebook/instagram/meta utm_source):
+ *   value is the campaign name (utm_campaign or campaign_id or 'Meta Campaign')
+ * - If from another source with UTMs:
+ *   value is the link source (utm_source or utm_campaign)
+ * @param {Object} meta
+ * @returns {string} The resolved link source
+ */
+export const resolveLinkSource = (meta = {}) => {
+  // 1. Direct explicit linkSource from query param or session has highest priority
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const directLinkSource =
+    (meta && (meta.linkSource || meta.link_source)) ||
+    (urlParams ? (urlParams.get('linkSource') || urlParams.get('link_source')) : null) ||
+    (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_link_source') : null) ||
+    '';
+
+  const fbclid = meta.fbclid || (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_fbclid') : '') || '';
+  const ad_id = meta.ad_id || (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_ad_id') : '') || '';
+  const campaign_id = meta.campaign_id || (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_campaign_id') : '') || '';
+  const site_source_name = meta.site_source_name || (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_site_source_name') : '') || '';
+  const utm_source = (meta.utm_source || (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_utm_source') : '') || '').trim();
+  const utm_campaign = (meta.utm_campaign || meta.campaign_name || meta.campaign || (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_utm_campaign') : '') || '').trim();
+
+  // If explicit linkSource was passed in the URL (e.g. ?linkSource=blithe_onam), prioritize it!
+  if (directLinkSource) {
+    return directLinkSource;
+  }
+
+  const isMetaAd = Boolean(
+    fbclid || ad_id || campaign_id || site_source_name ||
+    /^(meta|facebook|fb|instagram|ig)$/i.test(utm_source) ||
+    /facebook|instagram|meta/i.test(utm_source)
+  );
+
+  if (isMetaAd) {
+    // If from Meta Ads: value is the campaign name
+    return utm_campaign || campaign_id || 'Meta Campaign';
+  }
+
+  // If from any other source with UTM: value is the source or campaign
+  return utm_source || utm_campaign || '';
 };
 
 // In-memory set to lock concurrent in-flight writes
@@ -145,11 +194,25 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
     const fbp = meta.fbp || sessionStorage.getItem('blithe_fbp') || getCookie('_fbp') || '';
     const fbc = meta.fbc || sessionStorage.getItem('blithe_fbc') || getCookie('_fbc') || '';
 
-    // Verify using fbclid, ad_id, campaign_id that traffic is genuinely from Meta ads
-    const isMetaAd = Boolean(fbclid || ad_id || campaign_id);
-    if (!isMetaAd) {
-      console.log(`[UserAdTraffic] No Meta ad tracking parameters (fbclid, ad_id, campaign_id) detected for user ${userId}. Skipping subcollection write and adclickcount.`);
+    const utm_medium = meta.utm_medium || sessionStorage.getItem('blithe_utm_medium') || '';
+    const utm_content = meta.utm_content || sessionStorage.getItem('blithe_utm_content') || '';
+    const utm_term = meta.utm_term || sessionStorage.getItem('blithe_utm_term') || '';
+
+    // Verify if traffic has any UTM parameters or ad tracking parameters (from any source)
+    const hasTrackingParams = Boolean(
+      fbclid || ad_id || campaign_id || adset_id || placement || site_source_name ||
+      utm_source || utm_campaign || utm_medium || utm_content || utm_term ||
+      meta.linkSource || meta.link_source
+    );
+
+    if (!hasTrackingParams) {
+      console.log(`[UserAdTraffic] No UTM or ad tracking parameters detected for user ${userId}. Skipping subcollection write and adclickcount.`);
       return null;
+    }
+
+    const linkSource = resolveLinkSource(meta) || '';
+    if (linkSource) {
+      sessionStorage.setItem('blithe_link_source', linkSource);
     }
 
     // Automatically resolve eventId from path if not explicitly provided
@@ -175,6 +238,7 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
       sessionStorage.setItem('blithe_last_ad_traffic_log_id', alreadyLoggedDocId);
       sessionStorage.setItem(`blithe_user_is_from_ad_${userId}`, 'true');
       sessionStorage.setItem('blithe_is_from_ad', 'true');
+      sessionStorage.setItem('blithe_ad_event_id', resolvedEventId || '');
       return alreadyLoggedDocId;
     }
 
@@ -202,6 +266,7 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
     sessionStorage.setItem('blithe_last_ad_traffic_log_id', logDocId);
     sessionStorage.setItem(`blithe_user_is_from_ad_${userId}`, 'true');
     sessionStorage.setItem('blithe_is_from_ad', 'true');
+    sessionStorage.setItem('blithe_ad_event_id', resolvedEventId || '');
 
     const fullUrl = (meta.fbclid || meta.ad_id || meta.campaign_id)
       ? (urlDetails?.full_url || window.location.href)
@@ -235,9 +300,11 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
       // 2. Subcollection and user tracking metadata (clean, no duplicate IDs)
       id: logDocId,
       userId: userId,
+      platform: 'web',
+      linkSource: linkSource || null,
+      placement: placement || null,
       eventId: resolvedEventId || null,
       login: Boolean(isLogin), // true for new user registration, false for existing user
-      platform: 'web',
 
       // 3. Top-level query convenience fields
       utm_campaign: utm_campaign || null,
@@ -301,11 +368,31 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
  */
 export const getAdTrafficInfo = async (userId, eventId = null) => {
   if (typeof window === 'undefined') {
-    return { isFromAd: false, adTrafficLogId: '' };
+    return { isFromAd: false, adTrafficLogId: '', linkSource: '' };
   }
 
   try {
-    // 1. Check in-memory/sessionStorage first
+    const urlDetails = getAllUrlDetails();
+    const meta = urlDetails?.meta_details || {};
+    const urlParams = urlDetails?.parameters || {};
+
+    // 1. Check if the CURRENT URL itself has active UTM or ad tracking parameters
+    const hasUrlParams = Boolean(
+      urlParams.fbclid || urlParams.ad_id || urlParams.campaign_id || urlParams.adset_id ||
+      urlParams.placement || urlParams.site_source_name || urlParams.linkSource || urlParams.link_source ||
+      urlParams.utm_source || urlParams.utm_campaign || urlParams.utm_medium ||
+      urlParams.utm_content || urlParams.utm_term
+    );
+
+    const storedAdEventId = sessionStorage.getItem('blithe_ad_event_id') || '';
+
+    // Option A: If user navigates directly to a DIFFERENT event without any ad/UTM query params on the URL,
+    // do NOT attribute this different event to the previous event's ad link!
+    if (eventId && storedAdEventId && storedAdEventId !== eventId && !hasUrlParams) {
+      console.log(`[UserAdTraffic] User reached event ${eventId} organically (previous ad was for event ${storedAdEventId}). Treating as organic.`);
+      return { isFromAd: false, adTrafficLogId: '', linkSource: '' };
+    }
+
     const sessionDocId =
       (userId && sessionStorage.getItem(`blithe_user_traffic_doc_id_${userId}`)) ||
       sessionStorage.getItem('blithe_last_ad_traffic_log_id') ||
@@ -315,37 +402,42 @@ export const getAdTrafficInfo = async (userId, eventId = null) => {
       (userId && sessionStorage.getItem(`blithe_user_is_from_ad_${userId}`) === 'true') ||
       sessionStorage.getItem('blithe_is_from_ad') === 'true';
 
-    // Check if URL or session has active Meta ad tracking
-    const urlDetails = getAllUrlDetails();
-    const meta = urlDetails?.meta_details || {};
-    const fbclid = meta.fbclid || sessionStorage.getItem('blithe_fbclid');
-    const adId = meta.ad_id || sessionStorage.getItem('blithe_ad_id');
-    const campaignId = meta.campaign_id || sessionStorage.getItem('blithe_campaign_id');
-    const hasAdParams = Boolean(fbclid || adId || campaignId);
-
-    if (sessionDocId) {
-      return { isFromAd: true, adTrafficLogId: sessionDocId };
+    const sessionLinkSource = sessionStorage.getItem('blithe_link_source') || '';
+    const currentLinkSource = resolveLinkSource(meta) || sessionLinkSource;
+    if (currentLinkSource) {
+      sessionStorage.setItem('blithe_link_source', currentLinkSource);
     }
 
-    if (hasAdParams) {
+    const sessionPlacement = (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_placement') : '') || '';
+    const currentPlacement = meta.placement || sessionPlacement || '';
+    if (currentPlacement && typeof window !== 'undefined') {
+      sessionStorage.setItem('blithe_placement', currentPlacement);
+    }
+
+    // If there are tracking params in the URL for this page:
+    if (hasUrlParams) {
       if (userId) {
         const generatedLogId = await recordUserAdTrafficLog(userId, { isLogin: false, eventId });
         if (generatedLogId) {
-          return { isFromAd: true, adTrafficLogId: generatedLogId };
+          return { isFromAd: true, adTrafficLogId: generatedLogId, linkSource: currentLinkSource, placement: currentPlacement };
         }
       }
-      return { isFromAd: true, adTrafficLogId: sessionDocId || '' };
+      return { isFromAd: true, adTrafficLogId: sessionDocId || '', linkSource: currentLinkSource, placement: currentPlacement };
     }
 
-    if (sessionIsFromAd) {
-      return { isFromAd: true, adTrafficLogId: sessionDocId || '' };
+    if (sessionDocId && (sessionIsFromAd || hasUrlParams)) {
+      return { isFromAd: true, adTrafficLogId: sessionDocId, linkSource: currentLinkSource, placement: currentPlacement };
     }
 
-    // If no ad parameters in current URL or active session, this is an organic booking
-    return { isFromAd: false, adTrafficLogId: '' };
+    if (sessionIsFromAd && (!eventId || !storedAdEventId || storedAdEventId === eventId)) {
+      return { isFromAd: true, adTrafficLogId: sessionDocId || '', linkSource: currentLinkSource, placement: currentPlacement };
+    }
+
+    // If no ad/UTM parameters in current URL or active session, this is an organic booking
+    return { isFromAd: false, adTrafficLogId: '', linkSource: '', placement: '' };
   } catch (err) {
     console.warn('[UserAdTraffic] Error getting ad traffic info:', err);
-    return { isFromAd: false, adTrafficLogId: '' };
+    return { isFromAd: false, adTrafficLogId: '', linkSource: '', placement: '' };
   }
 };
 
@@ -438,6 +530,8 @@ export const recordUserAdBooking = async (userId, bookingDetails = {}) => {
       : (tickets && tickets.length > 0 ? Array.from(new Set(tickets.map(t => t.category).filter(Boolean))) : []);
     const resolvedCategory = category || (resolvedCategories.length > 0 ? resolvedCategories.join(', ') : 'generic');
 
+    const linkSource = resolveLinkSource(meta) || sessionStorage.getItem('blithe_link_source') || '';
+
     const adBookingPayload = {
       // 1. Exact fields matching ad_traffic_logs collection
       created_at: serverTimestamp(),
@@ -464,6 +558,8 @@ export const recordUserAdBooking = async (userId, bookingDetails = {}) => {
       parameters: urlDetails?.parameters || {},
       userId: userId,
       platform: 'web',
+      linkSource: linkSource || null,
+      placement: placement || null,
       utm_campaign: utm_campaign || null,
       utm_source: utm_source || null,
       ad_id: ad_id || null,
@@ -492,7 +588,7 @@ export const recordUserAdBooking = async (userId, bookingDetails = {}) => {
       userName: String(userName || ''),
       userEmail: String(userEmail || ''),
       userPhone: String(userPhone || ''),
-      bookingStatus: 'pending',
+      status: 'pending',
       paymentStatus: 'pending',
 
       // 3. Extra fields in logic
@@ -519,7 +615,7 @@ export const recordUserAdBooking = async (userId, bookingDetails = {}) => {
  * when payment completes.
  * @param {string} userId - Target user UID
  * @param {string} adBookingDocId - The ad booking document ID
- * @param {Object} updateFields - Fields to update (e.g. bookingStatus, paymentStatus, paymentId)
+ * @param {Object} updateFields - Fields to update (e.g. status, paymentStatus, paymentId)
  */
 export const updateAdBookingStatus = async (userId, adBookingDocId, updateFields = {}) => {
   if (!userId || !adBookingDocId || typeof window === 'undefined') return;
@@ -535,14 +631,52 @@ export const updateAdBookingStatus = async (userId, adBookingDocId, updateFields
   }
 };
 
+/**
+ * Clears active ad/traffic tracking session storage once a booking has been completed,
+ * ensuring subsequent direct bookings by the same user in the same tab are treated as organic (Option A).
+ * @param {string} [userId] - User UID
+ */
+export const clearAdTrackingSession = (userId = null) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem('blithe_last_ad_traffic_log_id');
+    sessionStorage.removeItem('blithe_is_from_ad');
+    sessionStorage.removeItem('blithe_link_source');
+    sessionStorage.removeItem('blithe_ad_event_id');
+    sessionStorage.removeItem('blithe_utm_source');
+    sessionStorage.removeItem('blithe_utm_medium');
+    sessionStorage.removeItem('blithe_utm_campaign');
+    sessionStorage.removeItem('blithe_utm_term');
+    sessionStorage.removeItem('blithe_utm_content');
+    sessionStorage.removeItem('blithe_fbclid');
+    sessionStorage.removeItem('blithe_ad_id');
+    sessionStorage.removeItem('blithe_adset_id');
+    sessionStorage.removeItem('blithe_campaign_id');
+    sessionStorage.removeItem('blithe_placement');
+    sessionStorage.removeItem('blithe_site_source_name');
+    sessionStorage.removeItem('blithe_lead_source');
+    sessionStorage.removeItem('blithe_lead_source_logged');
+
+    if (userId) {
+      sessionStorage.removeItem(`blithe_user_traffic_doc_id_${userId}`);
+      sessionStorage.removeItem(`blithe_user_is_from_ad_${userId}`);
+    }
+    console.log('[UserAdTraffic] Cleared ad tracking session after booking completion (Option A).');
+  } catch (err) {
+    console.warn('[UserAdTraffic] Error clearing ad tracking session:', err);
+  }
+};
+
 // Expose on window for easy developer inspection in DevTools console
 if (typeof window !== 'undefined') {
   window.getAllUrlDetails = getAllUrlDetails;
+  window.resolveLinkSource = resolveLinkSource;
   window.saveAdTrafficData = saveAdTrafficData;
   window.recordUserAdTrafficLog = recordUserAdTrafficLog;
   window.getAdTrafficInfo = getAdTrafficInfo;
   window.recordUserAdBooking = recordUserAdBooking;
   window.updateAdBookingStatus = updateAdBookingStatus;
+  window.clearAdTrackingSession = clearAdTrackingSession;
 }
 
 /**
@@ -562,12 +696,14 @@ const detectUrlSource = () => {
   const campaignId = params.get('campaign_id') || params.get('campaignid') || params.get('campaign_ID') || params.get('campaignId') || params.get('utm_id') || params.get('utmid');
   const placement = params.get('placement') || params.get('meta_placement');
   const siteSourceName = params.get('site_source_name') || params.get('source_name');
+  const linkSourceParam = params.get('linkSource') || params.get('link_source');
   const querySource = params.get('source') || params.get('ref') || params.get('utf');
 
-  if (utmSource || utmMedium || utmCampaign) {
+  if (utmSource || utmMedium || utmCampaign || linkSourceParam) {
     return {
-      source: (utmSource || querySource || 'unknown').toLowerCase(),
+      source: (utmSource || querySource || linkSourceParam || 'unknown').toLowerCase(),
       type: 'utm',
+      linkSource: linkSourceParam || null,
       utm_source: (utmSource || '').toLowerCase(),
       utm_medium: (utmMedium || '').toLowerCase(),
       utm_campaign: (utmCampaign || '').toLowerCase(),
@@ -681,6 +817,9 @@ export const initLeadTracking = () => {
       const fbc = getCookie('_fbc') || (urlSource.fbclid ? `fb.1.${Date.now()}.${urlSource.fbclid}` : null);
       if (fbp) sessionStorage.setItem('blithe_fbp', fbp);
       if (fbc) sessionStorage.setItem('blithe_fbc', fbc);
+
+      const linkSource = resolveLinkSource(urlSource);
+      if (linkSource) sessionStorage.setItem('blithe_link_source', linkSource);
 
       if (alreadyLogged !== urlSource.source) {
         sessionStorage.setItem('blithe_lead_source_logged', urlSource.source);
