@@ -1361,6 +1361,23 @@
             }
           }
 
+          .input-validation-msg {
+            font-family: 'Poppins', sans-serif;
+            font-size: 11.5px;
+            font-weight: 500;
+            margin-top: 3px;
+            margin-bottom: 0;
+            line-height: 1.3;
+
+            &.error {
+              color: #EF4444;
+            }
+
+            &.success {
+              color: #10B981;
+            }
+          }
+
           input,
           select,
           textarea {

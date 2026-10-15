@@ -11,9 +11,9 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
   const [nameError, setNameError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isEventDetailsPage = /^\/events\/[^/]+$/.test(location.pathname) && 
+  const isEventDetailsPage = /^\/events\/[^/]+$/.test(location.pathname) &&
     !['/events/terms', '/events/blithelink', '/events/booking-success'].includes(location.pathname);
-  
+
   const hasBottomBar = propHasBottomBar !== undefined ? propHasBottomBar : isEventDetailsPage;
 
   useEffect(() => {
@@ -46,7 +46,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
     setIsSubmitting(true);
     setContactStatus({ type: '', message: '' });
     setNameError('');
-    
+
     if (!contactForm.name || !contactForm.email || !contactForm.message) {
       setContactStatus({ type: 'error', message: 'Please fill in all fields' });
       setIsSubmitting(false);
@@ -58,7 +58,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
       setIsSubmitting(false);
       return;
     }
-    
+
     try {
       await submitContactMessage(contactForm);
       setContactStatus({ type: 'success', message: 'Message sent successfully! Please check your email.' });
@@ -141,7 +141,7 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
           <ul>
             <li><a href="/terms-and-conditions.php" target="_blank" rel="noreferrer">Terms</a></li>
             <li><a href="/Privacy-Policy.php" target="_blank" rel="noreferrer">Privacy</a></li>
-            <li><Link to="/delete-account">Delete Account</Link></li>
+            {/* <li><Link to="/delete-account">Delete Account</Link></li> */}
           </ul>
         </div>
 
@@ -162,10 +162,10 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
           <h5>Contact Us</h5>
           <form className="footer-contact-form" onSubmit={handleContactSubmit}>
             <div className="form-group">
-              <input 
-                type="text" 
-                name="name" 
-                placeholder="Your Name" 
+              <input
+                type="text"
+                name="name"
+                placeholder="Your Name"
                 value={contactForm.name}
                 onChange={handleContactChange}
                 required
@@ -176,17 +176,17 @@ const Footer = ({ hasBottomBar: propHasBottomBar }) => {
                 </p>
               )}
             </div>
-            <input 
-              type="email" 
-              name="email" 
-              placeholder="Your Email" 
+            <input
+              type="email"
+              name="email"
+              placeholder="Your Email"
               value={contactForm.email}
               onChange={handleContactChange}
               required
             />
-            <textarea 
-              name="message" 
-              placeholder="Your Message" 
+            <textarea
+              name="message"
+              placeholder="Your Message"
               rows="3"
               value={contactForm.message}
               onChange={handleContactChange}

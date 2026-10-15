@@ -191,6 +191,9 @@ const VenuePartner = () => {
   const [openFaq, setOpenFaq] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [venueNameError, setVenueNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -204,10 +207,70 @@ const VenuePartner = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'venueName') {
+      if (/[^a-zA-Z\s]/.test(value)) {
+        setVenueNameError('Venue name can only contain letters and spaces.');
+      } else {
+        setVenueNameError('');
+      }
+      const filteredValue = value.replace(/[^a-zA-Z\s]/g, '');
+      setFormData((prev) => ({
+        ...prev,
+        venueName: filteredValue
+      }));
+      return;
+    }
+
+    if (name === 'email') {
+      const emailVal = value.trim();
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (emailVal && !emailRegex.test(emailVal)) {
+        setEmailError('Please enter a valid email address.');
+      } else {
+        setEmailError('');
+      }
+      setFormData((prev) => ({
+        ...prev,
+        email: value
+      }));
+      return;
+    }
+
+    if (name === 'phone') {
+      if (/\D/.test(value)) {
+        setPhoneError('Phone number must contain only numbers (no characters or symbols).');
+      } else if (value.replace(/\D/g, '').length > 0 && value.replace(/\D/g, '').length < 10) {
+        setPhoneError('Phone number must be exactly 10 digits.');
+      } else {
+        setPhoneError('');
+      }
+      const cleanDigits = value.replace(/\D/g, '').slice(0, 10);
+      setFormData((prev) => ({
+        ...prev,
+        phone: cleanDigits
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    if (name === 'email' && value.trim()) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(value.trim())) {
+        setEmailError('Please enter a valid email address (e.g. name@domain.com).');
+      }
+    }
+    if (name === 'phone' && value.trim()) {
+      if (value.trim().length !== 10) {
+        setPhoneError('Phone number must be exactly 10 digits.');
+      }
+    }
   };
 
   const toggleFaq = (index) => {
@@ -242,15 +305,40 @@ const VenuePartner = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    let hasError = false;
+
     if (!formData.venueName.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.cityArea.trim()) {
       toast.error('Please fill in all required fields.');
       return;
     }
 
+    if (/[^a-zA-Z\s]/.test(formData.venueName)) {
+      setVenueNameError('Venue name can only contain letters and spaces.');
+      toast.error('Venue name can only contain letters and spaces.');
+      hasError = true;
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setEmailError('Please enter a valid email address.');
+      toast.error('Please enter a valid email address.');
+      hasError = true;
+    }
+
+    if (formData.phone.length !== 10) {
+      setPhoneError('Phone number must be exactly 10 digits.');
+      toast.error('Phone number must be exactly 10 digits.');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:8000/venue-mail-api.php', {
+      const endpoint = 'https://www.blithe.social/venue-mail-api.php';
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -262,7 +350,10 @@ const VenuePartner = () => {
 
       if (result.status === 'success') {
         setIsSubmitted(true);
-        toast.success('Your application has been submitted and the test email was sent successfully!');
+        setVenueNameError('');
+        setEmailError('');
+        setPhoneError('');
+        toast.success('Your application has been submitted and the email was sent successfully!');
         setFormData({
           venueName: '',
           email: '',
@@ -272,11 +363,11 @@ const VenuePartner = () => {
           notes: ''
         });
       } else {
-        toast.error('Failed to send email: ' + result.message);
+        toast.error('Failed to send email: ' + (result.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error sending mail:', error);
-      toast.error('An error occurred while sending the email.');
+      toast.error('Network error occurred while submitting application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -861,6 +952,11 @@ const VenuePartner = () => {
                         required
                       />
                     </div>
+                    {venueNameError && (
+                      <p className="input-validation-msg error">
+                        {venueNameError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -892,9 +988,15 @@ const VenuePartner = () => {
                         placeholder="e.g. maya@thedailycafe.in"
                         value={formData.email}
                         onChange={handleInputChange}
+                        onBlur={handleBlur}
                         required
                       />
                     </div>
+                    {emailError && (
+                      <p className="input-validation-msg error">
+                        {emailError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -905,12 +1007,19 @@ const VenuePartner = () => {
                         type="tel"
                         id="phone"
                         name="phone"
-                        placeholder="e.g. +91 98765 43210"
+                        maxLength={10}
+                        placeholder="10-digit mobile number"
                         value={formData.phone}
                         onChange={handleInputChange}
+                        onBlur={handleBlur}
                         required
                       />
                     </div>
+                    {phoneError && (
+                      <p className="input-validation-msg error">
+                        {phoneError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
