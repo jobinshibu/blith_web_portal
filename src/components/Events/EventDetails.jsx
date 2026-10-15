@@ -800,7 +800,8 @@ const EventDetailsSkeleton = ({ isSlowConnection }) => (
 
 const EventDetails = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id: rawId } = useParams();
+  const id = rawId ? decodeURIComponent(rawId).trim().replace(/\/+$/, '') : '';
   const [currentIndex, setCurrentIndex] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(true);
   const lastClickTime = useRef(0);
@@ -1580,9 +1581,7 @@ const EventDetails = () => {
         // If real data fetch fails (offline, error, timeout), show cache
         const hasCached = await loadCache();
         if (!hasCached && !isCancelled) {
-          if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            setIsOfflineError(true);
-          }
+          setIsOfflineError(true);
           setLoading(false);
         }
       }
