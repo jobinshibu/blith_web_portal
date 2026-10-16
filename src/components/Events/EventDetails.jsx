@@ -196,6 +196,36 @@ const ShareModal = ({ event, onClose, onShare }) => {
   const [showInstagramInfo, setShowInstagramInfo] = useState(false);
   const shareText = `Check out "${event.title}" on Blithe!`;
 
+  // Lock background scroll when ShareModal is open
+  useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    // Compensate for scrollbar disappearance on desktop to avoid layout shift
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
   const getShareUrlForPlatform = (platformId) => {
     try {
       // Map platform ID to the value for 'utf' & 'utm_source'
@@ -559,6 +589,35 @@ const AttendeesModal = ({ onClose, attendeesList = [], currentUser = null }) => 
 
   // Always use the full list length as the total count (same as event detail page)
   const totalCount = attendeesList.length;
+
+  // Lock background scroll when AttendeesModal is open
+  useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
 
   return (
     <AnimatePresence>
@@ -2740,7 +2799,7 @@ const EventDetails = () => {
                     }
                     trackClickCheckoutNow(event);
                     trackGASelectContent(event);
-                    navigate(`/events/${event.id}/book`);
+                    navigate(`/events/${event.id}/book${window.location.search || ''}`);
                   }}
                   disabled={isEventExpired || isSoldOut || isBookingClosed || isUsingCachedEvent || !navigator.onLine}
                 >
@@ -2906,7 +2965,7 @@ const EventDetails = () => {
             }
             trackClickCheckoutNow(event);
             trackGASelectContent(event);
-            navigate(`/events/${event.id}/book`);
+            navigate(`/events/${event.id}/book${window.location.search || ''}`);
           }}
           disabled={isEventExpired || isSoldOut || isBookingClosed || isUsingCachedEvent || !navigator.onLine}
         >

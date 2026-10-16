@@ -159,6 +159,44 @@ export const resolveLinkSource = (meta = {}) => {
 const inFlightUserLogs = new Set();
 
 /**
+ * Checks if the current active URL has any UTM, ad, or share tracking parameters.
+ * Only returns true if real tracking query parameters exist on the URL.
+ * @returns {boolean}
+ */
+export const hasUrlTrackingParams = () => {
+  if (typeof window === 'undefined') return false;
+  const urlParams = new URLSearchParams(window.location.search);
+  return Boolean(
+    urlParams.get('utm_source') ||
+    urlParams.get('utm_campaign') ||
+    urlParams.get('utm_medium') ||
+    urlParams.get('utm_content') ||
+    urlParams.get('utm_term') ||
+    urlParams.get('utm_id') ||
+    urlParams.get('utmid') ||
+    urlParams.get('fbclid') ||
+    urlParams.get('ad_id') ||
+    urlParams.get('adid') ||
+    urlParams.get('ad_ID') ||
+    urlParams.get('adId') ||
+    urlParams.get('campaign_id') ||
+    urlParams.get('campaignid') ||
+    urlParams.get('campaign_ID') ||
+    urlParams.get('campaignId') ||
+    urlParams.get('adset_id') ||
+    urlParams.get('adsetid') ||
+    urlParams.get('adset_ID') ||
+    urlParams.get('adSetId') ||
+    urlParams.get('linkSource') ||
+    urlParams.get('link_source') ||
+    urlParams.get('placement') ||
+    urlParams.get('meta_placement') ||
+    urlParams.get('site_source_name') ||
+    urlParams.get('source_name')
+  );
+};
+
+/**
  * Records an ad traffic log as a subcollection under a specific user document:
  * users/{userId}/ad_traffic_logs/{subDocId}
  * 
@@ -179,36 +217,30 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
   if (!userId || typeof window === 'undefined') return null;
 
   try {
+    // 1. Strict URL check: Only log if active URL contains UTM or ad tracking parameters
+    if (!hasUrlTrackingParams()) {
+      console.log(`[UserAdTraffic] No active UTM or ad tracking parameters on URL for user ${userId}. Skipping subcollection write and adclickcount.`);
+      return null;
+    }
+
     const urlDetails = getAllUrlDetails();
     const meta = urlDetails?.meta_details || {};
 
-    const utm_source = meta.utm_source || sessionStorage.getItem('blithe_utm_source') || '';
-    const utm_campaign = meta.utm_campaign || sessionStorage.getItem('blithe_utm_campaign') || '';
-    const ad_id = meta.ad_id || sessionStorage.getItem('blithe_ad_id') || '';
-    const adset_id = meta.adset_id || sessionStorage.getItem('blithe_adset_id') || '';
-    const referrer = urlDetails?.referrer || sessionStorage.getItem('blithe_lead_referrer') || (typeof document !== 'undefined' ? document.referrer : 'none') || 'none';
-    const fbclid = meta.fbclid || sessionStorage.getItem('blithe_fbclid') || '';
-    const campaign_id = meta.campaign_id || sessionStorage.getItem('blithe_campaign_id') || '';
-    const placement = meta.placement || sessionStorage.getItem('blithe_placement') || '';
-    const site_source_name = meta.site_source_name || sessionStorage.getItem('blithe_site_source_name') || '';
-    const fbp = meta.fbp || sessionStorage.getItem('blithe_fbp') || getCookie('_fbp') || '';
-    const fbc = meta.fbc || sessionStorage.getItem('blithe_fbc') || getCookie('_fbc') || '';
+    const utm_source = meta.utm_source || '';
+    const utm_campaign = meta.utm_campaign || '';
+    const ad_id = meta.ad_id || '';
+    const adset_id = meta.adset_id || '';
+    const referrer = urlDetails?.referrer || (typeof document !== 'undefined' ? document.referrer : 'none') || 'none';
+    const fbclid = meta.fbclid || '';
+    const campaign_id = meta.campaign_id || '';
+    const placement = meta.placement || '';
+    const site_source_name = meta.site_source_name || '';
+    const fbp = meta.fbp || getCookie('_fbp') || '';
+    const fbc = meta.fbc || getCookie('_fbc') || '';
 
-    const utm_medium = meta.utm_medium || sessionStorage.getItem('blithe_utm_medium') || '';
-    const utm_content = meta.utm_content || sessionStorage.getItem('blithe_utm_content') || '';
-    const utm_term = meta.utm_term || sessionStorage.getItem('blithe_utm_term') || '';
-
-    // Verify if traffic has any UTM parameters or ad tracking parameters (from any source)
-    const hasTrackingParams = Boolean(
-      fbclid || ad_id || campaign_id || adset_id || placement || site_source_name ||
-      utm_source || utm_campaign || utm_medium || utm_content || utm_term ||
-      meta.linkSource || meta.link_source
-    );
-
-    if (!hasTrackingParams) {
-      console.log(`[UserAdTraffic] No UTM or ad tracking parameters detected for user ${userId}. Skipping subcollection write and adclickcount.`);
-      return null;
-    }
+    const utm_medium = meta.utm_medium || '';
+    const utm_content = meta.utm_content || '';
+    const utm_term = meta.utm_term || '';
 
     const linkSource = resolveLinkSource(meta) || '';
     if (linkSource) {
@@ -368,73 +400,37 @@ export const recordUserAdTrafficLog = async (userId, { isLogin = false, eventId 
  */
 export const getAdTrafficInfo = async (userId, eventId = null) => {
   if (typeof window === 'undefined') {
-    return { isFromAd: false, adTrafficLogId: '', linkSource: '' };
+    return { isFromAd: false, adTrafficLogId: '', linkSource: '', placement: '' };
   }
 
   try {
     const urlDetails = getAllUrlDetails();
     const meta = urlDetails?.meta_details || {};
-    const urlParams = urlDetails?.parameters || {};
 
-    // 1. Check if the CURRENT URL itself has active UTM or ad tracking parameters
-    const hasUrlParams = Boolean(
-      urlParams.fbclid || urlParams.ad_id || urlParams.campaign_id || urlParams.adset_id ||
-      urlParams.placement || urlParams.site_source_name || urlParams.linkSource || urlParams.link_source ||
-      urlParams.utm_source || urlParams.utm_campaign || urlParams.utm_medium ||
-      urlParams.utm_content || urlParams.utm_term
-    );
-
-    const storedAdEventId = sessionStorage.getItem('blithe_ad_event_id') || '';
-
-    // Option A: If user navigates directly to a DIFFERENT event without any ad/UTM query params on the URL,
-    // do NOT attribute this different event to the previous event's ad link!
-    if (eventId && storedAdEventId && storedAdEventId !== eventId && !hasUrlParams) {
-      console.log(`[UserAdTraffic] User reached event ${eventId} organically (previous ad was for event ${storedAdEventId}). Treating as organic.`);
-      return { isFromAd: false, adTrafficLogId: '', linkSource: '' };
+    // 1. Strict URL check: If the active URL has NO tracking parameters, this is an organic / direct user
+    const hasUrlParams = hasUrlTrackingParams();
+    if (!hasUrlParams) {
+      return { isFromAd: false, adTrafficLogId: '', linkSource: '', placement: '' };
     }
 
-    const sessionDocId =
-      (userId && sessionStorage.getItem(`blithe_user_traffic_doc_id_${userId}`)) ||
+    const currentLinkSource = resolveLinkSource(meta) || '';
+    const currentPlacement = meta.placement || '';
+
+    // 2. Active tracking parameters exist on the URL:
+    let sessionDocId = (userId && sessionStorage.getItem(`blithe_user_traffic_doc_id_${userId}`)) ||
       sessionStorage.getItem('blithe_last_ad_traffic_log_id') ||
       '';
 
-    const sessionIsFromAd =
-      (userId && sessionStorage.getItem(`blithe_user_is_from_ad_${userId}`) === 'true') ||
-      sessionStorage.getItem('blithe_is_from_ad') === 'true';
-
-    const sessionLinkSource = sessionStorage.getItem('blithe_link_source') || '';
-    const currentLinkSource = resolveLinkSource(meta) || sessionLinkSource;
-    if (currentLinkSource) {
-      sessionStorage.setItem('blithe_link_source', currentLinkSource);
+    if (userId && !sessionDocId) {
+      sessionDocId = await recordUserAdTrafficLog(userId, { isLogin: false, eventId });
     }
 
-    const sessionPlacement = (typeof window !== 'undefined' ? sessionStorage.getItem('blithe_placement') : '') || '';
-    const currentPlacement = meta.placement || sessionPlacement || '';
-    if (currentPlacement && typeof window !== 'undefined') {
-      sessionStorage.setItem('blithe_placement', currentPlacement);
-    }
-
-    // If there are tracking params in the URL for this page:
-    if (hasUrlParams) {
-      if (userId) {
-        const generatedLogId = await recordUserAdTrafficLog(userId, { isLogin: false, eventId });
-        if (generatedLogId) {
-          return { isFromAd: true, adTrafficLogId: generatedLogId, linkSource: currentLinkSource, placement: currentPlacement };
-        }
-      }
-      return { isFromAd: true, adTrafficLogId: sessionDocId || '', linkSource: currentLinkSource, placement: currentPlacement };
-    }
-
-    if (sessionDocId && (sessionIsFromAd || hasUrlParams)) {
-      return { isFromAd: true, adTrafficLogId: sessionDocId, linkSource: currentLinkSource, placement: currentPlacement };
-    }
-
-    if (sessionIsFromAd && (!eventId || !storedAdEventId || storedAdEventId === eventId)) {
-      return { isFromAd: true, adTrafficLogId: sessionDocId || '', linkSource: currentLinkSource, placement: currentPlacement };
-    }
-
-    // If no ad/UTM parameters in current URL or active session, this is an organic booking
-    return { isFromAd: false, adTrafficLogId: '', linkSource: '', placement: '' };
+    return {
+      isFromAd: true,
+      adTrafficLogId: sessionDocId || '',
+      linkSource: currentLinkSource,
+      placement: currentPlacement
+    };
   } catch (err) {
     console.warn('[UserAdTraffic] Error getting ad traffic info:', err);
     return { isFromAd: false, adTrafficLogId: '', linkSource: '', placement: '' };
@@ -499,25 +495,23 @@ export const recordUserAdBooking = async (userId, bookingDetails = {}) => {
     }, { merge: true });
     console.log(`[UserAdBooking] Incremented adbookclick counter on users/${userId}`);
 
-    // 2. Prepare ad traffic parameters (matching ad_traffic_logs format exactly)
+    // 2. Prepare ad traffic parameters strictly from active URL
     const urlDetails = getAllUrlDetails();
     const meta = urlDetails?.meta_details || {};
 
-    const utm_source = meta.utm_source || sessionStorage.getItem('blithe_utm_source') || '';
-    const utm_campaign = meta.utm_campaign || sessionStorage.getItem('blithe_utm_campaign') || '';
-    const ad_id = meta.ad_id || sessionStorage.getItem('blithe_ad_id') || '';
-    const adset_id = meta.adset_id || sessionStorage.getItem('blithe_adset_id') || '';
-    const referrer = urlDetails?.referrer || sessionStorage.getItem('blithe_lead_referrer') || (typeof document !== 'undefined' ? document.referrer : 'none') || 'none';
-    const fbclid = meta.fbclid || sessionStorage.getItem('blithe_fbclid') || '';
-    const campaign_id = meta.campaign_id || sessionStorage.getItem('blithe_campaign_id') || '';
-    const placement = meta.placement || sessionStorage.getItem('blithe_placement') || '';
-    const site_source_name = meta.site_source_name || sessionStorage.getItem('blithe_site_source_name') || '';
-    const fbp = meta.fbp || sessionStorage.getItem('blithe_fbp') || getCookie('_fbp') || '';
-    const fbc = meta.fbc || sessionStorage.getItem('blithe_fbc') || getCookie('_fbc') || '';
+    const utm_source = meta.utm_source || '';
+    const utm_campaign = meta.utm_campaign || '';
+    const ad_id = meta.ad_id || '';
+    const adset_id = meta.adset_id || '';
+    const referrer = urlDetails?.referrer || (typeof document !== 'undefined' ? document.referrer : 'none') || 'none';
+    const fbclid = meta.fbclid || '';
+    const campaign_id = meta.campaign_id || '';
+    const placement = meta.placement || '';
+    const site_source_name = meta.site_source_name || '';
+    const fbp = meta.fbp || getCookie('_fbp') || '';
+    const fbc = meta.fbc || getCookie('_fbc') || '';
 
-    const fullUrl = (meta.fbclid || meta.ad_id || meta.campaign_id)
-      ? (urlDetails?.full_url || window.location.href)
-      : (sessionStorage.getItem('blithe_lead_full_url') || urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : ''));
+    const fullUrl = urlDetails?.full_url || (typeof window !== 'undefined' ? window.location.href : '');
 
     // 3. Create document in users/{userId}/ad_bookings
     const adBookingsCollection = collection(db, 'users', userId, 'ad_bookings');
@@ -849,18 +843,13 @@ export const initLeadTracking = () => {
         sessionStorage.setItem('blithe_lead_referrer', refSource.referrer || 'none');
         sessionStorage.setItem('blithe_lead_type', refSource.type);
         sessionStorage.setItem('blithe_lead_source_logged', refSource.source);
-        sessionStorage.setItem('blithe_utm_source', refSource.utm_source || refSource.source);
-        sessionStorage.setItem('blithe_utm_medium', refSource.utm_medium || 'referral');
-        sessionStorage.setItem('blithe_utm_campaign', '');
+        // Do NOT set blithe_utm_source from a plain referrer to avoid polluting UTM attribution
         sessionStorage.removeItem('blithe_landing_event_id');
 
         logEvent(analytics, 'lead_source_detected', {
           source: refSource.source,
           lead_referrer: refSource.referrer || 'none',
           lead_type: refSource.type,
-          utm_source: refSource.utm_source || refSource.source,
-          utm_medium: refSource.utm_medium || 'referral',
-          utm_campaign: '',
           landing_page: window.location.pathname
         });
       }

@@ -445,12 +445,18 @@
   }
 
   .profile-title-group {
+    flex: 1;
+    min-width: 0;
+
     h3 {
       margin: 0;
       font-size: 15px;
       font-weight: 700;
       color: #111827;
       text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     p {
@@ -458,6 +464,26 @@
       font-size: 11px;
       color: #6B7280;
       text-align: left;
+    }
+  }
+
+  .profile-modal-close-btn {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    &:hover {
+      background: rgba(100, 116, 139, 0.1);
+      color: #1e293b;
     }
   }
 
@@ -479,6 +505,15 @@
 
       p {
         font-size: 11px;
+      }
+    }
+
+    .profile-modal-close-btn {
+      padding: 4px;
+
+      svg {
+        width: 16px;
+        height: 16px;
       }
     }
   }

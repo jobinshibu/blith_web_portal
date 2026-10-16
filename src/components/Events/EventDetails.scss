@@ -1844,6 +1844,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  overscroll-behavior: contain;
+  touch-action: none;
 
   @media (min-width: 769px) {
     align-items: center;
@@ -1857,6 +1859,12 @@
   padding: 1.5rem 1.25rem 1.5rem;
   width: 100%;
   max-width: 380px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
 
   @media (min-width: 769px) {
@@ -2544,6 +2552,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  overscroll-behavior: contain;
+  touch-action: none;
 
   @media (min-width: 769px) {
     align-items: center;
@@ -2557,6 +2567,12 @@
   padding: 1.5rem 1.5rem 2rem;
   width: 100%;
   max-width: 380px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
 
   @media (min-width: 769px) {

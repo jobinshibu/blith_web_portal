@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Phone, LogOut, Trash2 } from 'lucide-react';
+import { User, Mail, Phone, LogOut, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import logoTransparent from '../../assets/logo-transparent.png';
 import DeleteAccountModal from '../Common/DeleteAccountModal';
@@ -69,6 +69,15 @@ const ProfileDashboardModal = ({ isOpen, onClose, onLogout, user }) => {
               <h3>{user?.name || 'User Profile'}</h3>
               {/* <p>Member since {formatDate(user?.createdTime || new Date())}</p> */}
             </div>
+            {onClose && (
+              <button
+                className="profile-modal-close-btn"
+                onClick={onClose}
+                aria-label="Close Profile"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
 
           {/* Tab Content */}

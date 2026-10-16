@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/png" href="/src/assets/logo-transparent.png" />
+  <link rel="icon" type="image/png" href="/logo-transparent.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Blithe</title>
   <!-- Meta Pixel Code -->
@@ -36,6 +36,16 @@
     })();
   </script>
   <!-- End Meta Pixel Code -->
+  <script>
+    // Unregister any stale/rogue Service Workers (sw.js) intercepting module scripts
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
+        }
+      });
+    }
+  </script>
 </head>
 
 <body>
