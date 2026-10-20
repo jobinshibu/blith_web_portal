@@ -658,26 +658,17 @@ const Events = () => {
       }
     };
 
-    // If already offline on mount, load cache immediately!
-    if (isOffline) {
-      loadCache();
-    } else {
-      // 1. Immediately start fetching exact fresh data from Firestore in background
-      dispatch(fetchEventsThunk(true));
-      dispatch(fetchCategoriesThunk(true));
-    }
+    // 1. Immediately read cached data from IndexedDB / localStorage for instant (<15ms) first paint
+    loadCache();
 
-    // 2. Wait for 1 second (1000ms) to see if live data arrives fast
-    const oneSecTimer = setTimeout(() => {
-      // If after 1 second live data has NOT arrived (slow network / offline), load cached data from IndexedDB
-      if (!backendEventsLoadedRef.current && !isCancelled) {
-        loadCache();
-      }
-    }, 1000);
+    // 2. Concurrently fetch fresh live data from Firestore in the background
+    if (!isOffline) {
+      dispatch(fetchEventsThunk(false));
+      dispatch(fetchCategoriesThunk(false));
+    }
 
     return () => {
       isCancelled = true;
-      clearTimeout(oneSecTimer);
     };
   }, [dispatch]);
 
@@ -1996,7 +1987,7 @@ const Events = () => {
                           >
                             <Link to={`/events/${event.id}`} onClick={() => handleEventClick(event)} className="portrait-event-card">
                               <div className="portrait-image-wrapper">
-                                <img src={event.image} alt={event.title} loading="lazy" />
+                                <img src={event.image} alt={event.title} loading="lazy" decoding="async" />
                                 {event.promoted && (
                                   <span className="featured-badge-small">Featured</span>
                                 )}
@@ -2096,7 +2087,7 @@ const Events = () => {
                           className="recently-ended-card"
                         >
                           <div className="recently-ended-image-wrapper">
-                            <img src={event.image} alt={event.title} loading="lazy" />
+                            <img src={event.image} alt={event.title} loading="lazy" decoding="async" />
                             <div className="recently-ended-overlay" />
                             <div className="recently-ended-badge">
                               <span className="recently-ended-badge-dot" />

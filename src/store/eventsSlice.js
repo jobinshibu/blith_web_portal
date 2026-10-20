@@ -42,21 +42,24 @@ export const fetchEventsThunk = createAsyncThunk(
               indexError.message
             );
           }
+          // Safe fallback with reasonable limit to prevent downloading 1500+ documents (13+ sec latency)
+          const safeLimit = queryLimit || 120;
           const fallbackConditions = [
             where("deleted", "==", false),
-            where("block", "==", false)
+            where("block", "==", false),
+            limit(safeLimit)
           ];
-          if (queryLimit) fallbackConditions.push(limit(queryLimit));
           q = query(collection(db, "event"), ...fallbackConditions);
           snap = await getDocs(q);
         }
 
         if (snap.empty) {
+          const safeLimit = queryLimit || 120;
           const fallbackConditions = [
             where("deleted", "==", false),
-            where("block", "==", false)
+            where("block", "==", false),
+            limit(safeLimit)
           ];
-          if (queryLimit) fallbackConditions.push(limit(queryLimit));
           q = query(collection(db, "event"), ...fallbackConditions);
           snap = await getDocs(q);
         }
@@ -73,13 +76,11 @@ export const fetchEventsThunk = createAsyncThunk(
       })).filter(event => event.isPrivateEvent !== true);
 
       const fullEvents = mapEvents(fullSnapshot);
-      // Persist fresh data to IndexedDB cache & cache image blobs
+      // Persist fresh data to IndexedDB cache
       if (!isFromFirestoreCache) {
         saveEventsToCache(fullEvents).catch(() => {});
-        fullEvents.forEach(evt => {
-          const img = Array.isArray(evt.image) ? evt.image[0] : (typeof evt.image === 'string' ? evt.image : null);
-          if (img) cacheImageBlob(img).catch(() => {});
-        });
+        // Native <img loading="lazy"> handles on-demand image caching via browser HTTP cache.
+        // We do NOT fire 90+ concurrent fetch() blob downloads here to avoid saturating network bandwidth on initial load.
       }
       return {
         events: fullEvents,
