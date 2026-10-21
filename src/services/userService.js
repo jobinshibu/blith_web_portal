@@ -60,14 +60,12 @@ export const generateUID = () => {
  * @returns {Promise<boolean>} True if it exists, false otherwise
  */
 export const checkPhoneExists = async (phoneNo) => {
-  console.log(`Checking if phone number ${phoneNo} exists in database...`);
   try {
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('phoneNo', '==', phoneNo));
     const querySnapshot = await getDocs(q);
     
     if (querySnapshot.empty) {
-      console.log(`Phone number ${phoneNo} does not exist in any document.`);
       return false;
     }
 
@@ -78,10 +76,9 @@ export const checkPhoneExists = async (phoneNo) => {
       return data.deleted !== true && data.block !== true;
     });
 
-    console.log(`Phone number ${phoneNo} has an active account: ${hasActiveUser}`);
     return hasActiveUser;
   } catch (error) {
-    console.error("Error checking phone number:", error);
+    console.error("Error checking phone number availability:", error);
     throw new Error("Failed to check phone number availability.");
   }
 };
@@ -92,14 +89,12 @@ export const checkPhoneExists = async (phoneNo) => {
  * @returns {Promise<boolean>} True if it exists, false otherwise
  */
 export const checkEmailExists = async (email) => {
-  console.log(`Checking if email ${email} exists in database...`);
   try {
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('email', '==', email));
     const querySnapshot = await getDocs(q);
     
     if (querySnapshot.empty) {
-      console.log(`Email ${email} does not exist in any document.`);
       return false;
     }
 
@@ -109,10 +104,9 @@ export const checkEmailExists = async (email) => {
       return data.deleted !== true && data.block !== true;
     });
 
-    console.log(`Email ${email} has an active account: ${hasActiveUser}`);
     return hasActiveUser;
   } catch (error) {
-    console.error("Error checking email:", error);
+    console.error("Error checking email availability:", error);
     throw new Error("Failed to check email availability.");
   }
 };
@@ -265,41 +259,34 @@ export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {
 };
 
 export const registerNewUser = async (userData) => {
-  console.log("Attempting to register new user with data:", userData);
   const { name, email, phoneNo, password, gender, dateOfBirth, countryCode, countryShortName } = userData;
 
   if (!name || name.trim() === "") {
-    console.error("Registration failed: Name is required");
     throw new Error("Name is required");
   }
 
   if (!email || email.trim() === "") {
-    console.error("Registration failed: Email is required");
     throw new Error("Email is required");
   }
 
   if (!phoneNo || phoneNo.trim() === "") {
-    console.error("Registration failed: Phone number is required");
     throw new Error("Phone number is required");
   }
 
   // 1. Check if phone number already exists
   const phoneExists = await checkPhoneExists(phoneNo);
   if (phoneExists) {
-    console.warn(`Registration failed: Phone number ${phoneNo} already exists`);
     throw new Error("A user with this mobile number already exists.");
   }
 
   // 1.5. Check if email already exists
   const emailExists = await checkEmailExists(email);
   if (emailExists) {
-    console.warn(`Registration failed: Email ${email} already exists`);
     throw new Error("A user with this email address already exists.");
   }
 
   // 2. Prepare the new user document data
   const uid = generateUID();
-  console.log(`Generated new UID: ${uid}`);
 
   const newUserDocument = createDefaultUserObject(uid, name, email, phoneNo, {
     password: password || "",
@@ -311,10 +298,8 @@ export const registerNewUser = async (userData) => {
 
   // 3. Save the document to Firestore using the custom UID
   try {
-    console.log(`Saving user document for UID ${uid} to Firestore...`);
     const userDocRef = doc(db, 'users', uid);
     await setDoc(userDocRef, newUserDocument);
-    console.log("Successfully created user document in Firestore:", newUserDocument);
 
     // Save ad traffic log as subcollection users/{uid}/ad_traffic_logs and update parent with doc ID
     recordUserAdTrafficLog(uid, { isLogin: true }).catch((err) => {
@@ -426,7 +411,6 @@ export const softDeleteUser = async (uid) => {
   if (!uid) {
     throw new Error("User ID is required for account deletion.");
   }
-  console.log(`[userService] Initiating soft delete for user: ${uid}`);
   try {
     const userDocRef = doc(db, 'users', uid);
     await setDoc(userDocRef, {
@@ -435,7 +419,6 @@ export const softDeleteUser = async (uid) => {
       online: false,
       token: []
     }, { merge: true });
-    console.log(`[userService] Successfully soft-deleted user: ${uid}`);
     return true;
   } catch (error) {
     console.error("[userService] Error during soft deletion of user:", error);

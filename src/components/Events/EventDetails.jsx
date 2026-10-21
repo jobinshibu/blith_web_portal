@@ -1213,47 +1213,18 @@ const EventDetails = () => {
 
   // Log viewEvent interest update (score = 1) when both user and event details are loaded
   useEffect(() => {
-    console.log("[Interests Debug] viewEvent effect triggered. Details:", {
-      userId: currentUser?.uid,
-      eventCategory: event?.category,
-      eventId: event?.id,
-      routeId: id,
-      hasLoggedView: hasLoggedView.current
-    });
     if (currentUser?.uid && event?.category && event?.id === id && !hasLoggedView.current) {
       hasLoggedView.current = true;
-      console.log(`[Interests Debug] Invoking updateUserInterests for viewEvent. Category: '${event.category}', UID: '${currentUser.uid}'`);
       updateUserInterests(currentUser.uid, event.category, 1)
-        .then(() => console.log("[Interests Debug] viewEvent update finished."))
-        .catch(err => console.error("[Interests Debug] viewEvent update failed:", err));
-    } else {
-      console.log("[Interests Debug] viewEvent conditions not satisfied:", {
-        hasUid: !!currentUser?.uid,
-        hasCategory: !!event?.category,
-        idMatch: event?.id === id,
-        notAlreadyLogged: !hasLoggedView.current
-      });
+        .catch(err => console.error("viewEvent update failed:", err));
     }
   }, [currentUser?.uid, event?.category, event?.id, id]);
 
   const handleShareEvent = () => {
-    console.log("[Interests Debug] handleShareEvent called. Details:", {
-      userId: currentUser?.uid,
-      eventCategory: event?.category,
-      hasLoggedShare: hasLoggedShare.current
-    });
     if (currentUser?.uid && event?.category && !hasLoggedShare.current) {
       hasLoggedShare.current = true;
-      console.log(`[Interests Debug] Invoking updateUserInterests for shareEvent. Category: '${event.category}', UID: '${currentUser.uid}'`);
       updateUserInterests(currentUser.uid, event.category, 1)
-        .then(() => console.log("[Interests Debug] shareEvent update finished."))
-        .catch(err => console.error("[Interests Debug] shareEvent update failed:", err));
-    } else {
-      console.log("[Interests Debug] shareEvent conditions not satisfied:", {
-        hasUid: !!currentUser?.uid,
-        hasCategory: !!event?.category,
-        notAlreadyLogged: !hasLoggedShare.current
-      });
+        .catch(err => console.error("shareEvent update failed:", err));
     }
   };
 

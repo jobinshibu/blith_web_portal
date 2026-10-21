@@ -17,6 +17,7 @@ import {
 } from '../../services/couponService';
 import { trackClickCheckoutNow, trackClickPayNow, trackSignup, trackPixelPurchase } from '../../utils/pixel';
 import { trackGABeginCheckout, trackGASignUp, trackGAAPaymentInfo, trackGAError, setGAUserId } from '../../utils/analytics';
+import { createRazorpayOrder, RAZORPAY_KEY_ID } from '../../services/paymentService';
 import Button from '../Button/Button';
 import { toast } from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
@@ -150,31 +151,7 @@ const formatDateStr = (date) => {
   return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
 };
 
-// Helper to create Razorpay Order via REST API
-const createRazorpayOrder = async (amount, bookingId, keyId, keySecret) => {
-  const auth = btoa(`${keyId}:${keySecret}`);
-  const amountInPaise = Math.round(amount * 100);
-  const response = await fetch("/razorpay-api/v1/orders", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Basic ${auth}`
-    },
-    body: JSON.stringify({
-      amount: amountInPaise,
-      currency: "INR",
-      receipt: `receipt_${Date.now()}`,
-      notes: {
-        bookingId: bookingId
-      }
-    })
-  });
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Razorpay Order creation failed: ${response.status} - ${errText}`);
-  }
-  return await response.json();
-};
+// Razorpay order creation helper is delegated to secure paymentService (no keySecret on client)
 
 const EventBookingPage = () => {
   const { id } = useParams();
@@ -1951,6 +1928,26 @@ const EventBookingPage = () => {
             throw new Error("Sorry, this event is sold out. No further bookings can be completed.");
           }
 
+          // Security validation: If marked as free, verify that the tickets are genuinely free or 100% covered by coupon
+          if (isFree) {
+            const dbTickets = eventDbData.tickets || [];
+            let calculatedRequiredAmount = 0;
+            bookedTickets.forEach((bt) => {
+              const matchedDbTicket = dbTickets.find(t => t.ticketName === bt.ticketName);
+              const price = matchedDbTicket
+                ? (matchedDbTicket.actualPrice !== undefined && matchedDbTicket.actualPrice !== null ? Number(matchedDbTicket.actualPrice) : Number(matchedDbTicket.price || 0))
+                : Number(bt.price || 0);
+              calculatedRequiredAmount += price * Number(bt.quantity || 1);
+            });
+
+            if (calculatedRequiredAmount > 0) {
+              const hasValidFullCoupon = appliedCoupon && (Number(discountAmount) >= calculatedRequiredAmount || Number(appliedCoupon.discountValue) >= 100);
+              if (!hasValidFullCoupon) {
+                throw new Error("Security verification failed: Paid ticket tiers cannot be completed as free bookings without an authorized full-value discount coupon.");
+              }
+            }
+          }
+
           // 2. Notifications References
           const userNotiRef = doc(collection(db, "notification"));
           const orgNotiRef = doc(collection(db, "notification"));
@@ -2531,11 +2528,9 @@ const EventBookingPage = () => {
 
         const bId = generateBookingId();
         let orderId = "";
-        const keyId = "rzp_live_SBgnzuGhztmYSZ";
-        const keySecret = "6c2w1nZcqVdlusV8j1AGz55t";
 
         try {
-          const order = await createRazorpayOrder(checkoutTotal, bId, keyId, keySecret);
+          const order = await createRazorpayOrder(checkoutTotal, bId);
           orderId = order.id;
         } catch (orderErr) {
           console.error("Razorpay Order API failed:", orderErr);
@@ -2586,7 +2581,7 @@ const EventBookingPage = () => {
         }
 
         const options = {
-          key: keyId,
+          key: RAZORPAY_KEY_ID,
           amount: Math.round(checkoutTotal * 100),
           currency: "INR",
           name: "Blithe",

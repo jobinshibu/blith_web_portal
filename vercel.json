@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/razorpay-api/(.*)",
-      "destination": "https://api.razorpay.com/$1"
+      "destination": "https://www.blithe.social/razorpay-proxy.php?route=$1"
     },
     {
       "source": "/(.*)",

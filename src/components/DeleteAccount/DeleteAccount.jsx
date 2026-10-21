@@ -32,6 +32,11 @@ const DeleteAccount = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [deletedUserInfo, setDeletedUserInfo] = useState(null);
 
+  // Ownership verification states for unauthenticated requests
+  const [verificationInput, setVerificationInput] = useState('');
+  const [isOwnershipVerified, setIsOwnershipVerified] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
+
   // Load session user if logged in
   useEffect(() => {
     try {
@@ -64,6 +69,9 @@ const DeleteAccount = () => {
     e.preventDefault();
     setSearchError('');
     setFoundUser(null);
+    setIsOwnershipVerified(false);
+    setVerificationInput('');
+    setVerificationError('');
 
     const trimmed = searchIdentifier.trim();
     if (!trimmed) {
@@ -87,11 +95,53 @@ const DeleteAccount = () => {
     }
   };
 
+  const handleVerifyOwnership = (e) => {
+    e.preventDefault();
+    setVerificationError('');
+    if (!foundUser) return;
+
+    const val = verificationInput.trim().toLowerCase();
+    if (!val) {
+      setVerificationError('Please enter your matching credential for verification.');
+      return;
+    }
+
+    const searchedIsEmail = searchIdentifier.includes('@');
+    if (searchedIsEmail) {
+      // Must verify with phone
+      const inputDigits = val.replace(/\D/g, '').slice(-10);
+      const userPhoneDigits = String(foundUser.phoneNo || '').replace(/\D/g, '').slice(-10);
+      if (inputDigits && inputDigits === userPhoneDigits) {
+        setIsOwnershipVerified(true);
+        setVerificationError('');
+        toast.success('Account ownership verified successfully.');
+      } else {
+        setVerificationError('The mobile number provided does not match our records for this account.');
+      }
+    } else {
+      // Must verify with email
+      const userEmail = String(foundUser.email || '').trim().toLowerCase();
+      if (val === userEmail) {
+        setIsOwnershipVerified(true);
+        setVerificationError('');
+        toast.success('Account ownership verified successfully.');
+      } else {
+        setVerificationError('The email address provided does not match our records for this account.');
+      }
+    }
+  };
+
   const targetUser = currentUser || foundUser;
 
   const handleConfirmDelete = async () => {
     if (!targetUser || !targetUser.uid) {
       toast.error('No account selected for deletion.');
+      return;
+    }
+
+    // Security Check: Enforce ownership verification for unauthenticated users
+    if (!currentUser && !isOwnershipVerified) {
+      toast.error('Account ownership verification is required before deletion can be processed.');
       return;
     }
 
@@ -112,6 +162,8 @@ const DeleteAccount = () => {
       setIsDeleteModalOpen(false);
       setFoundUser(null);
       setSearchIdentifier('');
+      setIsOwnershipVerified(false);
+      setVerificationInput('');
       toast.success('Your Blithe account has been successfully deleted.');
     } catch (err) {
       console.error("[DeleteAccount] Error during deletion:", err);
@@ -271,14 +323,52 @@ const DeleteAccount = () => {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      className="trigger-delete-btn"
-                      onClick={() => setIsDeleteModalOpen(true)}
-                    >
-                      <Trash2 size={16} />
-                      <span>Delete This Account</span>
-                    </button>
+                    {!isOwnershipVerified ? (
+                      <div className="ownership-verification-box" style={{ marginTop: '16px', padding: '16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                          Security Verification: Please confirm your registered {searchIdentifier.includes('@') ? '10-digit mobile number' : 'email address'} to verify ownership before deleting:
+                        </p>
+                        <form onSubmit={handleVerifyOwnership} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <input
+                            type={searchIdentifier.includes('@') ? 'tel' : 'email'}
+                            value={verificationInput}
+                            onChange={(e) => {
+                              setVerificationInput(e.target.value);
+                              setVerificationError('');
+                            }}
+                            placeholder={searchIdentifier.includes('@') ? 'Enter registered 10-digit phone' : 'Enter registered email'}
+                            className="identifier-input"
+                            style={{ flex: '1', minWidth: '220px' }}
+                            required
+                          />
+                          <button type="submit" className="lookup-btn" style={{ whiteSpace: 'nowrap' }}>
+                            Verify Ownership
+                          </button>
+                        </form>
+                        {verificationError && (
+                          <p style={{ color: '#EF4444', fontSize: '0.8rem', marginTop: '6px' }}>
+                            {verificationError}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#059669', fontSize: '0.875rem', fontWeight: 500 }}>
+                          <CheckCircle2 size={16} />
+                          <span>Ownership verified. You may now proceed with account deletion.</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="trigger-delete-btn"
+                          onClick={() => setIsDeleteModalOpen(true)}
+                          style={{ marginTop: '16px' }}
+                        >
+                          <Trash2 size={16} />
+                          <span>Delete This Account</span>
+                        </button>
+                      </>
+                    )}
                   </motion.div>
                 )}
               </div>

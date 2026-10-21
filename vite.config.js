@@ -6,12 +6,15 @@ export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '/' : '/events/',
   plugins: [react()],
   assetsInclude: ['**/*.PNG'],
+  esbuild: {
+    drop: command === 'build' ? ['console', 'debugger'] : []
+  },
   server: {
     proxy: {
       '/razorpay-api': {
-        target: 'https://api.razorpay.com',
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/razorpay-api/, '')
+        rewrite: (path) => path.replace(/^\/razorpay-api/, '/razorpay-proxy.php?route=')
       }
     }
   },

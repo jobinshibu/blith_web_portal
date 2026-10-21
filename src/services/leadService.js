@@ -94,19 +94,18 @@ export const saveAdTrafficData = async () => {
   const trafficData = getAllUrlDetails();
   const meta = trafficData.meta_details;
 
-  // Log all extracted details to console for developer inspection
-  console.groupCollapsed(
-    `%c[AdTraffic Tracking] Initialized Check (${window.location.pathname})`,
-    'color: #0284C7; font-weight: bold;'
-  );
-  console.log('%cFull URL:%c', 'font-weight: bold;', '', trafficData.full_url);
-  console.log('%cDetected Query Parameters:%c', 'font-weight: bold;', '', trafficData.parameters);
-  console.log('%cMeta & UTM Details:%c', 'font-weight: bold;', '', meta);
-  console.log('%cFull Payload:%c', 'font-weight: bold;', '', trafficData);
-  console.groupEnd();
-
-  // Expose on window for easy developer inspection in DevTools console
-  window.__BLITHE_AD_TRAFFIC_DATA__ = trafficData;
+  if (import.meta.env.DEV) {
+    console.groupCollapsed(
+      `%c[AdTraffic Tracking] Initialized Check (${window.location.pathname})`,
+      'color: #0284C7; font-weight: bold;'
+    );
+    console.log('%cFull URL:%c', 'font-weight: bold;', '', trafficData.full_url);
+    console.log('%cDetected Query Parameters:%c', 'font-weight: bold;', '', trafficData.parameters);
+    console.log('%cMeta & UTM Details:%c', 'font-weight: bold;', '', meta);
+    console.log('%cFull Payload:%c', 'font-weight: bold;', '', trafficData);
+    console.groupEnd();
+    window.__BLITHE_AD_TRAFFIC_DATA__ = trafficData;
+  }
   return null;
 };
 
