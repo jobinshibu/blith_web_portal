@@ -1296,9 +1296,10 @@ const EventDetails = () => {
   const dispatch = useDispatch();
   const { events: rawEvents } = useSelector(state => state.events);
 
-  // Reset scroll-loaded content when route ID changes
+  // Reset scroll-loaded content and organiser when route ID changes
   useEffect(() => {
     setIsDetailsScrolled(false);
+    setOrganiser(null);
   }, [id]);
 
   const handleShareClick = () => {
@@ -1663,7 +1664,7 @@ const EventDetails = () => {
 
     // 1. Fetch Organiser details if present
     const organizerId = event.raw?.oId || event.raw?.oid || "";
-    if (organizerId && !organiser) {
+    if (organizerId && (!organiser || organiser.id !== organizerId)) {
       if (organiserCache.has(organizerId)) {
         setOrganiser(organiserCache.get(organizerId));
       } else {
@@ -1691,6 +1692,8 @@ const EventDetails = () => {
           setOrganiser(null);
         });
       }
+    } else if (!organizerId && organiser) {
+      setOrganiser(null);
     }
 
     // 2. Fetch Attendees on scroll

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logoText from '../../assets/logo-text.png';
-import ProfileDashboardModal from './ProfileDashboardModal';
 import './Navbar.scss';
+
+const ProfileDashboardModal = lazy(() => import('./ProfileDashboardModal'));
 
 // Custom SVG Brand Icons
 const FacebookIcon = () => (
@@ -170,12 +171,14 @@ const Navbar = () => {
                 )}
               </button>
               {isProfileOpen && (
-                <ProfileDashboardModal
-                  isOpen={isProfileOpen}
-                  onClose={() => setIsProfileOpen(false)}
-                  onLogout={handleLogout}
-                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
-                />
+                <Suspense fallback={null}>
+                  <ProfileDashboardModal
+                    isOpen={isProfileOpen}
+                    onClose={() => setIsProfileOpen(false)}
+                    onLogout={handleLogout}
+                    user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
+                  />
+                </Suspense>
               )}
             </div>
           )}
@@ -199,12 +202,14 @@ const Navbar = () => {
                 )}
               </button>
               {isProfileOpen && (
-                <ProfileDashboardModal
-                  isOpen={isProfileOpen}
-                  onClose={() => setIsProfileOpen(false)}
-                  onLogout={handleLogout}
-                  user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
-                />
+                <Suspense fallback={null}>
+                  <ProfileDashboardModal
+                    isOpen={isProfileOpen}
+                    onClose={() => setIsProfileOpen(false)}
+                    onLogout={handleLogout}
+                    user={{ ...currentUser, name: currentUser.fetchedUserName !== undefined ? currentUser.fetchedUserName : currentUser.name }}
+                  />
+                </Suspense>
               )}
             </div>
           )}

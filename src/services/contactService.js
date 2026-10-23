@@ -1,8 +1,6 @@
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../firebase";
-
 /**
  * Submits a contact message via the Firebase Cloud Function sendContactEmail.
+ * Dynamically imports firebase/functions on demand to keep initial load lightweight.
  * 
  * @param {Object} contactData 
  * @param {string} contactData.name - User's name
@@ -12,6 +10,11 @@ import { functions } from "../firebase";
  */
 export const submitContactMessage = async (contactData) => {
   try {
+    const [{ getFunctions, httpsCallable }, { app }] = await Promise.all([
+      import("firebase/functions"),
+      import("../firebase")
+    ]);
+    const functions = getFunctions(app);
     const sendContactEmail = httpsCallable(functions, "sendContactEmail");
     const result = await sendContactEmail(contactData);
     return result.data;
@@ -20,3 +23,4 @@ export const submitContactMessage = async (contactData) => {
     throw error;
   }
 };
+

@@ -491,6 +491,11 @@ const Events = () => {
     }
   };
 
+  const dispatch = useDispatch();
+  const { events: rawEvents, categories: rawCategories, loading: reduxLoading, error: reduxError, isUsingCachedData } = useSelector(state => state.events);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
+  const backendEventsLoadedRef = useRef(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
 
@@ -535,246 +540,18 @@ const Events = () => {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [exploreCategories, setExploreCategories] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [recentlyEndedEvents, setRecentlyEndedEvents] = useState([]);
   const [settingsDoc, setSettingsDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !rawEvents || rawEvents.length === 0);
   const [error, setError] = useState(null);
   const [visibleCount, setVisibleCount] = useState(12);
 
-  // Field for 'You just missed' section visibility from /settings/settings (defaults to false)
-  const isHideYouJustMissed = Boolean(
-    settingsDoc && (
-      settingsDoc.isHideYouJustMissed === true ||
-      settingsDoc.isHideYouJustMissed === 'true' ||
-      settingsDoc.hideYouJustMissed === true ||
-      settingsDoc.hideYouJustMissed === 'true' ||
-      settingsDoc.isHideRecentlyEnded === true ||
-      settingsDoc.isHideRecentlyEnded === 'true' ||
-      settingsDoc.hideRecentlyEnded === true ||
-      settingsDoc.hideRecentlyEnded === 'true' ||
-      settingsDoc.isHideRecentlyEndedEvents === true ||
-      settingsDoc.isHideRecentlyEndedEvents === 'true' ||
-      settingsDoc.hideRecentlyEndedEvents === true ||
-      settingsDoc.hideRecentlyEndedEvents === 'true' ||
-      settingsDoc.isHidePreviousWeekEvents === true ||
-      settingsDoc.isHidePreviousWeekEvents === 'true' ||
-      settingsDoc.hidePreviousWeekEvents === true ||
-      settingsDoc.hidePreviousWeekEvents === 'true'
-    )
-  );
-
-  const calendarRef = useRef(null);
-  const searchSectionRef = useRef(null);
-  const sentinelRef = useRef(null);
-
-  // Category slider & Filter bar overflow scroll refs and state (for mobile)
-  const categorySliderRef = useRef(null);
-  const [showCategoryScrollBtn, setShowCategoryScrollBtn] = useState(false);
-  const [isCategoryScrollAtEnd, setIsCategoryScrollAtEnd] = useState(false);
-
-  const checkCategoryOverflow = () => {
-    if (categorySliderRef.current) {
-      const { scrollWidth, clientWidth, scrollLeft } = categorySliderRef.current;
-      setShowCategoryScrollBtn(scrollWidth > clientWidth);
-      setIsCategoryScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
-    }
-  };
-
-  const handleCategoryScroll = () => {
-    if (categorySliderRef.current) {
-      if (isCategoryScrollAtEnd) {
-        categorySliderRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        categorySliderRef.current.scrollBy({ left: 150, behavior: 'smooth' });
-      }
-    }
-  };
-
-  const filterBarRef = useRef(null);
-  const [showFilterScrollBtn, setShowFilterScrollBtn] = useState(false);
-  const [isFilterScrollAtEnd, setIsFilterScrollAtEnd] = useState(false);
-
-  const checkFilterOverflow = () => {
-    if (filterBarRef.current) {
-      const { scrollWidth, clientWidth, scrollLeft } = filterBarRef.current;
-      setShowFilterScrollBtn(scrollWidth > clientWidth);
-      setIsFilterScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
-    }
-  };
-
-  const handleFilterScroll = () => {
-    if (filterBarRef.current) {
-      if (isFilterScrollAtEnd) {
-        filterBarRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        filterBarRef.current.scrollBy({ left: 150, behavior: 'smooth' });
-      }
-    }
-  };
-
-  // Scroll search bar to top when user starts typing
-  useEffect(() => {
-    if (searchQuery.trim() !== "") {
-      const element = searchSectionRef.current;
-      if (element) {
-        const yOffset = -90; // sticky navbar offset + spacing
-        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      }
-    }
-  }, [searchQuery]);
-
-  const dispatch = useDispatch();
-  const { events: rawEvents, categories: rawCategories, loading: reduxLoading, error: reduxError, isUsingCachedData } = useSelector(state => state.events);
-  const [isSlowConnection, setIsSlowConnection] = useState(false);
-  const backendEventsLoadedRef = useRef(false);
-
-  useEffect(() => {
-    let isCancelled = false;
-    backendEventsLoadedRef.current = false;
-
-    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-
-    const loadCache = async () => {
-      try {
-        const [cachedEvts, cachedCats] = await Promise.all([
-          getCachedEvents(),
-          getCachedCategories()
-        ]);
-        if (!backendEventsLoadedRef.current && !isCancelled) {
-          if (cachedEvts && cachedEvts.length > 0) {
-            console.log(`[Events] Displaying ${cachedEvts.length} cached events.`);
-            dispatch(setCachedEvents(cachedEvts));
-            setLoading(false);
-          }
-          if (cachedCats && cachedCats.length > 0) {
-            dispatch(setCachedCategories(cachedCats));
-          }
-        }
-      } catch (e) {
-        console.warn("[Events] Failed to load cached data:", e);
-      }
-    };
-
-    // 1. Immediately read cached data from IndexedDB / localStorage for instant (<15ms) first paint
-    loadCache();
-
-    // 2. Concurrently fetch fresh live data from Firestore in the background
-    if (!isOffline) {
-      dispatch(fetchEventsThunk(false));
-      dispatch(fetchCategoriesThunk(false));
-    }
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [dispatch]);
-
-  // Track online/offline transitions
-  useEffect(() => {
-    const handleOffline = () => {
-      console.log("[Events] Device went offline - keeping cached data active.");
-      getCachedEvents().then(cached => {
-        if (cached && cached.length > 0 && events.length === 0) {
-          dispatch(setCachedEvents(cached));
-          setLoading(false);
-        }
-      });
-    };
-
-    const handleOnline = () => {
-      console.log("[Events] Device back online - re-fetching live events from Firestore...");
-      dispatch(fetchEventsThunk(true));
-      dispatch(fetchCategoriesThunk(true));
-    };
-
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('online', handleOnline);
-    return () => {
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [dispatch, events.length]);
-
-  // Track when fresh backend data arrives
-  useEffect(() => {
-    if (rawEvents && rawEvents.length > 0 && !isUsingCachedData) {
-      backendEventsLoadedRef.current = true;
-    }
-  }, [rawEvents, isUsingCachedData]);
-
-  // Subscribe to platform settings from /settings/settings
-  useEffect(() => {
-    let unsubscribe = () => {};
-    try {
-      const docRef = doc(db, 'settings', 'settings');
-      unsubscribe = onSnapshot(
-        docRef,
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setSettingsDoc(docSnap.data());
-          }
-        },
-        (err) => {
-          console.warn("Error subscribing to /settings/settings, attempting getDoc fallback:", err);
-          getDoc(docRef)
-            .then((snap) => {
-              if (snap.exists()) {
-                setSettingsDoc(snap.data());
-              }
-            })
-            .catch((e) => console.error("Fallback getDoc failed for /settings/settings:", e));
-        }
-      );
-    } catch (err) {
-      console.error("Error setting up /settings/settings listener:", err);
-    }
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    // Only show full loading skeleton if we have NO events at all (neither fresh nor cached)
-    const hasAnyEvents = (rawEvents && rawEvents.length > 0) || (events && events.length > 0);
-    if (reduxLoading && !hasAnyEvents) {
-      setLoading(true);
-      const timer = setTimeout(() => {
-        setIsSlowConnection(true);
-      }, 5000);
-      return () => clearTimeout(timer);
-    } else {
-      setLoading(false);
-      setIsSlowConnection(false);
-    }
-  }, [reduxLoading, rawEvents, events.length]);
-
-  useEffect(() => {
-    if (reduxError) {
-      // If we already have events (from cache), don't show full error screen; keep showing cached data!
-      if (events.length > 0 || (rawEvents && rawEvents.length > 0)) {
-        setError(null);
-      } else {
-        getCachedEvents().then(cached => {
-          if (cached && cached.length > 0) {
-            dispatch(setCachedEvents(cached));
-            setError(null);
-            setLoading(false);
-          } else {
-            setError(reduxError);
-          }
-        });
-      }
-    }
-  }, [reduxError, events.length, rawEvents, dispatch]);
-
-  useEffect(() => {
+  const exploreCategories = useMemo(() => {
     let sourceCats = rawCategories;
     if (!sourceCats || sourceCats.length === 0) {
       sourceCats = CATEGORY_STYLES.map(s => ({ name: s.label }));
     }
 
-    const fetchedCats = sourceCats.map((cat, index) => {
+    return sourceCats.map((cat, index) => {
       const name = cat.categoryName || cat.name || cat.title || "Category";
       const nameLower = name.toLowerCase();
 
@@ -806,16 +583,11 @@ const Events = () => {
         glow: style.glow
       };
     });
-    setExploreCategories(fetchedCats);
   }, [rawCategories]);
 
-  useEffect(() => {
+  const { events, recentlyEndedEvents } = useMemo(() => {
     if (!rawEvents || rawEvents.length === 0) {
-      if (!reduxLoading && rawEvents.length === 0) {
-        setEvents([]);
-        setRecentlyEndedEvents([]);
-      }
-      return;
+      return { events: [], recentlyEndedEvents: [] };
     }
 
     try {
@@ -966,8 +738,6 @@ const Events = () => {
         return dateA - dateB;
       });
 
-      setEvents(eventsData);
-
       // Filter and process Recently Ended Events
       const now = new Date();
       const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1004,11 +774,233 @@ const Events = () => {
           return timeB - timeA;
         });
 
-      setRecentlyEndedEvents(recentlyEndedData);
+      return { events: eventsData, recentlyEndedEvents: recentlyEndedData };
     } catch (err) {
       console.error("Error processing events in Redux cache: ", err);
+      return { events: [], recentlyEndedEvents: [] };
     }
-  }, [rawEvents, reduxLoading, userLocation]);
+  }, [rawEvents, userLocation]);
+
+  // Field for 'You just missed' section visibility from /settings/settings (defaults to false)
+  const isHideYouJustMissed = Boolean(
+    settingsDoc && (
+      settingsDoc.isHideYouJustMissed === true ||
+      settingsDoc.isHideYouJustMissed === 'true' ||
+      settingsDoc.hideYouJustMissed === true ||
+      settingsDoc.hideYouJustMissed === 'true' ||
+      settingsDoc.isHideRecentlyEnded === true ||
+      settingsDoc.isHideRecentlyEnded === 'true' ||
+      settingsDoc.hideRecentlyEnded === true ||
+      settingsDoc.hideRecentlyEnded === 'true' ||
+      settingsDoc.isHideRecentlyEndedEvents === true ||
+      settingsDoc.isHideRecentlyEndedEvents === 'true' ||
+      settingsDoc.hideRecentlyEndedEvents === true ||
+      settingsDoc.hideRecentlyEndedEvents === 'true' ||
+      settingsDoc.isHidePreviousWeekEvents === true ||
+      settingsDoc.isHidePreviousWeekEvents === 'true' ||
+      settingsDoc.hidePreviousWeekEvents === true ||
+      settingsDoc.hidePreviousWeekEvents === 'true'
+    )
+  );
+
+  const calendarRef = useRef(null);
+  const searchSectionRef = useRef(null);
+  const sentinelRef = useRef(null);
+
+  // Category slider & Filter bar overflow scroll refs and state (for mobile)
+  const categorySliderRef = useRef(null);
+  const [showCategoryScrollBtn, setShowCategoryScrollBtn] = useState(false);
+  const [isCategoryScrollAtEnd, setIsCategoryScrollAtEnd] = useState(false);
+
+  const checkCategoryOverflow = () => {
+    if (categorySliderRef.current) {
+      const { scrollWidth, clientWidth, scrollLeft } = categorySliderRef.current;
+      setShowCategoryScrollBtn(scrollWidth > clientWidth);
+      setIsCategoryScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
+    }
+  };
+
+  const handleCategoryScroll = () => {
+    if (categorySliderRef.current) {
+      if (isCategoryScrollAtEnd) {
+        categorySliderRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        categorySliderRef.current.scrollBy({ left: 150, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const filterBarRef = useRef(null);
+  const [showFilterScrollBtn, setShowFilterScrollBtn] = useState(false);
+  const [isFilterScrollAtEnd, setIsFilterScrollAtEnd] = useState(false);
+
+  const checkFilterOverflow = () => {
+    if (filterBarRef.current) {
+      const { scrollWidth, clientWidth, scrollLeft } = filterBarRef.current;
+      setShowFilterScrollBtn(scrollWidth > clientWidth);
+      setIsFilterScrollAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
+    }
+  };
+
+  const handleFilterScroll = () => {
+    if (filterBarRef.current) {
+      if (isFilterScrollAtEnd) {
+        filterBarRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        filterBarRef.current.scrollBy({ left: 150, behavior: 'smooth' });
+      }
+    }
+  };
+
+  // Scroll search bar to top when user starts typing
+  useEffect(() => {
+    if (searchQuery.trim() !== "") {
+      const element = searchSectionRef.current;
+      if (element) {
+        const yOffset = -90; // sticky navbar offset + spacing
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    backendEventsLoadedRef.current = false;
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    const loadCache = async () => {
+      try {
+        const [cachedEvts, cachedCats] = await Promise.all([
+          getCachedEvents(),
+          getCachedCategories()
+        ]);
+        if (!backendEventsLoadedRef.current && !isCancelled) {
+          if (cachedEvts && cachedEvts.length > 0) {
+            console.log(`[Events] Displaying ${cachedEvts.length} cached events.`);
+            dispatch(setCachedEvents(cachedEvts));
+            setLoading(false);
+          }
+          if (cachedCats && cachedCats.length > 0) {
+            dispatch(setCachedCategories(cachedCats));
+          }
+        }
+      } catch (e) {
+        console.warn("[Events] Failed to load cached data:", e);
+      }
+    };
+
+    // 1. Immediately read cached data from IndexedDB / localStorage for instant (<15ms) first paint
+    loadCache();
+
+    // 2. Concurrently fetch fresh live data from Firestore in the background
+    if (!isOffline) {
+      dispatch(fetchEventsThunk(false));
+      dispatch(fetchCategoriesThunk(false));
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dispatch]);
+
+  // Track online/offline transitions
+  useEffect(() => {
+    const handleOffline = () => {
+      console.log("[Events] Device went offline - keeping cached data active.");
+      getCachedEvents().then(cached => {
+        if (cached && cached.length > 0 && events.length === 0) {
+          dispatch(setCachedEvents(cached));
+          setLoading(false);
+        }
+      });
+    };
+
+    const handleOnline = () => {
+      console.log("[Events] Device back online - re-fetching live events from Firestore...");
+      dispatch(fetchEventsThunk(true));
+      dispatch(fetchCategoriesThunk(true));
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [dispatch, events.length]);
+
+  // Track when fresh backend data arrives
+  useEffect(() => {
+    if (rawEvents && rawEvents.length > 0 && !isUsingCachedData) {
+      backendEventsLoadedRef.current = true;
+    }
+  }, [rawEvents, isUsingCachedData]);
+
+  // Subscribe to platform settings from /settings/settings
+  useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      const docRef = doc(db, 'settings', 'settings');
+      unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setSettingsDoc(docSnap.data());
+          }
+        },
+        (err) => {
+          console.warn("Error subscribing to /settings/settings, attempting getDoc fallback:", err);
+          getDoc(docRef)
+            .then((snap) => {
+              if (snap.exists()) {
+                setSettingsDoc(snap.data());
+              }
+            })
+            .catch((e) => console.error("Fallback getDoc failed for /settings/settings:", e));
+        }
+      );
+    } catch (err) {
+      console.error("Error setting up /settings/settings listener:", err);
+    }
+    return () => unsubscribe();
+  }, []);
+
+
+  useEffect(() => {
+    // Only show full loading skeleton if we have NO events at all (neither fresh nor cached)
+    const hasAnyEvents = (rawEvents && rawEvents.length > 0) || (events && events.length > 0);
+    if (reduxLoading && !hasAnyEvents) {
+      setLoading(true);
+      const timer = setTimeout(() => {
+        setIsSlowConnection(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setLoading(false);
+      setIsSlowConnection(false);
+    }
+  }, [reduxLoading, rawEvents, events.length]);
+
+  useEffect(() => {
+    if (reduxError) {
+      // If we already have events (from cache), don't show full error screen; keep showing cached data!
+      if (events.length > 0 || (rawEvents && rawEvents.length > 0)) {
+        setError(null);
+      } else {
+        getCachedEvents().then(cached => {
+          if (cached && cached.length > 0) {
+            dispatch(setCachedEvents(cached));
+            setError(null);
+            setLoading(false);
+          } else {
+            setError(reduxError);
+          }
+        });
+      }
+    }
+  }, [reduxError, events.length, rawEvents, dispatch]);
 
   // Request location on mount — triggers browser permission popup after a 5s delay
   useEffect(() => {
@@ -1120,6 +1112,14 @@ const Events = () => {
     if (featuredList.length > 0) return featuredList;
     return events.slice(0, 5);
   }, [events]);
+
+  // Preload top featured hero image for instantaneous Largest Contentful Paint (LCP)
+  useEffect(() => {
+    if (promotedEvents && promotedEvents.length > 0 && promotedEvents[0].image) {
+      const img = new Image();
+      img.src = promotedEvents[0].image;
+    }
+  }, [promotedEvents]);
 
   // New absolute indexing logic for infinite smooth carousel
   const [absoluteIndex, setAbsoluteIndex] = useState(0);
@@ -1987,7 +1987,7 @@ const Events = () => {
                           >
                             <Link to={`/events/${event.id}`} onClick={() => handleEventClick(event)} className="portrait-event-card">
                               <div className="portrait-image-wrapper">
-                                <img src={event.image} alt={event.title} loading="lazy" decoding="async" />
+                                <img src={event.image} alt={event.title} loading={index < 3 ? "eager" : "lazy"} fetchPriority={index < 2 ? "high" : "auto"} decoding="async" />
                                 {event.promoted && (
                                   <span className="featured-badge-small">Featured</span>
                                 )}

@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { saveEventsToCache, saveCategoriesToCache, cacheImageBlob } from '../utils/cacheManager';
+import { saveEventsToCache, saveCategoriesToCache, cacheImageBlob, getEventsLocalStorageFallback, getCategoriesLocalStorageFallback } from '../utils/cacheManager';
 
 export const fetchEventsThunk = createAsyncThunk(
   'events/fetchEvents',
@@ -151,18 +151,21 @@ export const fetchCategoriesThunk = createAsyncThunk(
   }
 );
 
+const preloadedEvents = typeof window !== 'undefined' ? (getEventsLocalStorageFallback() || []) : [];
+const preloadedCategories = typeof window !== 'undefined' ? (getCategoriesLocalStorageFallback() || []) : [];
+
 const eventsSlice = createSlice({
   name: 'events',
   initialState: {
-    events: [],
-    categories: [],
+    events: preloadedEvents,
+    categories: preloadedCategories,
     loading: false,
     categoriesLoading: false,
     error: null,
     categoriesError: null,
     lastFetched: 0,
     categoriesLastFetched: 0,
-    isUsingCachedData: false,
+    isUsingCachedData: preloadedEvents.length > 0,
     isRevalidating: false
   },
   reducers: {

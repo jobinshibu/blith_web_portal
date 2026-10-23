@@ -2,7 +2,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, persistentSingleTabManager, memoryLocalCache } from "firebase/firestore";
 import { initializeAnalytics } from "firebase/analytics";
-import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhWxm7Jx0HNqTuEBS8LEcLtkYhkAwDdac",
@@ -15,7 +14,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 
 // Ensure Google Analytics is active for development testing and DebugView
 if (typeof window !== 'undefined') {
@@ -53,7 +52,6 @@ export const db = initializeFirestore(app, {
 });
 
 
-// Initialize Cloud Functions
-export const functions = getFunctions(app);
+
 
 

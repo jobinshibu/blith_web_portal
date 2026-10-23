@@ -19,12 +19,15 @@ export default defineConfig(({ command }) => ({
     }
   },
   build: {
+    target: 'es2020',
+    cssCodeSplit: true,
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/analytics'],
+          'vendor-firebase-app': ['firebase/app', 'firebase/analytics'],
+          'vendor-firestore': ['firebase/firestore'],
           'vendor-motion': ['framer-motion'],
           'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
           'vendor-icons': ['lucide-react']

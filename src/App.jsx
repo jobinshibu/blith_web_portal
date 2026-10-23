@@ -7,7 +7,9 @@ import ScrollToTop from './components/ScrollToTop'
 import { initLeadTracking } from './services/leadService'
 import './styles/main.scss'
 
-const Events = lazy(() => import('./components/Events/Events'))
+// Preload primary Events component immediately to eliminate router suspense waterfall
+const eventsImportPromise = import('./components/Events/Events');
+const Events = lazy(() => eventsImportPromise);
 const EventDetails = lazy(() => import('./components/Events/EventDetails'))
 const EventBookingPage = lazy(() => import('./components/Events/EventBookingPage'))
 const BookingSuccess = lazy(() => import('./components/Events/BookingSuccess'))

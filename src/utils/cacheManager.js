@@ -188,7 +188,7 @@ export const getCachedEvents = async () => {
   }
 };
 
-const getEventsLocalStorageFallback = () => {
+export const getEventsLocalStorageFallback = () => {
   try {
     const raw = localStorage.getItem('blithe_cached_events_backup');
     if (raw) {
@@ -221,13 +221,41 @@ export const saveCategoriesToCache = async (categories) => {
       tx.onerror = () => reject(tx.error);
     });
     console.log(`[CacheManager] Successfully cached ${categories.length} categories into IndexedDB`);
+
+    // Synchronous localStorage backup for zero-latency initial mount
+    try {
+      localStorage.setItem('blithe_cached_categories_backup', JSON.stringify({
+        data: cleanCats,
+        cachedAt: Date.now()
+      }));
+    } catch (lsErr) {}
   } catch (err) {
-    console.warn('[CacheManager] Failed to cache categories:', err);
+    console.warn('[CacheManager] Failed to cache categories in IndexedDB, saving to localStorage:', err);
+    try {
+      localStorage.setItem('blithe_cached_categories_backup', JSON.stringify({
+        data: sanitizeForStorage(categories),
+        cachedAt: Date.now()
+      }));
+    } catch (e) {}
   }
 };
 
 /**
- * Get cached categories
+ * Synchronous categories fallback from localStorage
+ */
+export const getCategoriesLocalStorageFallback = () => {
+  try {
+    const raw = localStorage.getItem('blithe_cached_categories_backup');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.data)) return parsed.data;
+    }
+  } catch (e) {}
+  return null;
+};
+
+/**
+ * Get cached categories with localStorage fallback
  */
 export const getCachedCategories = async () => {
   try {
@@ -237,16 +265,16 @@ export const getCachedCategories = async () => {
       const store = tx.objectStore(EVENTS_STORE);
       const req = store.get('all_categories');
       req.onsuccess = () => {
-        if (req.result && Array.isArray(req.result.data)) {
+        if (req.result && Array.isArray(req.result.data) && req.result.data.length > 0) {
           resolve(req.result.data);
         } else {
-          resolve(null);
+          resolve(getCategoriesLocalStorageFallback());
         }
       };
-      req.onerror = () => resolve(null);
+      req.onerror = () => resolve(getCategoriesLocalStorageFallback());
     });
   } catch (err) {
-    return null;
+    return getCategoriesLocalStorageFallback();
   }
 };
 

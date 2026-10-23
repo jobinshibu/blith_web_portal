@@ -8,13 +8,15 @@ import './styles/main.scss'
 
 if (typeof window !== 'undefined') {
   window.store = store;
-  console.log(
-    '%c[Memory Cache Ready]%c Type %cstore.getState().events%c in console to inspect in-memory cache',
-    'color: #fff; background: #7C3AED; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-    'color: #7C3AED; font-weight: bold; margin-left: 6px;',
-    'color: #059669; font-weight: bold; font-family: monospace;',
-    'color: #7C3AED;'
-  );
+  if (import.meta.env.DEV) {
+    console.log(
+      '%c[Memory Cache Ready]%c Type %cstore.getState().events%c in console to inspect in-memory cache',
+      'color: #fff; background: #7C3AED; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+      'color: #7C3AED; font-weight: bold; margin-left: 6px;',
+      'color: #059669; font-weight: bold; font-family: monospace;',
+      'color: #7C3AED;'
+    );
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
