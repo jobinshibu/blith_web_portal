@@ -4,6 +4,8 @@ import { Toaster } from 'react-hot-toast'
 import Navbar from './components/Navbar/Navbar'
 import Footer from './components/Footer/Footer'
 import ScrollToTop from './components/ScrollToTop'
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth'
+import { auth } from './firebase'
 import { initLeadTracking } from './services/leadService'
 import './styles/main.scss'
 
@@ -30,6 +32,22 @@ function App() {
 
   React.useEffect(() => {
     initLeadTracking();
+
+    // Ensure an auth session exists on entire site entry (e.g. landing via ads or direct)
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        try {
+          const cred = await signInAnonymously(auth);
+          console.log('[Auth] Anonymous session initialized on site entry:', cred.user.uid);
+        } catch (err) {
+          console.warn('[Auth] Anonymous sign-in failed on site entry:', err);
+        }
+      } else {
+        console.log('[Auth] Active session found on site entry:', user.uid, 'isAnonymous:', user.isAnonymous);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   return (

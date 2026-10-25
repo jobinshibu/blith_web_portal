@@ -2149,12 +2149,6 @@ const EventBookingPage = () => {
 
             transaction.set(userNotiRef, userNotification);
             transaction.set(orgNotiRef, orgNotification);
-
-            // Update pending booking status to confirmed if it exists
-            if (total > 0 && orderId !== "free") {
-              const pendingBookingDocRef = doc(db, "pendingBookings", orderId);
-              transaction.update(pendingBookingDocRef, { status: "confirmed", paymentStatus: "paid" });
-            }
           }
         });
 
