@@ -21,28 +21,61 @@ const createKeywords = (text) => {
  * Generates the setSearch array used for searching users.
  * @param {string} name - User's name
  * @param {string} email - User's email
+ * @param {string} [uid] - User's unique ID
+ * @param {string} [phoneNo] - User's phone number
+ * @param {string} [countryCode="91"] - Country dialing code without '+'
  * @returns {string[]} An array of search keywords
  */
-export const generateSearchKeywords = (name, email) => {
+export const generateSearchKeywords = (name = '', email = '', uid = '', phoneNo = '', countryCode = '91') => {
   const keywords = new Set();
 
-  // Basic prefixes for name parts
-  const nameParts = name.toUpperCase().split(' ');
-  nameParts.forEach(part => {
-    createKeywords(part).forEach(kw => keywords.add(kw));
-  });
+  const cleanName = String(name || '').trim();
+  const cleanEmail = String(email || '').trim();
 
-  // Prefixes for full name
-  createKeywords(name.toUpperCase()).forEach(kw => keywords.add(kw));
+  // Basic prefixes for name parts
+  if (cleanName) {
+    const nameParts = cleanName.toUpperCase().split(/\s+/);
+    nameParts.forEach(part => {
+      if (part) {
+        createKeywords(part).forEach(kw => keywords.add(kw));
+      }
+    });
+
+    // Prefixes for full name
+    createKeywords(cleanName.toUpperCase()).forEach(kw => keywords.add(kw));
+  }
 
   // Prefixes for email
-  createKeywords(email.toUpperCase()).forEach(kw => keywords.add(kw));
+  if (cleanEmail) {
+    createKeywords(cleanEmail.toUpperCase()).forEach(kw => keywords.add(kw));
+  }
 
-  // Prefixes for email + name combination (as seen in the example)
-  createKeywords(`${email.toUpperCase()} ${name.toUpperCase()}`).forEach(kw => keywords.add(kw));
+  // Prefixes for email + name combination
+  if (cleanEmail && cleanName) {
+    createKeywords(`${cleanEmail.toUpperCase()} ${cleanName.toUpperCase()}`).forEach(kw => keywords.add(kw));
+  }
+
+  // Exact User ID (single element in the array)
+  if (uid && String(uid).trim()) {
+    keywords.add(String(uid).trim());
+  }
+
+  // Exact Phone Numbers (single elements: with country code and without country code)
+  if (phoneNo) {
+    const rawDigits = String(phoneNo).replace(/\D/g, '');
+    const clean10Digits = rawDigits.slice(-10);
+    const cleanCC = String(countryCode || '91').replace(/\D/g, '') || '91';
+
+    if (clean10Digits) {
+      keywords.add(clean10Digits);                      // Without country code: "9876543210"
+      keywords.add(`+${cleanCC}${clean10Digits}`);       // With country code (+): "+919876543210"
+      keywords.add(`${cleanCC}${clean10Digits}`);        // With country code: "919876543210"
+    }
+  }
 
   return Array.from(keywords);
 };
+
 
 /**
  * Generates a custom User ID in the format BLU-<timestamp>-<random_up_to_999>
@@ -169,7 +202,8 @@ export const encodeGeohash = (latitude, longitude, precision = 9) => {
  * Creates a default user object with all required schema fields.
  */
 export const createDefaultUserObject = (uid, name, email, phoneNo, otherData = {}) => {
-  const setSearch = generateSearchKeywords(name || '', email || '');
+  const setSearch = generateSearchKeywords(name || '', email || '', uid, phoneNo, otherData.countryCode || "91");
+
 
   let latitude = 0.0;
   let longitude = 0.0;
