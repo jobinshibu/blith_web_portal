@@ -1,7 +1,7 @@
-// ==================== CHANGED: PERFORMANCE OPTIMIZATION ====================
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, persistentSingleTabManager, memoryLocalCache } from "firebase/firestore";
 import { initializeAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhWxm7Jx0HNqTuEBS8LEcLtkYhkAwDdac",
@@ -15,6 +15,8 @@ const firebaseConfig = {
 
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+
 
 // Ensure Google Analytics is active for development testing and DebugView
 if (typeof window !== 'undefined') {
@@ -50,6 +52,8 @@ try {
 export const db = initializeFirestore(app, {
   localCache: localCacheConfig
 });
+
+
 
 
 

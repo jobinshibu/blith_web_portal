@@ -3,9 +3,11 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, X, Plus, Minus, User, Mail, Phone, CreditCard, CheckCircle, ShieldCheck, Info, ArrowLeft, Tag, Lock, Timer, Percent, FileText, AlertTriangle, WifiOff } from 'lucide-react';
 import { collection, query, where, getDocs, setDoc, doc, getDoc, onSnapshot, serverTimestamp, runTransaction } from 'firebase/firestore';
-import { db, analytics } from '../../firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth, analytics } from '../../firebase';
 import { useNetworkStatus, checkIsOnline } from '../../hooks/useNetworkStatus';
 import { logEvent } from 'firebase/analytics';
+
 import { createDefaultUserObject, generateUID, updateUserInterests } from '../../services/userService';
 import { recordUserAdTrafficLog, getAdTrafficInfo, recordUserAdBooking, updateAdBookingStatus, clearAdTrackingSession } from '../../services/leadService';
 import {
@@ -236,11 +238,29 @@ const EventBookingPage = () => {
   const resolvingPromiseRef = useRef(null);
   const adBookingDocIdRef = useRef(null);
 
+  // Ensure Firebase Auth session exists so request.auth != null in Firestore security rules
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (!auth.currentUser) {
+          const cred = await signInAnonymously(auth);
+          console.log('[Auth] Anonymous session initialized:', cred.user.uid);
+        } else {
+          console.log('[Auth] Active auth session found:', auth.currentUser.uid, 'isAnonymous:', auth.currentUser.isAnonymous);
+        }
+      } catch (err) {
+        console.warn('[Auth] Anonymous authentication failed:', err);
+      }
+    };
+    initAuth();
+  }, []);
+
   // Load attendee details from sessionStorage on mount and listen for session changes
   useEffect(() => {
     const syncDetails = () => {
       try {
         const cachedDetails = localStorage.getItem('blithe_checkout_attendee') || sessionStorage.getItem('blithe_checkout_attendee');
+
         if (cachedDetails) {
           const parsed = JSON.parse(cachedDetails);
           const sanitizedPhone = sanitizePhoneNumber(parsed.phone);
@@ -805,11 +825,22 @@ const EventBookingPage = () => {
           return foundUserData.uid;
         } else {
           // User does not exist -> Create NEW user document in the form (only once)
-          const newUid = generateUID();
+          // Ensure we have an active auth UID so request.auth != null and request.auth.uid == newUid
+          let activeAuthUser = auth.currentUser;
+          if (!activeAuthUser) {
+            try {
+              const cred = await signInAnonymously(auth);
+              activeAuthUser = cred.user;
+            } catch (authErr) {
+              console.warn('[User Form] Failed to establish anonymous auth before user creation:', authErr);
+            }
+          }
+          const newUid = activeAuthUser?.uid || generateUID();
           const newDocRef = doc(usersRef, newUid);
           const cleanUserPhone = sanitizePhoneNumber(trimmedPhone);
           const newUserDoc = createDefaultUserObject(newUid, currentAttendee.name, currentAttendee.email, cleanUserPhone);
           await setDoc(newDocRef, newUserDoc);
+
           trackSignup({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
           trackGASignUp({ name: currentAttendee.name, email: currentAttendee.email, method: 'phone_checkout' });
           setGAUserId(newUid);
@@ -915,7 +946,12 @@ const EventBookingPage = () => {
       return;
     }
     const isApplicable = subtotal >= (coupon.minOrderAmount || 0);
-    if (!isApplicable || couponApplyingId === coupon.id) return;
+    if (!isApplicable || couponApplyingId || appliedCoupon) {
+      if (appliedCoupon) {
+        toast.error('A coupon is already applied. Please remove it first to apply another.');
+      }
+      return;
+    }
 
     // Resolve userId first if not yet done (phone or email might not be entered)
     let uId = resolvedUserIdForCoupons;
@@ -3094,7 +3130,7 @@ const EventBookingPage = () => {
                 type="button"
                 onClick={handleCouponSearch}
                 className="coupon-search-btn"
-                disabled={isSearchingCoupon}
+                disabled={isSearchingCoupon || Boolean(appliedCoupon) || Boolean(couponApplyingId)}
               >
                 {isSearchingCoupon ? 'Checking...' : 'Apply'}
               </button>
@@ -3218,7 +3254,7 @@ const EventBookingPage = () => {
                               type="button"
                               className={`coupon-apply-btn ${isApplying ? 'applying' : ''}`}
                               onClick={handleApply}
-                              disabled={isApplying}
+                              disabled={isApplying || Boolean(appliedCoupon) || Boolean(couponApplyingId)}
                             >
                               {isApplying ? '...' : 'APPLY'}
                             </button>

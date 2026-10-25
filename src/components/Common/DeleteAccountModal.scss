@@ -77,6 +77,20 @@
       background: rgba(239, 68, 68, 0.12);
       animation: deletePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
+    &.otp-badge {
+      background: #f5f3ff;
+      border-color: #ede9fe;
+
+      .key-icon {
+        color: #7c3aed;
+        position: relative;
+        z-index: 2;
+      }
+
+      .otp-pulse {
+        background: rgba(124, 58, 237, 0.12);
+      }
+    }
   }
 
   .delete-modal-title {
@@ -94,6 +108,106 @@
     color: #64748b;
     margin: 0 0 1rem;
     line-height: 1.5;
+
+    strong {
+      color: #0f172a;
+      font-weight: 600;
+    }
+  }
+
+  .delete-modal-otp-container {
+    margin: 1.25rem 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+
+    .delete-otp-input {
+      width: 100%;
+      max-width: 240px;
+      padding: 0.75rem 1rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      text-align: center;
+      color: #0f172a;
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 0.75rem;
+      outline: none;
+      transition: all 0.2s ease;
+
+      &::placeholder {
+        font-size: 0.95rem;
+        letter-spacing: normal;
+        font-weight: 500;
+        color: #94a3b8;
+      }
+
+      &:focus {
+        background: #ffffff;
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+      }
+
+      &.has-error {
+        border-color: #ef4444;
+        background: #fff8f8;
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    .delete-otp-error-text {
+      margin: 0;
+      font-size: 0.8rem;
+      color: #ef4444;
+      font-weight: 500;
+    }
+
+    .delete-otp-resend-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+
+      .resend-countdown {
+        font-size: 0.8rem;
+        color: #64748b;
+
+        strong {
+          color: #7c3aed;
+        }
+      }
+
+      .btn-resend-otp {
+        background: transparent;
+        border: none;
+        color: #7c3aed;
+        font-size: 0.825rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+
+        &:hover:not(:disabled) {
+          background: rgba(124, 58, 237, 0.08);
+          color: #6d28d9;
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
   }
 
   .delete-modal-user-summary {
@@ -139,6 +253,31 @@
         &:last-child {
           margin-bottom: 0;
         }
+      }
+    }
+
+    .delete-otp-info-warning {
+      margin-top: 0.85rem;
+      padding: 0.65rem 0.85rem;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      color: #92400e;
+      font-size: 0.81rem;
+      line-height: 1.45;
+
+      .otp-warn-icon {
+        color: #d97706;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      strong {
+        color: #78350f;
+        font-weight: 700;
       }
     }
   }
