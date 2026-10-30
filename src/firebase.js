@@ -2,6 +2,8 @@ import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, persistentSingleTabManager, memoryLocalCache } from "firebase/firestore";
 import { initializeAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhWxm7Jx0HNqTuEBS8LEcLtkYhkAwDdac",
@@ -52,6 +54,36 @@ try {
 export const db = initializeFirestore(app, {
   localCache: localCacheConfig
 });
+
+// App Check Attestation & Security (Monitoring / Enforced Mode)
+let appCheckInstance = null;
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
+
+if (typeof window !== "undefined") {
+  // Automatically activate debug token in local development environment
+  if (import.meta.env.DEV || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+
+  if (recaptchaSiteKey) {
+    try {
+      appCheckInstance = initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true
+      });
+      console.log("[Firebase App Check] Initialized successfully.");
+    } catch (err) {
+      console.warn("[Firebase App Check] Initialization deferred or failed:", err);
+    }
+  } else {
+    console.info(
+      "[Firebase App Check] Setup pending: Provide VITE_RECAPTCHA_SITE_KEY in .env to send attestation tokens."
+    );
+  }
+}
+
+export const appCheck = appCheckInstance;
+
 
 
 
